@@ -16,25 +16,25 @@
 
   <!-- panel tic-tac-toe -->
   <g transform="translate(40,106)">
-    <rect width="400" height="350" rx="12" fill="#0b0b0d" stroke="#27272a"/>
+    <rect width="400" height="350" rx="12" fill="none" stroke="#27272a"/>
     <text x="14" y="26" fill="#16a34a" font-size="12" letter-spacing="1" font-family="Geist Mono, ui-monospace, monospace">TIC-TAC-TOE</text>
     <text x="386" y="26" fill="#a1a1aa" font-size="12" text-anchor="end" text-decoration="underline">tutup</text>
     <text x="14" y="54" fill="#fafafa" font-size="13">kamu X — giliranmu</text>
 
     <g transform="translate(72,68)">
       <g font-family="Geist Mono, ui-monospace, monospace" font-size="24" font-weight="600" text-anchor="middle">
-        <rect x="0" y="0" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
+        <rect x="0" y="0" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
         <text x="36" y="47" fill="#16a34a">X</text>
-        <rect x="84" y="0" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
+        <rect x="84" y="0" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
         <text x="120" y="47" fill="#fafafa">O</text>
-        <rect x="168" y="0" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
-        <rect x="0" y="84" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
-        <rect x="84" y="84" width="72" height="72" rx="8" fill="#000000" stroke="#16a34a"/>
-        <rect x="168" y="84" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
+        <rect x="168" y="0" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
+        <rect x="0" y="84" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
+        <rect x="84" y="84" width="72" height="72" rx="8" fill="none" stroke="#16a34a"/>
+        <rect x="168" y="84" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
         <text x="240" y="131" fill="#fafafa">O</text>
-        <rect x="0" y="168" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
+        <rect x="0" y="168" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
         <text x="36" y="215" fill="#16a34a">X</text>
-        <rect x="168" y="168" width="72" height="72" rx="8" fill="#000000" stroke="#27272a"/>
+        <rect x="168" y="168" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
       </g>
     </g>
 
@@ -47,12 +47,12 @@
 
   <!-- panel tebak angka -->
   <g transform="translate(40,476)">
-    <rect width="400" height="320" rx="12" fill="#0b0b0d" stroke="#27272a"/>
+    <rect width="400" height="320" rx="12" fill="none" stroke="#27272a"/>
     <text x="14" y="26" fill="#16a34a" font-size="12" letter-spacing="1" font-family="Geist Mono, ui-monospace, monospace">TEBAK ANGKA</text>
     <text x="386" y="26" fill="#a1a1aa" font-size="12" text-anchor="end" text-decoration="underline">tutup</text>
     <text x="14" y="54" fill="#fafafa" font-size="13">aku memikirkan angka 1–100…</text>
 
-    <rect x="14" y="70" width="300" height="40" rx="10" fill="#000000" stroke="#27272a"/>
+    <rect x="14" y="70" width="300" height="40" rx="10" fill="none" stroke="#27272a"/>
     <text x="164" y="95" fill="#71717a" font-size="13" text-anchor="middle">1–100</text>
     <rect x="322" y="74" width="64" height="32" rx="8" fill="#16a34a"/>
     <text x="354" y="95" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="500">Kirim</text>
