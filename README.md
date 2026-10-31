@@ -39,6 +39,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Tombol "Ajak teman": bagikan link via share sheet / tersalin otomatis.
 - Bunyi saat ketemu lawan (bisa dimatikan).
 - Blokir permanen: lawan yang diblokir tidak akan dipasangkan lagi.
+- Suit batu-gunting-kertas bareng lawan — skor berjalan tiap ronde.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -112,6 +113,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v23** — reset pilihan tata letak lama (sekali) — pengguna awal yang tersimpan mode split/PiP otomatis dapat default atas-bawah.
 - **v24** — mode atas-bawah memakai proporsi 3/4 maks 400px di semua layar — kamera tidak terpotong di desktop.
 - **v25** — gerbang 18+, tombol ajak teman (share), bunyi saat ketemu lawan (toggle), blokir permanen.
+- **v26** — game suit batu-gunting-kertas 1-on-1 (skor berjalan).
 
 ## Catatan
 
