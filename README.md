@@ -131,6 +131,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v35** — simulasi suara pra-chat di beranda (tombol Coba suara: dengar hasil preset lewat headset sebelum masuk chat), video background beranda (bg.mp4, grayscale, opasitas rendah), simplifikasi beranda (hero & opsi lebih ringkas).
 - **v36** — video background diredupkan (brightness turun, opasitas .14, blur halus, scrim radial) agar teks beranda tetap terbaca jelas.
 - **v37** — video background bersih: grayscale + opasitas .15 saja, tanpa brightness/blur/scrim — abu-abu lembut, teks tetap tajam.
+- **v38** — video background lebih terang: grayscale + brightness 1.25 + opasitas .42 — abu-abu jelas kelihatan, tidak gelap lagi, teks tetap terbaca.
 
 ## Catatan
 
