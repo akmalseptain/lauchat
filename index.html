@@ -299,6 +299,21 @@ const ICE = {
   ],
 }
 
+// ---------- TURN Cloudflare (kredensial harian via Worker, tanpa backend sendiri) ----------
+// Worker memegang TURN key secret; client cuma dapat kredensial segar (umur 24 jam).
+// Kalau Worker gagal, fallback ke STUN di turnConfig atas (perilaku lama).
+const TURN_API = 'https://lauchat-turn.akmalputraseptian.workers.dev/'
+;(async () => {
+  try {
+    const r = await fetch(TURN_API)
+    if (!r.ok) return
+    const d = await r.json()
+    if (Array.isArray(d.iceServers) && d.iceServers.length) {
+      ICE.rtcConfig = {iceServers: d.iceServers}
+    }
+  } catch (e) {}
+})()
+
 // ---------- load Trystero (CDN, tanpa build step) ----------
 let joinRoom = null, selfId = null, net = false
 try {
