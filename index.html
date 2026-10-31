@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LAUCHAT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="manifest" href='data:application/manifest+json,{"name":"LAUCHAT","short_name":"LAUCHAT","start_url":".","display":"standalone","background_color":"%23fafafa","theme_color":"%2316a34a","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 92 64%27%3E%3Crect width=%2792%27 height=%2764%27 fill=%27%2316a34a%27/%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 92 64'%3E%3Cg stroke='%2316a34a' fill='%2316a34a'%3E%3Crect x='7' y='40' width='10' height='14' rx='1.8'/%3E%3Crect x='25' y='32' width='10' height='20' rx='1.8'/%3E%3Crect x='44' y='24' width='10' height='26' rx='1.8'/%3E%3Crect x='63' y='16' width='10' height='32' rx='1.8'/%3E%3Cline x1='4' y1='52' x2='88' y2='6' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Cpolyline points='73,6 88,6 88,21' fill='none' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#16a34a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{
+  --bg:#fafafa; --card:#ffffff; --fg:#0a0a0a; --muted:#71717a;
+  --border:#e4e4e7; --hover:#f4f4f5;
+  --accent:#16a34a; --accent-fg:#ffffff;
+  --ring:rgba(22,163,74,.35);
+  --r:8px; --r-lg:12px;
+}
+.dark{
+  --bg:#09090b; --card:#18181b; --fg:#fafafa; --muted:#a1a1aa;
+  --border:#27272a; --hover:#1f1f23;
+  --accent:#16a34a; --accent-fg:#ffffff;
+  --ring:rgba(34,197,94,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg); color:var(--fg);
+  font-size:14px; line-height:1.5;
+  min-height:100vh; display:flex; flex-direction:column;
+}
+.hidden{display:none!important}
+
+/* ---------- header ---------- */
+header{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 20px;
+  background:color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+}
+.wordmark{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;letter-spacing:-.02em;text-transform:uppercase}
+.wordmark svg{width:22px;height:auto;color:var(--accent)}
+.head-right{display:flex;align-items:center;gap:12px}
+.online{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-family:'Geist Mono',monospace}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.icon-btn{
+  width:34px;height:34px;display:grid;place-items:center;border-radius:var(--r);
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;
+}
+.icon-btn:hover{color:var(--fg);background:var(--hover)}
+
+/* ---------- layout ---------- */
+main{flex:1;width:100%;max-width:560px;margin:0 auto;padding:24px 20px 48px;display:none}
+main.active{display:block;animation:fade .2s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+.hero{margin:40px 0 28px}
+.hero h1{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1.15}
+.hero p{margin-top:10px;color:var(--muted);font-size:14px;max-width:420px}
+
+/* ---------- komponen dasar ---------- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px}
+input,textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
+  padding:0 12px;height:40px;font-size:14px;font-family:inherit;color:var(--fg);outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+textarea{height:auto;min-height:40px;padding:10px 12px;resize:none}
+input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+input::placeholder,textarea::placeholder{color:var(--muted)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:40px;padding:0 16px;border-radius:var(--r);border:1px solid transparent;
+  font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;
+  transition:opacity .15s, background .15s;
+}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn svg{flex:0 0 auto}
+.btn.primary{background:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{opacity:.9}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--border)}
+.btn.ghost:hover{background:var(--hover)}
+.btn.ghost.off{color:var(--muted)}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.btn.icon-only{width:40px;padding:0}
+kbd{
+  border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;
+  padding:0 5px;font-family:'Geist Mono',monospace;font-size:11px;color:var(--muted);
+}
+
+/* ---------- home ---------- */
+.field{margin-bottom:10px}
+.field input{height:42px}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.foot-note{margin-top:16px;text-align:center;color:var(--muted);font-size:12px}
+
+/* ---------- mencari ---------- */
+.center-card{display:flex;flex-direction:column;align-items:center;gap:14px;padding:44px 16px;text-align:center}
+.spinner{width:24px;height:24px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#search-status{font-weight:500}
+#search-sub{color:var(--muted);font-size:13px;max-width:340px}
+#search-pip{width:min(280px,80vw);aspect-ratio:4/3;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border)}
+#search-pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+
+/* ---------- chat ---------- */
+.chat-line{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;font-size:13px;flex-wrap:wrap}
+.chat-line .who{font-weight:600}
+.chat-line .sep{color:var(--muted)}
+.chat-line .st{color:var(--muted)}
+#video-wrap{position:relative;border-radius:var(--r-lg);overflow:hidden;background:#000;aspect-ratio:16/9;border:1px solid var(--border);margin-bottom:12px}
+#remote-video{width:100%;height:100%;object-fit:cover;display:block}
+#remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#8b8b90;font-size:12px;font-family:'Geist Mono',monospace;background:#000;text-align:center;padding:10px}
+#pip{position:absolute;right:10px;bottom:10px;width:110px;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;border:1px solid rgba(255,255,255,.25);background:#000}
+#pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+#pip .off{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#8b8b90;background:#000}
+#messages{
+  min-height:220px;max-height:44vh;overflow-y:auto;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:14px;display:flex;flex-direction:column;gap:8px;
+}
+.msg{max-width:78%;padding:8px 12px;border-radius:var(--r-lg);font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap}
+.msg.me{align-self:flex-end;background:var(--accent);color:var(--accent-fg)}
+.msg.them{align-self:flex-start;background:var(--hover);color:var(--fg)}
+.dark .msg.them{background:#27272a}
+.msg.sys{align-self:center;background:none;color:var(--muted);font-size:12px;padding:2px;font-family:'Geist Mono',monospace}
+#typing-indicator{min-height:20px;padding:4px 2px 0;color:var(--muted);font-size:12px}
+#chat-form{display:flex;gap:8px;margin-top:10px}
+#chat-input{flex:1;max-height:110px;font-size:14px}
+.controls{display:flex;gap:8px;margin-top:10px}
+.controls .btn{flex:1;min-width:0;padding:0 8px;font-size:13.5px}
+.controls .btn svg{display:none}
+@media (min-width:421px){.controls .btn svg{display:block}}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--fg);color:var(--bg);border-radius:var(--r);
+  padding:9px 16px;font-size:13px;z-index:40;max-width:88vw;text-align:center;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+#toast.show{opacity:1}
+#toast.warn{background:#dc2626;color:#fff}
+
+/* ---------- footer ---------- */
+footer{
+  border-top:1px solid var(--border);padding:16px 20px;text-align:center;
+  color:var(--muted);font-size:12px;
+}
+footer b{color:var(--fg);font-weight:600}
+
+@media (max-width:420px){
+  .btn-row{grid-template-columns:1fr}
+  #video-wrap{aspect-ratio:3/4}
+  #chat-input{font-size:16px}
+  main{padding:16px 14px 32px}
+  .hero{margin:16px 0 20px}
+  .online span:last-child{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">
+    <svg viewBox="0 0 92 64" aria-hidden="true"><g stroke="currentColor" fill="currentColor"><rect x="7" y="40" width="10" height="14" rx="1.8"/><rect x="25" y="32" width="10" height="20" rx="1.8"/><rect x="44" y="24" width="10" height="26" rx="1.8"/><rect x="63" y="16" width="10" height="32" rx="1.8"/><line x1="4" y1="52" x2="88" y2="6" stroke-width="2.4" fill="none" stroke-linecap="round"/><polyline points="73,6 88,6 88,21" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+    LAUCHAT
+  </div>
+  <div class="head-right">
+    <span class="online"><span class="dot"></span><span id="online-count">—</span></span>
+    <button class="icon-btn" id="themeBtn" aria-label="Ganti tema">
+      <svg id="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      <svg id="icon-sun" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ============ BERANDA ============ -->
+<main id="view-home" class="active">
+  <div class="hero">
+    <h1>Ngobrol dengan orang asing.</h1>
+    <p>Dipasangkan acak dengan siapa pun yang sedang online. Tanpa akun, tanpa server — koneksi langsung antar perangkat.</p>
+  </div>
+  <div class="card">
+    <div class="field"><input id="nick-input" maxlength="20" placeholder="Nama (opsional)" autocomplete="off" spellcheck="false"></div>
+    <div class="field"><input id="tags-input" maxlength="60" placeholder="Topik, mis. musik, game (opsional)" autocomplete="off" spellcheck="false"></div>
+    <div class="btn-row">
+      <button id="btn-start-text" class="btn primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        Chat teks
+      </button>
+      <button id="btn-start-video" class="btn ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+        Chat video
+      </button>
+    </div>
+  </div>
+  <p class="foot-note">18+ · Tidak dimoderasi · <kbd>Esc</kbd> untuk pindah orang</p>
+</main>
+
+<!-- ============ MENCARI ============ -->
+<main id="view-search">
+  <div class="card center-card">
+    <div class="spinner"></div>
+    <p id="search-status">Mencari orang asing…</p>
+    <p id="search-sub">Menunggu orang lain yang sedang mencari pasangan ngobrol.</p>
+    <div id="search-pip" class="hidden"><video id="self-video-search" autoplay playsinline muted></video></div>
+    <button id="btn-cancel-search" class="btn ghost sm">Batal</button>
+  </div>
+</main>
+
+<!-- ============ OBROLAN ============ -->
+<main id="view-chat">
+  <div class="chat-line">
+    <span class="who" id="partner-label">Orang asing</span>
+    <span class="sep">·</span>
+    <span class="st" id="chat-status">Menyambungkan…</span>
+  </div>
+
+  <div id="video-wrap" class="hidden">
+    <video id="remote-video" autoplay playsinline></video>
+    <div id="remote-placeholder">menunggu video…</div>
+    <div id="pip">
+      <video id="self-video" autoplay playsinline muted></video>
+      <div id="pip-off" class="off hidden">kamera mati</div>
+    </div>
+  </div>
+
+  <div id="messages"></div>
+  <div id="typing-indicator"></div>
+
+  <form id="chat-form">
+    <textarea id="chat-input" rows="1" placeholder="Ketik pesan…"></textarea>
+    <button id="chat-send" class="btn primary icon-only" type="submit" aria-label="Kirim">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+    </button>
+  </form>
+
+  <div class="controls">
+    <button id="btn-cam" class="btn ghost">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+      <span id="cam-label">Kamera</span>
+    </button>
+    <button id="btn-mic" class="btn ghost">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+      <span id="mic-label">Mik</span>
+    </button>
+    <button id="btn-skip" class="btn primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+      <span id="skip-label">Skip</span>
+    </button>
+    <button id="btn-stop" class="btn ghost">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+      <span>Stop</span>
+    </button>
+  </div>
+</main>
+
+<footer>LAUCHAT — P2P, tanpa server. 18+, tidak dimoderasi. <b>AKMALSEPTAIN</b></footer>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+/* =========================================================
+   LAUCHAT — random stranger chat (Omegle/OmeTV style)
+   Serverless: matchmaking & WebRTC signaling via Trystero.
+   ========================================================= */
+
+const APP_ID = 'lauchat-akmal-v1'
+const LOBBY_ROOM = 'lobby-utama-v1'
+const PAIR_PREFIX = 'pair-'
+const MAX_MSG_LEN = 1000
+
+const ICE = {
+  appId: APP_ID,
+  turnConfig: [
+    {urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject'},
+    {urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject'},
+    {urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject'},
+  ],
+}
+
+// ---------- load Trystero (CDN, tanpa build step) ----------
+let joinRoom = null, selfId = null, net = false
+try {
+  const mod = await import('https://esm.run/trystero')
+  joinRoom = mod.joinRoom
+  selfId = mod.selfId
+  net = true
+} catch (e) {
+  const el = document.getElementById('toast')
+  if (el) {
+    el.textContent = 'Koneksi P2P tidak termuat di preview. Unduh file ini lalu buka di peramban.'
+    el.classList.add('show', 'warn')
+  }
+}
+
+// ---------- state ----------
+const state = {
+  mode: 'idle',            // idle | looking | chatting
+  wantVideo: false,
+  partnerId: null,
+  partnerNick: null,
+  partnerConnected: false,
+  pairRoom: null,
+  chatMsg: null,
+  typingAct: null,
+  selfStream: null,
+  camOn: false,
+  micOn: false,
+  streamSent: false,
+  incomingLock: false,
+  pairFailTimer: null,
+  incomingTimer: null,
+}
+
+const lobbyPeers = new Map()   // peerId -> presence data
+const pending = new Map()     // peerId -> {nonce, timer}
+const blacklist = new Set()   // mantan pasangan yang di-skip (sesi ini saja)
+
+// ---------- helpers DOM ----------
+const $ = id => document.getElementById(id)
+const views = { home: $('view-home'), search: $('view-search'), chat: $('view-chat') }
+const msgsEl = $('messages')
+
+function showView(name) {
+  for (const k in views) views[k].classList.toggle('active', k === name)
+  window.scrollTo({top: 0})
+}
+function setStatus(t) { $('chat-status').textContent = t }
+function setSearchStatus(t) { $('search-status').textContent = t }
+
+function toast(text, warn = false, ms = 3000) {
+  const el = $('toast')
+  el.textContent = text
+  el.classList.toggle('warn', warn)
+  el.classList.add('show')
+  clearTimeout(el._t)
+  el._t = setTimeout(() => el.classList.remove('show'), ms)
+}
+
+function myNick() { return $('nick-input').value.trim().slice(0, 20) }
+function myTags() {
+  return $('tags-input').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).slice(0, 5)
+}
+
+function addMsg(kind, text, ts) {
+  const div = document.createElement('div')
+  div.className = 'msg ' + kind
+  const body = document.createElement('span')
+  body.textContent = text
+  div.appendChild(body)
+  if (kind !== 'sys' && ts) {
+    const time = document.createElement('span')
+    time.className = 'time'
+    time.style.display = 'block'
+    time.style.fontSize = '10px'
+    time.style.opacity = '.6'
+    time.style.marginTop = '2px'
+    time.textContent = new Date(ts).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})
+    div.appendChild(time)
+  }
+  msgsEl.appendChild(div)
+  msgsEl.scrollTop = msgsEl.scrollHeight
+}
+function sysMsg(t) { addMsg('sys', t) }
+function clearMsgs() { msgsEl.innerHTML = '' }
+
+// ---------- tema ----------
+function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark)
+  $('icon-moon').classList.toggle('hidden', dark)
+  $('icon-sun').classList.toggle('hidden', !dark)
+  try { localStorage.setItem('lauchat-theme', dark ? 'dark' : 'light') } catch (e) {}
+}
+let savedTheme = null
+try { savedTheme = localStorage.getItem('lauchat-theme') } catch (e) {}
+if (savedTheme === 'dark' || (!savedTheme && matchMedia('(prefers-color-scheme: dark)').matches)) applyTheme(true)
+$('themeBtn').addEventListener('click', () => applyTheme(!document.documentElement.classList.contains('dark')))
+
+// ---------- video helpers ----------
+const remoteAudio = new Audio(); remoteAudio.autoplay = true
+
+function attachRemoteStream(stream) {
+  const rv = $('remote-video'), ph = $('remote-placeholder')
+  if (!stream) {
+    rv.srcObject = null
+    remoteAudio.srcObject = null
+    ph.textContent = 'menunggu video…'
+    ph.classList.remove('hidden')
+    return
+  }
+  rv.srcObject = stream
+  rv.play().catch(() => {})
+  if (stream.getAudioTracks().length) {
+    remoteAudio.srcObject = stream
+    remoteAudio.play().catch(() => {})
+  }
+  if (stream.getVideoTracks().length && stream.getVideoTracks().some(t => t.enabled)) {
+    ph.classList.add('hidden')
+  } else {
+    ph.textContent = 'lawan tidak menyalakan kamera'
+    ph.classList.remove('hidden')
+  }
+}
+
+async function ensureSelfStream(withVideo) {
+  if (state.selfStream) return state.selfStream
+  state.selfStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: withVideo ? {width: {ideal: 1280}, height: {ideal: 720}, facingMode: 'user'} : false,
+  })
+  state.camOn = withVideo
+  state.micOn = true
+  $('self-video').srcObject = state.selfStream
+  $('self-video-search').srcObject = state.selfStream
+  updateDeviceButtons()
+  return state.selfStream
+}
+
+function stopSelfStream() {
+  if (state.selfStream) {
+    state.selfStream.getTracks().forEach(t => t.stop())
+    state.selfStream = null
+  }
+  $('self-video').srcObject = null
+  $('self-video-search').srcObject = null
+  $('pip-off').classList.add('hidden')
+  state.camOn = state.micOn = false
+  updateDeviceButtons()
+}
+
+function updateDeviceButtons() {
+  const hasStream = !!state.selfStream
+  $('btn-cam').classList.toggle('off', hasStream && !state.camOn)
+  $('btn-mic').classList.toggle('off', hasStream && !state.micOn)
+  $('cam-label').textContent = !hasStream ? 'Kamera' : (state.camOn ? 'Kamera on' : 'Kamera off')
+  $('mic-label').textContent = !hasStream ? 'Mik' : (state.micOn ? 'Mik on' : 'Mik off')
+  $('pip-off').classList.toggle('hidden', !hasStream || state.camOn)
+}
+
+// ---------- lobby (ruang tunggu / matchmaking) ----------
+let lobby = null, presence = null, mreq = null, macc = null, mbusy = null
+
+function curPresence() {
+  return { s: state.mode, v: state.wantVideo, n: myNick(), t: myTags() }
+}
+function broadcastPresence() { if (presence) presence.send(curPresence()) }
+
+function updateOnline() {
+  if (!lobby) return
+  const n = Object.keys(lobby.getPeers()).length
+  $('online-count').textContent = n <= 0 ? '0 online' : (n + 1) + ' online'
+}
+
+function ensureLobby() {
+  if (lobby) return lobby
+  lobby = joinRoom(ICE, LOBBY_ROOM)
+  presence = lobby.makeAction('presence')
+  mreq = lobby.makeAction('mreq')
+  macc = lobby.makeAction('macc')
+  mbusy = lobby.makeAction('mbusy')
+
+  lobby.onPeerJoin = id => {
+    lobbyPeers.set(id, null)
+    presence.send(curPresence(), {target: id})
+    updateOnline()
+  }
+  lobby.onPeerLeave = id => {
+    lobbyPeers.delete(id)
+    if (pending.has(id)) clearPending(id)
+    updateOnline()
+  }
+
+  presence.onMessage = (data, {peerId}) => {
+    lobbyPeers.set(peerId, data || {})
+    if (data?.s === 'looking' && state.mode === 'looking' && !state.incomingLock) {
+      maybeInitiate(peerId)
+    }
+  }
+
+  mreq.onMessage = (data, {peerId}) => onMatchReq(data || {}, peerId)
+  macc.onMessage = (data, {peerId}) => onMatchAcc(data || {}, peerId)
+  mbusy.onMessage = (data, {peerId}) => {
+    clearPending(peerId)
+    if (lobbyPeers.has(peerId)) lobbyPeers.set(peerId, {s: 'busy'})
+  }
+  return lobby
+}
+
+// ---------- matching ----------
+function hasSharedTags(peerId) {
+  const mine = myTags()
+  const theirs = lobbyPeers.get(peerId)?.t || []
+  if (!mine.length || !theirs.length) return false
+  return mine.some(t => theirs.includes(t))
+}
+
+// Aturan deterministik: hanya peer dengan selfId LEBIH BESAR yang memulai,
+// supaya tidak dua-duanya menembakkan permintaan secara bersamaan.
+function maybeInitiate(peerId) {
+  if (state.mode !== 'looking' || state.incomingLock) return
+  if (blacklist.has(peerId) || pending.has(peerId)) return
+  if (!(selfId > peerId)) return
+  initiate(peerId)
+}
+
+function initiate(peerId) {
+  const nonce = Math.random().toString(36).slice(2, 10)
+  const timer = setTimeout(() => pending.delete(peerId), 6000)
+  pending.set(peerId, {nonce, timer})
+  mreq.send({t: nonce, n: myNick(), v: state.wantVideo}, {target: peerId})
+}
+
+function clearPending(peerId) {
+  const p = pending.get(peerId)
+  if (p) { clearTimeout(p.timer); pending.delete(peerId) }
+}
+function clearAllPending() {
+  for (const [id] of pending) clearPending(id)
+}
+
+function onMatchReq(data, peerId) {
+  if (blacklist.has(peerId)) { mbusy.send({}, {target: peerId}); return }
+  if (state.mode === 'looking' && !state.incomingLock) {
+    // terima: kunci, buat kode ruang, balas accept lalu masuk ruang privat
+    state.incomingLock = true
+    clearTimeout(state.incomingTimer)
+    state.incomingTimer = setTimeout(() => { state.incomingLock = false }, 12000)
+    const code = Math.random().toString(36).slice(2, 12)
+    macc.send({c: code, n: myNick()}, {target: peerId})
+    startPair(peerId, code, data.n)
+  } else {
+    mbusy.send({}, {target: peerId})
+  }
+}
+
+function onMatchAcc(data, peerId) {
+  if (!pending.has(peerId)) return           // bukan permintaan kita / kedaluwarsa
+  clearPending(peerId)
+  if (state.mode !== 'looking' || state.incomingLock) return
+  startPair(peerId, data.c, data.n)
+}
+
+// ---------- ruang privat 1-on-1 ----------
+function startPair(peerId, code, nick) {
+  state.mode = 'chatting'
+  state.partnerId = peerId
+  state.partnerNick = nick || null
+  state.partnerConnected = false
+  state.streamSent = false
+  clearAllPending()
+  broadcastPresence()
+
+  const room = joinRoom(ICE, PAIR_PREFIX + code)
+  state.pairRoom = room
+  state.chatMsg = room.makeAction('msg')
+  state.typingAct = room.makeAction('typing')
+
+  state.chatMsg.onMessage = (data, {peerId: pid}) => {
+    if (pid === peerId && data?.t) addMsg('them', String(data.t).slice(0, MAX_MSG_LEN), data.ts)
+  }
+  state.typingAct.onMessage = (d, {peerId: pid}) => {
+    if (pid === peerId) showTyping()
+  }
+  room.onPeerStream = (stream, pid) => {
+    if (pid === peerId) attachRemoteStream(stream)
+  }
+  room.onPeerJoin = pid => { if (pid === peerId) onPartnerJoined() }
+  room.onPeerLeave = pid => { if (pid === peerId) onPartnerLeft() }
+
+  openChatUI('Menyambungkan…')
+
+  // jika 15 detik partner tidak muncul → anggap gagal, cari lagi
+  clearTimeout(state.pairFailTimer)
+  state.pairFailTimer = setTimeout(() => {
+    if (!state.partnerConnected && state.mode === 'chatting') {
+      sysMsg('Koneksi gagal. Mencari orang lain…')
+      cleanupPair(false)
+      startLooking(state.wantVideo)
+    }
+  }, 15000)
+}
+
+function onPartnerJoined() {
+  state.partnerConnected = true
+  clearTimeout(state.pairFailTimer)
+  clearTimeout(state.incomingTimer)
+  state.incomingLock = false
+  setStatus('terhubung, katakan hai')
+  sysMsg('Kamu sekarang ngobrol dengan orang asing.')
+  updatePartnerLabel()
+  if (state.selfStream && !state.streamSent) {
+    state.streamSent = true
+    try { state.pairRoom.addStream(state.selfStream, {target: state.partnerId}) } catch (e) {}
+  }
+}
+
+function onPartnerLeft() {
+  if (state.mode !== 'chatting') return
+  sysMsg('Orang asing telah keluar.')
+  setStatus('terputus')
+  cleanupPair(false)
+  state.mode = 'idle'
+  broadcastPresence()
+  $('skip-label').textContent = 'Cari lagi'
+}
+
+function cleanupPair(stopStream) {
+  clearTimeout(state.pairFailTimer)
+  clearTimeout(state.incomingTimer)
+  state.incomingLock = false
+  if (state.pairRoom) { try { state.pairRoom.leave() } catch (e) {} }
+  state.pairRoom = null
+  state.chatMsg = null
+  state.typingAct = null
+  state.partnerId = null
+  state.partnerNick = null
+  state.partnerConnected = false
+  state.streamSent = false
+  clearAllPending()
+  attachRemoteStream(null)
+  $('typing-indicator').textContent = ''
+  if (stopStream) stopSelfStream()
+}
+
+// ---------- alur utama ----------
+async function startLooking(video) {
+  if (!net) {
+    toast('Engine P2P belum termuat. Unduh file ini lalu buka di peramban.', true, 5000)
+    return
+  }
+  state.wantVideo = video
+  if (video && !state.selfStream) {
+    try {
+      await ensureSelfStream(true)
+    } catch (e) {
+      toast('Chat video butuh izin kamera & mikrofon.', true, 4000)
+      return
+    }
+  }
+  ensureLobby()
+  state.mode = 'looking'
+  clearMsgs()
+  $('skip-label').textContent = 'Skip'
+  broadcastPresence()
+  showView('search')
+  $('search-pip').classList.toggle('hidden', !state.selfStream)
+  setSearchStatus(video ? 'Mencari orang asing dengan kamera…' : 'Mencari orang asing…')
+  // cek kandidat yang sudah ada sekarang
+  const cands = [...lobbyPeers.entries()].filter(([, ps]) => ps?.s === 'looking')
+  // prioritaskan yang topiknya sama
+  cands.sort((a, b) => (hasSharedTags(b[0]) ? 1 : 0) - (hasSharedTags(a[0]) ? 1 : 0))
+  for (const [pid] of cands) maybeInitiate(pid)
+}
+
+function cancelLooking() {
+  state.mode = 'idle'
+  broadcastPresence()
+  stopSelfStream()
+  showView('home')
+}
+
+function skip() {
+  if (state.mode === 'chatting') {
+    if (state.partnerId) blacklist.add(state.partnerId)
+    sysMsg('Kamu memutuskan koneksi.')
+    cleanupPair(false)
+    startLooking(state.wantVideo)
+  } else if (state.mode === 'idle') {
+    // habis ditinggal partner → cari lagi
+    startLooking(state.wantVideo)
+  }
+}
+
+function stopAll() {
+  cleanupPair(true)
+  state.mode = 'idle'
+  state.wantVideo = false
+  broadcastPresence()
+  clearMsgs()
+  showView('home')
+}
+
+function openChatUI(statusText) {
+  showView('chat')
+  setStatus(statusText)
+  updatePartnerLabel()
+  const showVideo = state.wantVideo || !!state.selfStream
+  $('video-wrap').classList.toggle('hidden', !showVideo)
+  if (!showVideo) attachRemoteStream(null)
+  updateDeviceButtons()
+  if (matchMedia('(min-width: 421px)').matches) $('chat-input').focus()
+}
+
+function updatePartnerLabel() {
+  $('partner-label').textContent = state.partnerNick
+    ? 'Orang asing: ' + state.partnerNick
+    : 'Orang asing'
+}
+
+// ---------- typing indicator ----------
+let typingTimer = null
+function showTyping() {
+  $('typing-indicator').textContent = 'sedang mengetik…'
+  clearTimeout(typingTimer)
+  typingTimer = setTimeout(() => { $('typing-indicator').textContent = '' }, 2500)
+}
+
+// ---------- kirim pesan ----------
+function sendChat() {
+  const input = $('chat-input')
+  const text = input.value.trim().slice(0, MAX_MSG_LEN)
+  if (!text || state.mode !== 'chatting' || !state.chatMsg) return
+  state.chatMsg.send({t: text, ts: Date.now()}, {target: state.partnerId})
+  addMsg('me', text, Date.now())
+  input.value = ''
+  input.style.height = 'auto'
+  $('typing-indicator').textContent = ''
+}
+
+// ---------- toggle kamera / mik ----------
+async function toggleCam() {
+  try {
+    if (!state.selfStream) {
+      await ensureSelfStream(true)
+      $('video-wrap').classList.remove('hidden')
+      if (state.pairRoom && state.partnerId) {
+        state.streamSent = true
+        state.pairRoom.addStream(state.selfStream, {target: state.partnerId})
+      }
+    } else {
+      const track = state.selfStream.getVideoTracks()[0]
+      if (track) {
+        track.enabled = !track.enabled
+        state.camOn = track.enabled
+      } else {
+        // stream audio-only: ambil video terpisah lalu kirim sebagai stream tambahan
+        const v = await navigator.mediaDevices.getUserMedia({video: true})
+        v.getVideoTracks().forEach(t => state.selfStream.addTrack(t))
+        state.camOn = true
+        if (state.pairRoom && state.partnerId) state.pairRoom.addStream(v, {target: state.partnerId})
+      }
+      if (state.pairRoom && state.partnerId && state.streamSent) {
+        // pastikan lawan menerima perubahan
+        state.pairRoom.addStream(state.selfStream, {target: state.partnerId})
+      }
+    }
+    updateDeviceButtons()
+  } catch (e) {
+    toast('Tidak bisa mengakses kamera.', true)
+  }
+}
+
+async function toggleMic() {
+  try {
+    if (!state.selfStream) {
+      await ensureSelfStream(false)
+      if (state.pairRoom && state.partnerId) {
+        state.streamSent = true
+        state.pairRoom.addStream(state.selfStream, {target: state.partnerId})
+      }
+    } else {
+      const track = state.selfStream.getAudioTracks()[0]
+      if (track) { track.enabled = !track.enabled; state.micOn = track.enabled }
+    }
+    updateDeviceButtons()
+  } catch (e) {
+    toast('Tidak bisa mengakses mikrofon.', true)
+  }
+}
+
+// ---------- wiring UI ----------
+$('btn-start-text').addEventListener('click', () => startLooking(false))
+$('btn-start-video').addEventListener('click', () => startLooking(true))
+$('btn-cancel-search').addEventListener('click', cancelLooking)
+$('btn-skip').addEventListener('click', skip)
+$('btn-stop').addEventListener('click', stopAll)
+$('btn-cam').addEventListener('click', toggleCam)
+$('btn-mic').addEventListener('click', toggleMic)
+
+$('chat-form').addEventListener('submit', e => { e.preventDefault(); sendChat() })
+
+const chatInput = $('chat-input')
+let lastTypingSent = 0
+chatInput.addEventListener('input', () => {
+  chatInput.style.height = 'auto'
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 110) + 'px'
+  const now = Date.now()
+  if (now - lastTypingSent > 1500 && state.typingAct && state.mode === 'chatting') {
+    lastTypingSent = now
+    state.typingAct.send({}, {target: state.partnerId})
+  }
+})
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    sendChat()
+  }
+})
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && views.chat.classList.contains('active')) skip()
+})
+
+window.addEventListener('beforeunload', () => {
+  try { cleanupPair(true); if (lobby) lobby.leave() } catch (e) {}
+})
+
+// ---------- monitor online ----------
+setInterval(updateOnline, 4000)
+if (net) { ensureLobby(); updateOnline() }
+updateDeviceButtons()
+</script>
+</body>
+</html>
