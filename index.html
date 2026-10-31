@@ -174,6 +174,18 @@ kbd{
 #ttt-grid button{height:64px;font-family:'VT323',monospace;font-size:38px;line-height:1;background:#000;border:1px solid var(--border);border-radius:4px;color:var(--accent);cursor:pointer;padding:0}
 #ttt-grid button.o{color:var(--fg)}
 #ttt-grid button:not(:disabled):hover{border-color:var(--accent)}
+.msg.img{padding:3px}
+.msg.img a{display:block}
+.msg.img img{max-width:220px;max-height:220px;border-radius:10px;display:block}
+.quiz-q{font-size:14px;margin:6px 0 0}
+.quiz-opts{display:grid;gap:6px;margin-top:8px}
+.quiz-opts button{display:flex;align-items:center;gap:8px;background:#000;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--fg);font-size:13.5px;cursor:pointer;text-align:left}
+.quiz-opts button b{font-family:'VT323',monospace;font-size:16px;color:var(--accent);font-weight:400;flex:none}
+.quiz-opts button:disabled{cursor:default;opacity:.55}
+.quiz-opts button.pick{border-color:var(--accent);opacity:1}
+.quiz-opts button.ok{border-color:var(--accent);opacity:1}
+.quiz-opts button.bad{border-color:#dc2626;opacity:.9}
+.quiz-score{margin-top:10px;font-family:'VT323',monospace;font-size:15px;line-height:1.5;color:var(--fg)}
 #messages{
   min-height:220px;max-height:44vh;overflow-y:auto;
   background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
@@ -356,10 +368,14 @@ footer b{color:var(--fg);font-weight:600}
 
   <form id="chat-form">
     <textarea id="chat-input" rows="1" placeholder="Ketik pesan…"></textarea>
+    <button id="btn-attach" class="btn ghost icon-only" type="button" aria-label="Kirim gambar" title="Kirim gambar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+    </button>
     <button id="chat-send" class="btn primary icon-only" type="submit" aria-label="Kirim">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
     </button>
   </form>
+  <input type="file" id="file-input" accept="image/*" class="hidden" aria-hidden="true" tabindex="-1">
 
   <div class="controls">
     <button id="btn-cam" class="btn ghost">
@@ -369,6 +385,10 @@ footer b{color:var(--fg);font-weight:600}
     <button id="btn-mic" class="btn ghost">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
       <span id="mic-label">Mik</span>
+    </button>
+    <button id="btn-screen" class="btn ghost" type="button" title="Bagikan layar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M12 16v3"/><path d="M8 19h8"/><path d="m8 8 4-4 4 4"/><path d="M12 4v5"/></svg>
+      <span id="screen-label">Layar</span>
     </button>
     <button id="btn-skip" class="btn primary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
@@ -393,6 +413,7 @@ footer b{color:var(--fg);font-weight:600}
   <div id="game-bar">
     <button id="btn-game-guess" class="btn ghost sm" type="button">Tebak Angka</button>
     <button id="btn-game-ttt" class="btn ghost sm" type="button">Tic-tac-toe</button>
+    <button id="btn-game-quiz" class="btn ghost sm" type="button">Kuis 1001</button>
   </div>
   <div id="game-panel" class="hidden">
     <div class="game-head">
@@ -405,14 +426,22 @@ footer b{color:var(--fg);font-weight:600}
   <div id="room-messages"></div>
   <form id="room-form">
     <textarea id="room-input" rows="1" placeholder="Ketik pesan…"></textarea>
+    <button id="btn-room-attach" class="btn ghost icon-only" type="button" aria-label="Kirim gambar" title="Kirim gambar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+    </button>
     <button class="btn primary icon-only" type="submit" aria-label="Kirim">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
     </button>
   </form>
+  <input type="file" id="room-file-input" accept="image/*" class="hidden" aria-hidden="true" tabindex="-1">
   <div class="controls">
     <button id="btn-room-cam" class="btn ghost" type="button">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
       <span id="room-cam-label">Kamera</span>
+    </button>
+    <button id="btn-room-screen" class="btn ghost" type="button" title="Bagikan layar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M12 16v3"/><path d="M8 19h8"/><path d="m8 8 4-4 4 4"/><path d="M12 4v5"/></svg>
+      <span id="room-screen-label">Layar</span>
     </button>
     <button id="btn-room-leave" class="btn ghost" type="button">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
@@ -499,6 +528,9 @@ const state = {
   locAct: null,
   partnerLoc: null,
   selfStream: null,
+  displayStream: null,
+  imgAct: null,
+  scrAct: null,
   camOn: false,
   micOn: false,
   streamSent: false,
@@ -994,6 +1026,8 @@ function startPair(peerId, code, nick) {
   state.chatMsg = room.makeAction('msg')
   state.typingAct = room.makeAction('typing')
   state.locAct = room.makeAction('loc')
+  state.imgAct = room.makeAction('img')
+  state.scrAct = room.makeAction('scr')
   state.partnerLoc = null
   $('loc-map').classList.add('hidden')
   $('loc-iframe').removeAttribute('src')
@@ -1015,6 +1049,12 @@ function startPair(peerId, code, nick) {
       state.partnerLoc = {lat: d.lat, lon: d.lon}
       renderPartnerLoc()
     }
+  }
+  state.imgAct.onMessage = (data, {peerId: pid}) => {
+    if (pid === peerId && data instanceof Uint8Array) addImgMsg('them', imgBlobUrl(data))
+  }
+  state.scrAct.onMessage = (d, {peerId: pid}) => {
+    if (pid === peerId && d && d.on === false && !d.cam) attachRemoteStream(null)
   }
   room.onPeerStream = (stream, pid) => {
     if (pid === peerId) attachRemoteStream(stream)
@@ -1068,12 +1108,15 @@ function cleanupPair(stopStream) {
   clearTimeout(state.incomingTimer)
   clearTimeout(state.locWaitTimer)
   stopAiDetect()
+  stopPairScreen()
   state.incomingLock = false
   if (state.pairRoom) { try { state.pairRoom.leave() } catch (e) {} }
   state.pairRoom = null
   state.chatMsg = null
   state.typingAct = null
   state.locAct = null
+  state.imgAct = null
+  state.scrAct = null
   state.partnerLoc = null
   state.partnerId = null
   state.partnerNick = null
@@ -1087,13 +1130,93 @@ function cleanupPair(stopStream) {
   if (stopStream) stopSelfStream()
 }
 
+// ---------- kirim gambar & share layar ----------
+function imgBlobUrl(u8) { return URL.createObjectURL(new Blob([u8], {type: 'image/jpeg'})) }
+
+async function compressImageFile(file) {
+  const img = new Image()
+  const url = URL.createObjectURL(file)
+  try {
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url })
+    const scale = Math.min(1, 1024 / Math.max(img.width, img.height))
+    const cv = document.createElement('canvas')
+    cv.width = Math.max(1, Math.round(img.width * scale))
+    cv.height = Math.max(1, Math.round(img.height * scale))
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height)
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.72))
+    if (!blob) throw new Error('encode gagal')
+    return new Uint8Array(await blob.arrayBuffer())
+  } finally { URL.revokeObjectURL(url) }
+}
+
+function addImgMsg(kind, url) {
+  const div = document.createElement('div')
+  div.className = 'msg ' + kind + ' img'
+  const a = document.createElement('a')
+  a.href = url; a.target = '_blank'; a.rel = 'noopener'
+  const im = document.createElement('img')
+  im.src = url; im.alt = 'gambar terkirim'
+  a.appendChild(im)
+  div.appendChild(a)
+  msgsEl.appendChild(div)
+  msgsEl.scrollTop = msgsEl.scrollHeight
+}
+
+async function pickAndSendImage(kind) {
+  const file = kind === 'room' ? $('room-file-input').files[0] : $('file-input').files[0]
+  if (kind === 'room') $('room-file-input').value = ''
+  else $('file-input').value = ''
+  if (!file) return
+  if (!/^image\//.test(file.type)) { toast('Hanya file gambar.', true); return }
+  if (file.size > 15 * 1024 * 1024) { toast('Gambar terlalu besar (maks 15 MB).', true); return }
+  let u8
+  try { u8 = await compressImageFile(file) } catch (e) { toast('Gagal memproses gambar.', true); return }
+  try {
+    if (kind === 'room') {
+      if (!roomState.room) return
+      roomState.imgAct.send(u8)
+      addRoomImgMsg('me', '', imgBlobUrl(u8))
+    } else {
+      if (!state.pairRoom || !state.partnerConnected) { toast('Hubungkan dulu dengan lawan.', true); return }
+      state.imgAct.send(u8, {target: state.partnerId})
+      addImgMsg('me', imgBlobUrl(u8))
+    }
+  } catch (e) { toast('Gagal mengirim gambar.', true) }
+}
+
+// -- share layar: chat 1-on-1 --
+async function togglePairScreen() {
+  if (!state.pairRoom) { toast('Hubungkan dulu dengan lawan.', true); return }
+  if (state.displayStream) { stopPairScreen(); return }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast('Share layar tidak didukung browser ini.', true); return }
+  try { state.displayStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: false}) } catch (e) { return }
+  try { state.pairRoom.addStream(state.displayStream, {target: state.partnerId}) } catch (e) {}
+  $('self-video').srcObject = state.displayStream
+  state.displayStream.getVideoTracks()[0].addEventListener('ended', stopPairScreen)
+  $('screen-label').textContent = 'Berhenti'
+  $('btn-screen').classList.add('off')
+}
+
+function stopPairScreen() {
+  if (state.displayStream) {
+    state.displayStream.getTracks().forEach(t => t.stop())
+    state.displayStream = null
+  }
+  if (state.scrAct) { try { state.scrAct.send({on: false, cam: !!state.selfStream}) } catch (e) {} }
+  $('self-video').srcObject = state.selfStream
+  if (state.pairRoom && state.selfStream) { try { state.pairRoom.addStream(state.selfStream, {target: state.partnerId}) } catch (e) {} }
+  $('screen-label').textContent = 'Layar'
+  $('btn-screen').classList.remove('off')
+}
+
 // ---------- room privat: grup chat + game (lewat kode, tanpa random pool) ----------
 const ROOM_PREFIX = 'priv-'
 const roomMsgsEl = $('room-messages')
 const roomState = {
-  room: null, code: '', chat: null, meta: null, gameAct: null,
+  room: null, code: '', chat: null, meta: null, gameAct: null, imgAct: null,
   peers: new Map(), videos: new Map(), cam: false,
-  game: { type: null, hostId: null, secret: 0, ttt: null },
+  screen: false, screenStream: null,
+  game: { type: null, hostId: null, secret: 0, ttt: null, quiz: null },
 }
 
 function pidTag(pid) {
@@ -1124,6 +1247,25 @@ function roomGameLog(t) {
   d.textContent = t
   log.appendChild(d)
   log.scrollTop = log.scrollHeight
+}
+
+function addRoomImgMsg(kind, who, url) {
+  const div = document.createElement('div')
+  div.className = 'msg ' + kind + ' img'
+  if (kind === 'them' && who) {
+    const w = document.createElement('span')
+    w.className = 'who'
+    w.textContent = who
+    div.appendChild(w)
+  }
+  const a = document.createElement('a')
+  a.href = url; a.target = '_blank'; a.rel = 'noopener'
+  const im = document.createElement('img')
+  im.src = url; im.alt = 'gambar terkirim'
+  a.appendChild(im)
+  div.appendChild(a)
+  roomMsgsEl.appendChild(div)
+  roomMsgsEl.scrollTop = roomMsgsEl.scrollHeight
 }
 
 function updateRoomMembers() {
@@ -1170,7 +1312,8 @@ function joinPrivateRoom(rawCode) {
   requestMyLoc()
   roomState.code = code
   roomState.peers = new Map()
-  roomState.game = { type: null, hostId: null, secret: 0, ttt: null }
+  clearQuizTimers()
+  roomState.game = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
   roomMsgsEl.innerHTML = ''
   hideGamePanel()
   $('room-videos').classList.add('hidden')
@@ -1180,18 +1323,26 @@ function joinPrivateRoom(rawCode) {
   roomState.chat = room.makeAction('chat')
   roomState.meta = room.makeAction('meta')
   roomState.gameAct = room.makeAction('game')
+  roomState.imgAct = room.makeAction('img')
 
   roomState.chat.onMessage = (data, {peerId}) => {
     if (data?.t) addRoomMsg('them', pidTag(peerId), String(data.t).slice(0, MAX_MSG_LEN))
+  }
+  roomState.imgAct.onMessage = (data, {peerId}) => {
+    if (data instanceof Uint8Array) addRoomImgMsg('them', pidTag(peerId), imgBlobUrl(data))
   }
   roomState.meta.onMessage = (data, {peerId}) => {
     const isNew = !roomState.peers.has(peerId)
     const p = roomState.peers.get(peerId) || {}
     p.n = (data && data.n) || p.n || null
     p.cam = !!(data && data.c)
+    p.s = !!(data && data.s)
     roomState.peers.set(peerId, p)
     const v = roomState.videos.get(peerId)
-    if (v) { v.tag.textContent = pidTag(peerId); if (!p.cam) v.off.classList.remove('hidden') }
+    if (v) {
+      v.tag.textContent = pidTag(peerId) + (p.s ? ' · layar' : '')
+      if (!p.cam && !p.s) v.off.classList.remove('hidden')
+    }
     if (isNew) roomSys(pidTag(peerId) + ' masuk.')
     updateRoomMembers()
   }
@@ -1201,8 +1352,8 @@ function joinPrivateRoom(rawCode) {
     v.off.classList.add('hidden')
   }
   room.onPeerJoin = pid => {
-    roomState.peers.set(pid, {n: null, cam: false})
-    try { roomState.meta.send({n: myNick(), c: roomState.cam}, {target: pid}) } catch (e) {}
+    roomState.peers.set(pid, {n: null, cam: false, s: false})
+    try { roomState.meta.send({n: myNick(), c: roomState.cam, s: roomState.screen}, {target: pid}) } catch (e) {}
     if (roomState.cam && state.selfStream) { try { room.addStream(state.selfStream, {target: pid}) } catch (e) {} }
     updateRoomMembers()
   }
@@ -1238,7 +1389,7 @@ async function toggleRoomCam() {
     roomState.cam = false
     stopSelfStream()
     roomVideoRemove(selfId)
-    try { roomState.meta.send({n: myNick(), c: false}) } catch (e) {}
+    try { roomState.meta.send({n: myNick(), c: false, s: roomState.screen}) } catch (e) {}
     roomSys('kameramu mati')
   } else {
     try { await ensureSelfStream(true) } catch (e) { toast('Kamera tidak tersedia / izin ditolak.', true, 4000); return }
@@ -1246,7 +1397,7 @@ async function toggleRoomCam() {
     const v = roomVideoEnsure(selfId)
     v.video.srcObject = state.selfStream
     v.off.classList.add('hidden')
-    try { roomState.meta.send({n: myNick(), c: true}) } catch (e) {}
+    try { roomState.meta.send({n: myNick(), c: true, s: roomState.screen}) } catch (e) {}
     for (const pid in roomState.room.getPeers()) { try { roomState.room.addStream(state.selfStream, {target: pid}) } catch (e) {} }
     roomSys('kameramu nyala')
   }
@@ -1254,9 +1405,45 @@ async function toggleRoomCam() {
   $('btn-room-cam').classList.toggle('off', !roomState.cam)
 }
 
+// -- share layar: room privat --
+async function toggleRoomScreen() {
+  if (!roomState.room) return
+  if (roomState.screen) { stopRoomScreen(); return }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast('Share layar tidak didukung browser ini.', true); return }
+  try { roomState.screenStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: false}) } catch (e) { return }
+  roomState.screen = true
+  const v = roomVideoEnsure(selfId)
+  v.video.srcObject = roomState.screenStream
+  v.video.classList.remove('mirror')
+  v.off.classList.add('hidden')
+  for (const pid in roomState.room.getPeers()) { try { roomState.room.addStream(roomState.screenStream, {target: pid}) } catch (e) {} }
+  try { roomState.meta.send({n: myNick(), c: roomState.cam, s: true}) } catch (e) {}
+  roomState.screenStream.getVideoTracks()[0].addEventListener('ended', stopRoomScreen)
+  $('room-screen-label').textContent = 'Berhenti'
+  $('btn-room-screen').classList.add('off')
+}
+
+function stopRoomScreen() {
+  const was = roomState.screenStream
+  roomState.screen = false
+  roomState.screenStream = null
+  if (was) was.getTracks().forEach(t => t.stop())
+  try { roomState.meta.send({n: myNick(), c: roomState.cam, s: false}) } catch (e) {}
+  const v = roomState.videos.get(selfId)
+  if (v) {
+    if (roomState.cam && state.selfStream) { v.video.srcObject = state.selfStream; v.video.classList.add('mirror') }
+    else roomVideoRemove(selfId)
+  }
+  $('room-screen-label').textContent = 'Layar'
+  $('btn-room-screen').classList.remove('off')
+}
+
 function leaveRoom(showHome) {
+  clearQuizTimers()
   if (roomState.room) { try { roomState.room.leave() } catch (e) {} }
-  roomState.room = null; roomState.chat = null; roomState.meta = null; roomState.gameAct = null
+  if (roomState.screenStream) { roomState.screenStream.getTracks().forEach(t => t.stop()); roomState.screenStream = null }
+  roomState.screen = false
+  roomState.room = null; roomState.chat = null; roomState.meta = null; roomState.gameAct = null; roomState.imgAct = null
   roomState.code = ''
   roomState.peers = new Map()
   ;[...roomState.videos.keys()].forEach(roomVideoRemove)
@@ -1390,6 +1577,172 @@ function renderTtt() {
   body.appendChild(st)
 }
 
+// -- kuis 1001: host memberi soal, semua jawab, jawaban benar +10 poin --
+const QUIZ_LEN = 8
+const QUIZ_BANK = [
+  {q: 'Ibu kota Indonesia adalah…', o: ['Jakarta', 'Bandung', 'Surabaya', 'Medan'], c: 0},
+  {q: 'Gunung tertinggi di dunia adalah…', o: ['K2', 'Everest', 'Semeru', 'Kilimanjaro'], c: 1},
+  {q: 'Planet terdekat dari Matahari adalah…', o: ['Venus', 'Mars', 'Merkurius', 'Bumi'], c: 2},
+  {q: 'Pulau terbesar di dunia adalah…', o: ['Papua', 'Kalimantan', 'Greenland', 'Sumatera'], c: 2},
+  {q: 'Sungai terpanjang di Indonesia adalah…', o: ['Musi', 'Mahakam', 'Bengawan Solo', 'Kapuas'], c: 3},
+  {q: 'Lambang kimia air adalah…', o: ['H2O', 'CO2', 'O2', 'NaCl'], c: 0},
+  {q: 'Indonesia merdeka pada tahun…', o: ['1942', '1945', '1949', '1950'], c: 1},
+  {q: 'Presiden pertama Indonesia adalah…', o: ['Moh. Hatta', 'Suharto', 'Soekarno', 'Habibie'], c: 2},
+  {q: 'Mata uang Jepang adalah…', o: ['Won', 'Yuan', 'Yen', 'Ringgit'], c: 2},
+  {q: 'Jumlah sudut dalam sebuah segitiga adalah…', o: ['90 derajat', '180 derajat', '270 derajat', '360 derajat'], c: 1},
+  {q: 'Negara terluas di dunia adalah…', o: ['China', 'Kanada', 'Amerika Serikat', 'Rusia'], c: 3},
+  {q: 'Jumlah pemain satu tim sepak bola di lapangan adalah…', o: ['9 orang', '10 orang', '11 orang', '12 orang'], c: 2},
+  {q: 'Warna ketiga pelangi setelah merah dan jingga adalah…', o: ['Hijau', 'Kuning', 'Biru', 'Ungu'], c: 1},
+  {q: 'Buah yang dijuluki "raja buah" adalah…', o: ['Manggis', 'Durian', 'Rambutan', 'Salak'], c: 1},
+  {q: 'Ibu kota Jepang adalah…', o: ['Kyoto', 'Osaka', 'Nagoya', 'Tokyo'], c: 3},
+  {q: 'Mamalia terbesar di dunia adalah…', o: ['Paus biru', 'Gajah afrika', 'Hiu paus', 'Jerapah'], c: 0},
+  {q: 'Satu kilogram sama dengan…', o: ['100 gram', '500 gram', '1000 gram', '10000 gram'], c: 2},
+  {q: 'Hari lahir Pancasila diperingati setiap tanggal…', o: ['1 Juni', '17 Agustus', '10 November', '28 Oktober'], c: 0},
+  {q: 'Mamalia tercepat di darat adalah…', o: ['Kuda', 'Cheetah', 'Antelopa', 'Anjing'], c: 1},
+  {q: 'Jumlah tulang tubuh manusia dewasa adalah…', o: ['186', '196', '206', '216'], c: 2},
+]
+
+function newQuizState() {
+  return {no: 0, lastQi: null, asked: [], answered: {}, selfPick: null, revealed: false, done: false, sc: {}, dlLeft: 0, timer: null, cd: null, nextTimer: null, endTimer: null}
+}
+function clearQuizTimers() {
+  const Q = roomState.game && roomState.game.quiz
+  if (Q) {
+    clearTimeout(Q.timer); clearTimeout(Q.nextTimer); clearTimeout(Q.endTimer); clearInterval(Q.cd)
+    Q.timer = Q.cd = Q.nextTimer = Q.endTimer = null
+  }
+}
+function quizWinner(sc) {
+  let best = null, pts = -1
+  for (const pid in sc) if (sc[pid] > pts) { pts = sc[pid]; best = pid }
+  return best
+}
+
+function startQuizGame() {
+  if (!roomState.room) return
+  clearQuizTimers()
+  roomState.game = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
+  try { roomState.gameAct.send({t: 'q-open'}) } catch (e) {}
+  showGamePanel('KUIS 1001')
+  roomGameLog('kuis dimulai — ' + QUIZ_LEN + ' soal, jawaban benar +10 poin')
+  quizNextQuestion()
+}
+
+function quizNextQuestion() {
+  const g = roomState.game, Q = g.quiz
+  if (!Q || g.hostId !== selfId) return
+  clearQuizTimers()
+  Q.no++
+  let qi
+  do { qi = Math.floor(Math.random() * QUIZ_BANK.length) } while (Q.asked.includes(qi))
+  Q.asked.push(qi)
+  Q.lastQi = qi; Q.selfPick = null; Q.revealed = false; Q.answered = {}; Q.dlLeft = 15
+  try { roomState.gameAct.send({t: 'q-ques', n: Q.no, qi, dl: 15}) } catch (e) {}
+  $('game-log').innerHTML = ''
+  renderQuizBody()
+  startQuizCountdown(Q)
+  Q.timer = setTimeout(quizRevealHost, 17000)
+}
+
+function startQuizCountdown(Q) {
+  clearInterval(Q.cd)
+  Q.cd = setInterval(() => {
+    Q.dlLeft = Math.max(0, Q.dlLeft - 1)
+    const el = $('quiz-dl')
+    if (el) el.textContent = Q.dlLeft + ' detik'
+    if (Q.dlLeft <= 0) clearInterval(Q.cd)
+  }, 1000)
+}
+
+function quizRevealHost() {
+  const g = roomState.game, Q = g.quiz
+  if (!Q || g.type !== 'quiz' || g.hostId !== selfId || Q.revealed) return
+  clearQuizTimers()
+  const item = QUIZ_BANK[Q.lastQi]
+  const picks = Object.assign({}, Q.answered)
+  if (Q.selfPick != null) picks[selfId] = Q.selfPick
+  const all = Object.keys((roomState.room && roomState.room.getPeers()) || {}).concat(selfId)
+  for (const pid of all) if (Q.sc[pid] == null) Q.sc[pid] = 0
+  for (const pid in picks) if (picks[pid] === item.c) Q.sc[pid] = (Q.sc[pid] || 0) + 10
+  Q.revealed = true
+  try { roomState.gameAct.send({t: 'q-reveal', c: item.c, sc: Q.sc, picks}) } catch (e) {}
+  $('game-log').innerHTML = ''
+  renderQuizBody()
+  roomGameLog('jawaban benar: ' + ['A', 'B', 'C', 'D'][item.c])
+  Q.lastQi = null
+  if (Q.no >= QUIZ_LEN) Q.endTimer = setTimeout(quizEnd, 4000)
+  else Q.nextTimer = setTimeout(quizNextQuestion, 4000)
+}
+
+function quizEnd() {
+  const g = roomState.game, Q = g.quiz
+  if (!Q) return
+  clearQuizTimers()
+  try { roomState.gameAct.send({t: 'q-end', sc: Q.sc}) } catch (e) {}
+  Q.done = true
+  renderQuizBody()
+  const win = quizWinner(Q.sc)
+  roomGameLog('KUIS SELESAI — juara: ' + (win ? pidTag(win) : 'tidak ada'))
+}
+
+function renderQuizBody() {
+  const g = roomState.game
+  const body = $('game-body')
+  body.innerHTML = ''
+  if (g.type !== 'quiz' || !g.quiz) return
+  const Q = g.quiz
+  const head = document.createElement('p')
+  head.className = 'st'
+  if (Q.done) head.textContent = 'kuis selesai'
+  else if (Q.lastQi == null) head.textContent = 'menunggu soal berikutnya...'
+  else head.innerHTML = 'SOAL ' + Q.no + '/' + QUIZ_LEN + ' — <span id="quiz-dl">' + Q.dlLeft + ' detik</span>'
+  body.appendChild(head)
+  if (Q.lastQi != null && !Q.done) {
+    const item = QUIZ_BANK[Q.lastQi]
+    const q = document.createElement('p')
+    q.className = 'quiz-q'
+    q.textContent = item.q
+    body.appendChild(q)
+    const opts = document.createElement('div')
+    opts.className = 'quiz-opts'
+    const letters = ['A', 'B', 'C', 'D']
+    item.o.forEach((op, i) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      const bL = document.createElement('b'); bL.textContent = letters[i]
+      const bT = document.createElement('span'); bT.textContent = op
+      b.append(bL, bT)
+      b.disabled = Q.selfPick != null || Q.revealed
+      if (Q.selfPick === i && !Q.revealed) b.classList.add('pick')
+      if (Q.revealed) {
+        if (i === item.c) b.classList.add('ok')
+        else b.disabled = true
+        if (Q.selfPick === i && i !== item.c) b.classList.add('bad')
+      }
+      b.addEventListener('click', () => {
+        if (Q.selfPick != null || Q.revealed) return
+        Q.selfPick = i
+        if (g.hostId !== selfId) { try { roomState.gameAct.send({t: 'q-ans', n: Q.no, p: i}) } catch (e) {} }
+        roomGameLog('kamu pilih ' + letters[i])
+        renderQuizBody()
+      })
+      opts.appendChild(b)
+    })
+    body.appendChild(opts)
+  }
+  if (Q.sc && Object.keys(Q.sc).length) {
+    const sc = document.createElement('div')
+    sc.className = 'quiz-score'
+    const rows = Object.entries(Q.sc).sort((a, b) => b[1] - a[1])
+    for (const [pid, pts] of rows) {
+      const d = document.createElement('div')
+      d.textContent = pidTag(pid) + ' — ' + pts
+      sc.appendChild(d)
+    }
+    body.appendChild(sc)
+  }
+}
+
 function onRoomGamePeerLeave(pid) {
   const g = roomState.game
   if (g.type === 'guess' && g.hostId === pid) {
@@ -1400,12 +1753,20 @@ function onRoomGamePeerLeave(pid) {
     roomGameLog(pidTag(pid) + ' keluar — tic-tac-toe berakhir')
     g.ttt.over = true
     renderTtt()
+  } else if (g.type === 'quiz' && g.quiz && (g.hostId === pid || g.quiz.done === false && !g.quiz.sc)) {
+    if (g.hostId === pid) {
+      clearQuizTimers()
+      g.quiz.done = true
+      renderQuizBody()
+      roomGameLog('host keluar — kuis berakhir')
+    }
   }
 }
 
 function onRoomGame(data, peerId) {
   const g = roomState.game
   if (data.t === 'g-start') {
+    if (g.type === 'quiz') return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
     roomState.game = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
@@ -1432,6 +1793,7 @@ function onRoomGame(data, peerId) {
     roomState.game = { type: null, hostId: null, secret: 0, ttt: null }
     renderGuessBody()
   } else if (data.t === 't-open') {
+    if (g.type === 'quiz') return
     if (g.type === 'guess') return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
     roomState.game = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
@@ -1452,6 +1814,55 @@ function onRoomGame(data, peerId) {
     const w = tttWinner(T.board)
     if (w) { T.over = true; roomGameLog(w === 'draw' ? 'SERI' : w + ' MENANG') }
     renderTtt()
+  } else if (data.t === 'q-open') {
+    if (g.type === 'guess' || (g.type === 'ttt' && g.ttt && g.ttt.players.length)) return
+    clearQuizTimers()
+    roomState.game = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
+    showGamePanel('KUIS 1001')
+    roomGameLog(pidTag(peerId) + ' mulai kuis 1001')
+  } else if (data.t === 'q-ques') {
+    if (g.type !== 'quiz' || !g.quiz) return
+    const Q = g.quiz
+    clearQuizTimers()
+    Q.no = data.n; Q.lastQi = data.qi; Q.selfPick = null; Q.revealed = false; Q.dlLeft = data.dl || 15
+    $('game-log').innerHTML = ''
+    renderQuizBody()
+    startQuizCountdown(Q)
+  } else if (data.t === 'q-ans') {
+    if (g.type !== 'quiz' || !g.quiz || g.hostId !== selfId) return
+    const Q = g.quiz
+    if (Q.answered[peerId] == null) {
+      Q.answered[peerId] = data.p
+      roomGameLog(pidTag(peerId) + ' sudah menjawab')
+      const peers = Object.keys(roomState.room.getPeers())
+      if (peers.length && peers.every(p => Q.answered[p] != null)) {
+        clearTimeout(Q.timer)
+        Q.timer = setTimeout(quizRevealHost, 400)
+      }
+    }
+  } else if (data.t === 'q-reveal') {
+    if (g.type !== 'quiz' || !g.quiz) return
+    const Q = g.quiz
+    clearQuizTimers()
+    Q.revealed = true
+    Q.sc = data.sc || Q.sc
+    $('game-log').innerHTML = ''
+    renderQuizBody()
+    const item = QUIZ_BANK[Q.lastQi]
+    if (item) {
+      roomGameLog('jawaban benar: ' + ['A', 'B', 'C', 'D'][item.c])
+      if (data.picks) for (const pid in data.picks) roomGameLog(pidTag(pid) + ': ' + (data.picks[pid] === item.c ? 'benar' : 'salah'))
+    }
+  } else if (data.t === 'q-end') {
+    if (g.type !== 'quiz' || !g.quiz) return
+    const Q = g.quiz
+    clearQuizTimers()
+    Q.sc = data.sc || Q.sc
+    Q.done = true
+    Q.revealed = true
+    renderQuizBody()
+    const win = quizWinner(Q.sc)
+    roomGameLog('KUIS SELESAI — juara: ' + (win ? pidTag(win) : 'tidak ada'))
   }
 }
 
@@ -1473,6 +1884,13 @@ $('btn-room-leave').addEventListener('click', () => leaveRoom(true))
 $('game-close').addEventListener('click', hideGamePanel)
 $('btn-game-guess').addEventListener('click', () => { if (roomState.room) startGuessGame() })
 $('btn-game-ttt').addEventListener('click', () => { if (roomState.room) tttStart() })
+$('btn-game-quiz').addEventListener('click', () => { if (roomState.room) startQuizGame() })
+$('btn-attach').addEventListener('click', () => $('file-input').click())
+$('file-input').addEventListener('change', () => pickAndSendImage('pair'))
+$('btn-room-attach').addEventListener('click', () => $('room-file-input').click())
+$('room-file-input').addEventListener('change', () => pickAndSendImage('room'))
+$('btn-screen').addEventListener('click', togglePairScreen)
+$('btn-room-screen').addEventListener('click', toggleRoomScreen)
 const roomInputEl = $('room-input')
 roomInputEl.addEventListener('input', () => {
   roomInputEl.style.height = 'auto'
@@ -1754,7 +2172,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v10' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v11' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
