@@ -28,6 +28,8 @@
 
 
 
+
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -220,6 +222,7 @@ kbd{
 #view-home>*{position:relative;z-index:1}
 #bg-vid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:.20;pointer-events:none}
 body.on-home header{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;text-shadow:0 1px 2px #000,0 0 9px rgba(0,0,0,.8)}
+body.on-home.scrolled header{background:color-mix(in srgb, var(--bg) 72%, transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #view-home{text-shadow:0 1px 2px #000,0 0 9px rgba(0,0,0,.8)}
 .try-row{display:flex;justify-content:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
 #prev-panel{margin-top:12px}
@@ -701,6 +704,8 @@ function showView(name) {
   else { try { $('bg-vid').play().catch(function () {}) } catch (e) {} }
   window.scrollTo({top: 0})
 }
+window.addEventListener('scroll', function () { document.body.classList.toggle('scrolled', window.scrollY > 8) }, { passive: true })
+
 function setStatus(t) { $('chat-status').textContent = t }
 function setSearchStatus(t) { $('search-status').textContent = t }
 
@@ -3269,7 +3274,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v42' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v43' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
