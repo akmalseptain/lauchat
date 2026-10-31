@@ -1,14 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 780" font-family="Geist, ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 780" font-family="VT323, monospace">
   <rect width="480" height="780" fill="#000000"/>
 
   <text x="40" y="42" fill="#fafafa" font-size="13" font-weight="600">ROOM AB12CD</text>
-  <text x="150" y="42" fill="#a1a1aa" font-size="12" font-family="Geist Mono, ui-monospace, monospace">· 3 orang</text>
+  <text x="150" y="42" fill="#a1a1aa" font-size="12" font-family="VT323, monospace">· 3 orang</text>
 
   <!-- video utama spotlight 16:9 -->
   <g transform="translate(40,58)">
     <rect width="400" height="225" rx="12" fill="#0a0a0a"/>
     <rect x="6" y="201" width="42" height="16" rx="6" fill="rgba(0,0,0,.55)"/>
-    <text x="13" y="212" fill="#e6e6e6" font-size="10" font-family="Geist Mono, ui-monospace, monospace">dina</text>
+    <text x="13" y="212" fill="#e6e6e6" font-size="10" font-family="VT323, monospace">dina</text>
     <rect x="362" y="8" width="26" height="26" rx="8" fill="rgba(0,0,0,.55)" stroke="rgba(255,255,255,.18)"/>
     <rect x="368" y="14" width="14" height="14" rx="2" fill="none" stroke="#e6e6e6" stroke-width="1.5"/>
     <path d="M368 14 l7 -4 7 4" fill="none" stroke="#e6e6e6" stroke-width="1.5"/>
@@ -18,14 +18,14 @@
   <g transform="translate(40,295)">
     <rect width="110" height="66" rx="8" fill="#0f0f12"/>
     <rect x="6" y="45" width="32" height="15" rx="6" fill="rgba(0,0,0,.55)"/>
-    <text x="12" y="56" fill="#e6e6e6" font-size="10" font-family="Geist Mono, ui-monospace, monospace">aku</text>
+    <text x="12" y="56" fill="#e6e6e6" font-size="10" font-family="VT323, monospace">aku</text>
     <rect x="120" width="110" height="66" rx="8" fill="#0f0f12"/>
     <rect x="126" y="45" width="32" height="15" rx="6" fill="rgba(0,0,0,.55)"/>
-    <text x="132" y="56" fill="#e6e6e6" font-size="10" font-family="Geist Mono, ui-monospace, monospace">boi</text>
+    <text x="132" y="56" fill="#e6e6e6" font-size="10" font-family="VT323, monospace">boi</text>
     <text x="245" y="40" fill="#71717a" font-size="12">← klik untuk tukar</text>
   </g>
 
-  <text x="40" y="392" fill="#a1a1aa" font-size="12" font-family="Geist Mono, ui-monospace, monospace">aku · dina · boi</text>
+  <text x="40" y="392" fill="#a1a1aa" font-size="12" font-family="VT323, monospace">aku · dina · boi</text>
 
   <!-- game bar: teks saja -->
   <g transform="translate(40,406)" font-size="13" text-anchor="middle">
@@ -58,5 +58,5 @@
     <text x="344" y="14" fill="#fafafa">Keluar</text>
   </g>
 
-  <text x="240" y="756" text-anchor="middle" fill="#3f3f46" font-size="11" font-family="Geist Mono, ui-monospace, monospace">pratinjau UI — mode spotlight (klik thumbnail untuk tukar)</text>
+  <text x="240" y="756" text-anchor="middle" fill="#3f3f46" font-size="11" font-family="VT323, monospace">pratinjau UI — mode spotlight (klik thumbnail untuk tukar)</text>
 </svg>
