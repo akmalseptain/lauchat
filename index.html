@@ -2,6 +2,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -439,6 +440,9 @@ footer b{color:var(--fg);font-weight:600}
     </button>
     <button id="btn-quiz-chat" class="btn ghost" type="button" title="Main kuis bareng lawan">
       <span>Kuis</span>
+    </button>
+    <button id="btn-suit-chat" class="btn ghost" type="button" title="Suit batu-gunting-kertas bareng lawan">
+      <span>Suit</span>
     </button>
     <button id="btn-block" class="btn ghost" type="button" title="Blokir lawan — tidak akan dipasangkan lagi">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
@@ -1808,12 +1812,104 @@ function startQuizGame() {
   if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
   if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
+  if (gameState.type === 'suit' && gameState.suit) { toast('Selesaikan suit dulu.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
   try { sendGame({t: 'q-open'}) } catch (e) {}
   showGamePanel('KUIS 1001')
   roomGameLog('kuis dimulai — ' + QUIZ_LEN + ' soal, jawaban benar +10 poin')
   quizNextQuestion()
+}
+
+
+// -- suit: batu-gunting-kertas, 1-on-1, skor berjalan --
+const SUIT_WORDS = { b: 'batu', g: 'gunting', k: 'kertas' }
+const SUIT_OPTS = [
+  { v: 'b', label: 'BATU', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg>' },
+  { v: 'g', label: 'GUNTING', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>' },
+  { v: 'k', label: 'KERTAS', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>' },
+]
+function newSuitState() { return { myPick: null, oppPick: null, mySc: 0, oppSc: 0, round: 1, done: false, timer: null } }
+function suitBeats(a, b) { return (a === 'b' && b === 'g') || (a === 'g' && b === 'k') || (a === 'k' && b === 'b') }
+
+function startSuitGame() {
+  if (gameCtx.isRoom) return
+  if (!gameReady()) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
+  if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
+  if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
+  if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
+  clearQuizTimers()
+  gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
+  try { sendGame({t: 's-open'}) } catch (e) {}
+  showGamePanel('SUIT')
+  roomGameLog('suit dimulai — pilih batu/gunting/kertas, skor berjalan')
+  renderSuit()
+}
+
+function suitPick(v) {
+  const S = gameState.suit
+  if (!S || gameState.type !== 'suit' || S.myPick || S.done) return
+  if (!SUIT_WORDS[v]) return
+  S.myPick = v
+  try { sendGame({t: 's-move', v, r: S.round}) } catch (e) {}
+  renderSuit()
+  suitMaybeResolve()
+}
+
+function suitMaybeResolve() {
+  const S = gameState.suit
+  if (!S || !S.myPick || !S.oppPick || S.done) return
+  const a = S.myPick, b = S.oppPick
+  let msg = 'r' + S.round + ': kamu ' + SUIT_WORDS[a] + ' vs ' + SUIT_WORDS[b]
+  if (a === b) msg += ' — SERI'
+  else if (suitBeats(a, b)) { S.mySc++; msg += ' — kamu MENANG' }
+  else { S.oppSc++; msg += ' — lawan menang' }
+  S.done = true
+  roomGameLog(msg)
+  renderSuit()
+  clearTimeout(S.timer)
+  S.timer = setTimeout(() => {
+    if (gameState.suit !== S) return
+    S.myPick = null; S.oppPick = null; S.done = false; S.round++
+    renderSuit()
+  }, 2200)
+}
+
+function renderSuit() {
+  const g = gameState
+  const body = gp('game-body')
+  body.innerHTML = ''
+  if (g.type !== 'suit' || !g.suit) return
+  const S = g.suit
+  const sc = document.createElement('p')
+  sc.className = 'st'
+  sc.textContent = 'ronde ' + S.round + ' · kamu ' + S.mySc + ' — ' + S.oppSc + ' lawan'
+  body.appendChild(sc)
+  if (S.myPick && S.oppPick) {
+    const p = document.createElement('p')
+    p.className = 'st'
+    p.textContent = 'kamu: ' + SUIT_WORDS[S.myPick] + ' · lawan: ' + SUIT_WORDS[S.oppPick]
+    body.appendChild(p)
+    return
+  }
+  if (S.myPick) {
+    const p = document.createElement('p')
+    p.className = 'st'
+    p.textContent = 'kamu pilih ' + SUIT_WORDS[S.myPick] + ' — menunggu lawan…'
+    body.appendChild(p)
+    return
+  }
+  const opts = document.createElement('div')
+  opts.className = 'quiz-opts'
+  for (const o of SUIT_OPTS) {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.innerHTML = o.icon + '<b>' + o.label + '</b>'
+    btn.addEventListener('click', () => suitPick(o.v))
+    opts.appendChild(btn)
+  }
+  body.appendChild(opts)
 }
 
 function quizNextQuestion() {
@@ -1957,6 +2053,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'guess') return
+    if (g.type === 'suit' && g.suit) return
     gameState = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
     renderGuessBody()
@@ -1984,6 +2081,7 @@ function onRoomGame(data, peerId) {
   } else if (data.t === 't-open') {
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
     if (g.type === 'guess') return
+    if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
     showGamePanel('TIC-TAC-TOE')
@@ -2003,9 +2101,28 @@ function onRoomGame(data, peerId) {
     const w = tttWinner(T.board)
     if (w) { T.over = true; roomGameLog(w === 'draw' ? 'SERI' : w + ' MENANG') }
     renderTtt()
+  } else if (data.t === 's-open') {
+    if (gameCtx.isRoom) return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
+    if (g.type === 'guess') return
+    if (g.type === 'suit' && g.suit) return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    clearQuizTimers()
+    gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
+    showGamePanel('SUIT')
+    renderSuit()
+    roomGameLog(pidTag(peerId) + ' mengajak suit — pilih batu/gunting/kertas!')
+  } else if (data.t === 's-move') {
+    const S = g.suit
+    if (g.type !== 'suit' || !S || S.done || S.oppPick) return
+    if (data.r !== S.round || !SUIT_WORDS[data.v]) return
+    S.oppPick = data.v
+    renderSuit()
+    suitMaybeResolve()
   } else if (data.t === 'q-open') {
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
     if (g.type === 'guess') return
+    if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     clearQuizTimers()
     gameState = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
@@ -2085,6 +2202,7 @@ $('room-file-input').addEventListener('change', () => pickAndSendImage('room'))
 $('btn-screen').addEventListener('click', togglePairScreen)
 $('btn-room-screen').addEventListener('click', toggleRoomScreen)
 $('btn-quiz-chat').addEventListener('click', () => startQuizGame())
+$('btn-suit-chat').addEventListener('click', () => startSuitGame())
 $('game-close-chat').addEventListener('click', hideGamePanel)
 const roomInputEl = $('room-input')
 roomInputEl.addEventListener('input', () => {
@@ -2373,7 +2491,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v25' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v26' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
