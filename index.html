@@ -12,6 +12,8 @@
 
 
 
+
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -200,6 +202,14 @@ kbd{
 #voice-panel{margin:0 0 12px}
 #voice-list .vd{flex:1;color:var(--muted);font-size:14px;font-family:var(--pix);text-align:right}
 #voice-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
+#view-home{position:relative}
+#view-home>*{position:relative;z-index:1}
+#bg-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:.24;pointer-events:none}
+.try-row{display:flex;justify-content:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+#prev-panel{margin-top:12px}
+.prev-note{margin:0 0 10px;color:var(--muted);font-size:14px;font-family:var(--pix)}
+#prev-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
+.prefs.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--pix);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
 #game-body .st{color:var(--muted);font-family:var(--pix);font-size:15px;margin:6px 0 0}
@@ -326,9 +336,10 @@ footer b{color:var(--fg);font-weight:600}
 
 <!-- ============ BERANDA ============ -->
 <main id="view-home" class="active">
+  <video id="bg-vid" src="bg.mp4" autoplay muted loop playsinline></video>
   <div class="hero">
     <h1>Ngobrol dengan orang asing.</h1>
-    <p>Dipasangkan acak dengan siapa pun yang sedang online. Tanpa akun, tanpa server — koneksi langsung antar perangkat.</p>
+    <p>Lawan acak, ngobrol langsung. Tanpa akun, tanpa server.</p>
   </div>
   <div class="card">
     <div class="field"><input id="nick-input" maxlength="20" placeholder="Nama (opsional)" autocomplete="off" spellcheck="false"></div>
@@ -349,11 +360,9 @@ footer b{color:var(--fg);font-weight:600}
       <select id="lang-native" aria-label="Bahasa yang kamu fasih"></select>
       <select id="lang-learn" aria-label="Bahasa yang sedang dipelajari"></select>
     </div>
-    <div class="prefs">
-      <label class="ai-row"><input type="checkbox" id="ai-skip"> Deteksi AI lawan: baca wajah, auto-skip bila tak sesuai</label>
-    </div>
-    <div class="prefs">
-      <label class="ai-row"><input type="checkbox" id="snd-toggle" checked> Bunyi saat ketemu lawan</label>
+    <div class="prefs two-col">
+      <label class="ai-row"><input type="checkbox" id="ai-skip"> Deteksi AI lawan</label>
+      <label class="ai-row"><input type="checkbox" id="snd-toggle" checked> Bunyi saat ketemu</label>
     </div>
     <div class="btn-row">
       <button id="btn-start-text" class="btn primary">
@@ -364,6 +373,16 @@ footer b{color:var(--fg);font-weight:600}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
         Chat video
       </button>
+    </div>
+    <div class="try-row">
+      <button id="btn-try-voice" class="btn ghost sm" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        Coba suara
+      </button>
+    </div>
+    <div id="prev-panel" class="hidden">
+      <p class="prev-note">Simulasi sebelum masuk chat — pakai headset biar tidak nyangkut ke mic.</p>
+      <div id="prev-list" class="quiz-opts"></div>
     </div>
     <div class="room-row">
       <input id="room-code-input" maxlength="8" placeholder="KODE ROOM" autocomplete="off" spellcheck="false" aria-label="Kode room privat">
@@ -661,6 +680,8 @@ const msgsEl = $('messages')
 
 function showView(name) {
   for (const k in views) views[k].classList.toggle('active', k === name)
+  if (name !== 'home') { previewOff(); try { $('bg-vid').pause() } catch (e) {} }
+  else { try { $('bg-vid').play().catch(function () {}) } catch (e) {} }
   window.scrollTo({top: 0})
 }
 function setStatus(t) { $('chat-status').textContent = t }
@@ -2441,6 +2462,81 @@ function voiceOff() {
   try { $('voice-panel').classList.add('hidden') } catch (e) {}
 }
 
+function buildFxChain(ctx, store, preset, srcNode) {
+  const pitch = new AudioWorkletNode(ctx, 'pitch-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
+  pitch.parameters.get('st').value = preset.st || 0
+  srcNode.connect(pitch)
+  store.nodes.push(pitch)
+  let node = pitch
+  if (preset.psola) {
+    const ps = new AudioWorkletNode(ctx, 'psola-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
+    ps.parameters.get('st').value = preset.psola
+    ps.parameters.get('fm').value = preset.fm || 1
+    node.connect(ps)
+    node = ps
+    store.nodes.push(ps)
+  }
+  if (preset.eq) {
+    for (const e of preset.eq) {
+      const f = ctx.createBiquadFilter()
+      f.type = e.t
+      f.frequency.value = e.f
+      f.Q.value = e.q || 0.8
+      if (e.g) f.gain.value = e.g
+      node.connect(f)
+      node = f
+      store.nodes.push(f)
+    }
+  }
+  if (preset.vib) {
+    const delay = ctx.createDelay(0.05)
+    delay.delayTime.value = 0.014
+    const lfo = ctx.createOscillator()
+    lfo.frequency.value = preset.vibRate || 5
+    const lg = ctx.createGain()
+    lg.gain.value = 0.006 * preset.vib
+    lfo.connect(lg); lg.connect(delay.delayTime)
+    lfo.start()
+    store.oscs.push(lfo)
+    node.connect(delay); node = delay
+    store.nodes.push(delay)
+  }
+  if (preset.ring) {
+    const ringG = ctx.createGain()
+    ringG.gain.value = 0
+    const osc = ctx.createOscillator()
+    osc.type = 'square'
+    osc.frequency.value = 55
+    const og = ctx.createGain()
+    og.gain.value = 0.85
+    osc.connect(og); og.connect(ringG.gain)
+    osc.start()
+    store.oscs.push(osc)
+    node.connect(ringG); node = ringG
+    store.nodes.push(ringG)
+  }
+  if (preset.rev) {
+    const dry = ctx.createGain(); dry.gain.value = 1 - preset.rev * 0.4
+    const wet = ctx.createGain(); wet.gain.value = preset.rev
+    const dl = ctx.createDelay(1); dl.delayTime.value = 0.085
+    const dl2 = ctx.createDelay(1); dl2.delayTime.value = 0.13
+    const fb = ctx.createGain(); fb.gain.value = 0.38
+    const mix = ctx.createGain()
+    node.connect(dry)
+    node.connect(dl); dl.connect(fb); fb.connect(dl2); dl2.connect(fb); dl.connect(wet); dl2.connect(wet)
+    dry.connect(mix); wet.connect(mix)
+    node = mix
+    store.nodes.push(mix)
+  }
+  if (preset.low) {
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'; lp.frequency.value = 3400; lp.Q.value = 0.4
+    node.connect(lp); node = lp
+    store.nodes.push(lp)
+  }
+  return node
+}
+
 async function voiceOn(preset) {
   if (!state.selfStream || !state.selfStream.getAudioTracks().length) { toast('Nyalakan mikrofon dulu.', true, 2500); return }
   if (!state.pairRoom || !state.partnerConnected) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
@@ -2450,78 +2546,8 @@ async function voiceOn(preset) {
     const micTrack = state.selfStream.getAudioTracks()[0]
     const vc = state.vc
     const srcNode = ctx.createMediaStreamSource(new MediaStream([micTrack]))
-    const pitch = new AudioWorkletNode(ctx, 'pitch-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
-    pitch.parameters.get('st').value = preset.st || 0
-    srcNode.connect(pitch)
     vc.srcNode = srcNode
-    vc.nodes.push(pitch)
-    let node = pitch
-    if (preset.psola) {
-      const ps = new AudioWorkletNode(ctx, 'psola-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
-      ps.parameters.get('st').value = preset.psola
-      ps.parameters.get('fm').value = preset.fm || 1
-      node.connect(ps)
-      node = ps
-      vc.nodes.push(ps)
-    }
-    if (preset.eq) {
-      for (const e of preset.eq) {
-        const f = ctx.createBiquadFilter()
-        f.type = e.t
-        f.frequency.value = e.f
-        f.Q.value = e.q || 0.8
-        if (e.g) f.gain.value = e.g
-        node.connect(f)
-        node = f
-        vc.nodes.push(f)
-      }
-    }
-    if (preset.vib) {
-      const delay = ctx.createDelay(0.05)
-      delay.delayTime.value = 0.014
-      const lfo = ctx.createOscillator()
-      lfo.frequency.value = preset.vibRate || 5
-      const lg = ctx.createGain()
-      lg.gain.value = 0.006 * preset.vib
-      lfo.connect(lg); lg.connect(delay.delayTime)
-      lfo.start()
-      vc.oscs.push(lfo)
-      node.connect(delay); node = delay
-      vc.nodes.push(delay)
-    }
-    if (preset.ring) {
-      const ringG = ctx.createGain()
-      ringG.gain.value = 0
-      const osc = ctx.createOscillator()
-      osc.type = 'square'
-      osc.frequency.value = 55
-      const og = ctx.createGain()
-      og.gain.value = 0.85
-      osc.connect(og); og.connect(ringG.gain)
-      osc.start()
-      vc.oscs.push(osc)
-      node.connect(ringG); node = ringG
-      vc.nodes.push(ringG)
-    }
-    if (preset.rev) {
-      const dry = ctx.createGain(); dry.gain.value = 1 - preset.rev * 0.4
-      const wet = ctx.createGain(); wet.gain.value = preset.rev
-      const dl = ctx.createDelay(1); dl.delayTime.value = 0.085
-      const dl2 = ctx.createDelay(1); dl2.delayTime.value = 0.13
-      const fb = ctx.createGain(); fb.gain.value = 0.38
-      const mix = ctx.createGain()
-      node.connect(dry)
-      node.connect(dl); dl.connect(fb); fb.connect(dl2); dl2.connect(fb); dl.connect(wet); dl2.connect(wet)
-      dry.connect(mix); wet.connect(mix)
-      node = mix
-      vc.nodes.push(mix)
-    }
-    if (preset.low) {
-      const lp = ctx.createBiquadFilter()
-      lp.type = 'lowpass'; lp.frequency.value = 3400; lp.Q.value = 0.4
-      node.connect(lp); node = lp
-      vc.nodes.push(lp)
-    }
+    let node = buildFxChain(ctx, vc, preset, srcNode)
     const comp = ctx.createDynamicsCompressor()
     comp.threshold.value = -22; comp.ratio.value = 6
     node.connect(comp)
@@ -2568,6 +2594,73 @@ $('btn-voice').addEventListener('click', () => {
   p.classList.toggle('hidden', !show)
 })
 $('btn-voice-close').addEventListener('click', () => $('voice-panel').classList.add('hidden'))
+
+// ---------- simulasi suara (preview sebelum masuk chat) ----------
+const prevFx = { ctx: null, store: null, mic: null, preset: null }
+
+async function previewOn(preset) {
+  try {
+    previewOff()
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const u1 = URL.createObjectURL(new Blob([PITCH_WORKLET_SRC], { type: 'application/javascript' }))
+    await ctx.audioWorklet.addModule(u1)
+    URL.revokeObjectURL(u1)
+    const u2 = URL.createObjectURL(new Blob([PSOLA_WORKLET_SRC], { type: 'application/javascript' }))
+    await ctx.audioWorklet.addModule(u2)
+    URL.revokeObjectURL(u2)
+    if (ctx.state === 'suspended') await ctx.resume()
+    const store = { nodes: [], oscs: [] }
+    const srcNode = ctx.createMediaStreamSource(mic)
+    store.nodes.push(srcNode)
+    let node = buildFxChain(ctx, store, preset, srcNode)
+    const comp = ctx.createDynamicsCompressor()
+    comp.threshold.value = -22; comp.ratio.value = 6
+    node.connect(comp)
+    comp.connect(ctx.destination)
+    store.nodes.push(comp)
+    prevFx.ctx = ctx; prevFx.store = store; prevFx.mic = mic; prevFx.preset = preset
+    toast('Simulasi ' + preset.name + ' nyala — bicara sekarang.', false, 2500)
+  } catch (e) {
+    toast('Gagal membuka mikrofon.', true, 2500)
+    previewOff()
+  }
+}
+
+function previewOff() {
+  if (prevFx.ctx) {
+    for (const o of prevFx.store.oscs) { try { o.stop() } catch (e) {} }
+    for (const n of prevFx.store.nodes) { try { n.disconnect() } catch (e) {} }
+    try { prevFx.ctx.close() } catch (e) {}
+    if (prevFx.mic) for (const t of prevFx.mic.getAudioTracks()) t.stop()
+  }
+  prevFx.ctx = null; prevFx.store = null; prevFx.mic = null; prevFx.preset = null
+}
+
+function renderPrevList() {
+  const list = $('prev-list')
+  list.innerHTML = ''
+  for (const p of VOICE_PRESETS) {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    if (prevFx.preset && prevFx.preset.name === p.name) btn.className = 'pick'
+    btn.innerHTML = '<b>' + p.name + '</b><span class="vd">' + p.desc + '</span>'
+    btn.addEventListener('click', async () => { await previewOn(p); renderPrevList() })
+    list.appendChild(btn)
+  }
+  const off = document.createElement('button')
+  off.type = 'button'
+  off.innerHTML = '<b>STOP</b><span class="vd">matikan simulasi</span>'
+  off.addEventListener('click', () => { previewOff(); renderPrevList() })
+  list.appendChild(off)
+}
+
+$('btn-try-voice').addEventListener('click', () => {
+  const p = $('prev-panel')
+  const show = p.classList.contains('hidden')
+  if (show) renderPrevList()
+  p.classList.toggle('hidden', !show)
+})
 
 function quizNextQuestion() {
   const g = gameState, Q = g.quiz
@@ -3159,7 +3252,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v34' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v35' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
