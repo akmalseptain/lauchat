@@ -35,6 +35,10 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 ### Chat teks & video 1-on-1
 
 - Tata letak video default atas-bawah ala OmeTV/Umingle: lawan di atas, kamu di bawah, keduanya sama besar; tombol siklus ke berdampingan (split) atau lawan besar + PiP.
+- Gerbang konfirmasi 18+ saat pertama kali membuka situs.
+- Tombol "Ajak teman": bagikan link via share sheet / tersalin otomatis.
+- Bunyi saat ketemu lawan (bisa dimatikan).
+- Blokir permanen: lawan yang diblokir tidak akan dipasangkan lagi.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -107,6 +111,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v22** — tata letak atas-bawah disamakan besar (1:1, ala Umingle asli) — bukan lawan dominan.
 - **v23** — reset pilihan tata letak lama (sekali) — pengguna awal yang tersimpan mode split/PiP otomatis dapat default atas-bawah.
 - **v24** — mode atas-bawah memakai proporsi 3/4 maks 400px di semua layar — kamera tidak terpotong di desktop.
+- **v25** — gerbang 18+, tombol ajak teman (share), bunyi saat ketemu lawan (toggle), blokir permanen.
 
 ## Catatan
 
