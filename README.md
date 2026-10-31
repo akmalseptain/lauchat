@@ -134,6 +134,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v38** — video background lebih terang: grayscale + brightness 1.25 + opasitas .42 — abu-abu jelas kelihatan, tidak gelap lagi, teks tetap terbaca.
 - **v39** — teks beranda diberi glow gelap (text-shadow hitam halus) agar tetap jelas di atas video yang kini lebih terang — video tetap abu-abu terang, teks tetap putih tapi kontras.
 - **v40** — video background kembali redup (grayscale, opasitas .20, tanpa brightness boost) — tema gelap dipertahankan, teks putih jelas; glow tipis dipertahankan sebagai jaring pengaman di bagian video yang terang.
+- **v41** — video background full viewport di desktop (position:fixed — sebelumnya terjebak di kolom 560px) + header transparan di beranda (video terlihat sampai ke atas, blur header nonaktif di home saja).
 
 ## Catatan
 
