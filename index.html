@@ -44,6 +44,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -3231,7 +3232,20 @@ function prevRecToggle() {
 $('btn-prev-rec').addEventListener('click', prevRecToggle)
 
 // ---------- rekam seluruh halaman (screen record internal) ----------
-const screenRec = { rec: null, chunks: [], t0: 0, timer: null, stream: null, mix: null, raf: null, ctrack: null, mode: 'layar' }
+const screenRec = { rec: null, chunks: [], t0: 0, timer: null, stream: null, mix: null, raf: null, ctrack: null, mode: 'layar', wake: null }
+
+function screenRecWakeOn(fn) {
+  screenRec.wake = fn
+  document.addEventListener('pointerdown', fn)
+  document.addEventListener('touchstart', fn)
+}
+function screenRecWakeOff() {
+  if (screenRec.wake) {
+    document.removeEventListener('pointerdown', screenRec.wake)
+    document.removeEventListener('touchstart', screenRec.wake)
+    screenRec.wake = null
+  }
+}
 
 function screenRecMime() {
   const cands = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
@@ -3250,6 +3264,7 @@ function screenRecUi(on) {
 }
 
 function screenRecStop() {
+  screenRecWakeOff()
   if (screenRec.timer) { clearInterval(screenRec.timer); screenRec.timer = null }
   if (screenRec.raf) { cancelAnimationFrame(screenRec.raf); screenRec.raf = null }
   if (screenRec.rec && screenRec.rec.state !== 'inactive') { try { screenRec.rec.stop() } catch (e) {} }
@@ -3270,18 +3285,26 @@ async function screenRecToggle() {
     await selfRecStart()
     return
   }
+  const AC = window.AudioContext || window.webkitAudioContext
+  let mix = null
+  if (AC && state.vcPreset && state.vc && state.vc.dest) {
+    try {
+      mix = new AC()
+      const resumeMix = () => { if (mix && mix.state === 'suspended') { try { mix.resume() } catch (e) {} } }
+      resumeMix()
+      screenRecWakeOn(resumeMix)
+    } catch (e) { mix = null }
+  }
   let disp
   try { disp = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }) }
-  catch (e) { return }
+  catch (e) { screenRecWakeOff(); if (mix) { try { mix.close() } catch (e2) {} }; return }
   const tracks = []
   const vt = disp.getVideoTracks()[0]
   if (vt) tracks.push(vt)
   const at = disp.getAudioTracks()[0]
   // suara efek chat sendiri tidak terdengar lokal → campur manual ke rekaman
-  let mix = null
   try {
-    if (state.vcPreset && state.vc && state.vc.dest) {
-      mix = new (window.AudioContext || window.webkitAudioContext)()
+    if (mix && state.vcPreset && state.vc && state.vc.dest) {
       const ms = mix.createMediaStreamSource(state.vc.dest.stream)
       const md = mix.createMediaStreamDestination()
       ms.connect(md)
@@ -3341,20 +3364,23 @@ function sessionDrawCover(c2, vid, x, y, w, h) {
 
 async function sessionRecStart() {
   const rv = $('remote-video'), sv = $('self-video')
+  const AC = window.AudioContext || window.webkitAudioContext
+  const mix = AC ? new AC() : null // dibuat saat gesture masih valid
+  const resumeMix = () => { if (mix && mix.state === 'suspended') { try { mix.resume() } catch (e) {} } }
+  resumeMix()
+  screenRecWakeOn(resumeMix)
   try {
     const canvas = document.createElement('canvas')
     canvas.width = 640; canvas.height = 480
     const c2 = canvas.getContext('2d')
-    const mix = new (window.AudioContext || window.webkitAudioContext)()
-    if (mix.state === 'suspended') { try { await mix.resume() } catch (e) {} }
-    const md = mix.createMediaStreamDestination()
-    const wire = (stream) => { try { if (stream && stream.getAudioTracks().length) mix.createMediaStreamSource(stream).connect(md) } catch (e) {} }
+    const md = mix ? mix.createMediaStreamDestination() : null
+    const wire = (stream) => { try { if (md && stream && stream.getAudioTracks().length) mix.createMediaStreamSource(stream).connect(md) } catch (e) {} }
     wire(rv.srcObject)
     wire(state.vcPreset && state.vc && state.vc.dest ? state.vc.dest.stream : (state.selfStream || null))
     const cs = canvas.captureStream(30)
     const ctrack = cs.getVideoTracks()[0]
     const tracks = [ctrack]
-    if (md.stream.getAudioTracks().length) tracks.push(md.stream.getAudioTracks()[0])
+    if (md && md.stream.getAudioTracks().length) tracks.push(md.stream.getAudioTracks()[0])
     const out = new MediaStream(tracks)
     let mime = ''
     try { mime = screenRecMime() } catch (e) {}
@@ -3404,21 +3430,29 @@ async function sessionRecStart() {
 
 // ---------- fallback 2: rekam diri (kamera + suara efek) tanpa chat ----------
 async function selfRecStart() {
+  const AC = window.AudioContext || window.webkitAudioContext
+  const mix = AC ? new AC() : null // WAJIB dibuat saat gesture valid — SEBELUM await izin kamera
+  const resumeMix = () => { if (mix && mix.state === 'suspended') { try { mix.resume() } catch (e) {} } }
+  resumeMix()
+  screenRecWakeOn(resumeMix)
   let cam
   try { cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }) }
-  catch (e) { toast('Izin kamera/mikrofon ditolak — tidak bisa merekam.', true, 3000); return }
+  catch (e) {
+    screenRecWakeOff()
+    if (mix) { try { mix.close() } catch (e2) {} }
+    toast('Izin kamera/mikrofon ditolak — tidak bisa merekam.', true, 3000)
+    return
+  }
   try {
     const canvas = document.createElement('canvas')
     canvas.width = 640; canvas.height = 480
     const c2 = canvas.getContext('2d')
-    const mix = new (window.AudioContext || window.webkitAudioContext)()
-    if (mix.state === 'suspended') { try { await mix.resume() } catch (e) {} }
-    const md = mix.createMediaStreamDestination()
+    const md = mix ? mix.createMediaStreamDestination() : null
     let usedFx = false
     try {
-      if (prevFx.ctx && prevFx.dest) { mix.createMediaStreamSource(prevFx.dest.stream).connect(md); usedFx = true }
+      if (md && prevFx.ctx && prevFx.dest) { mix.createMediaStreamSource(prevFx.dest.stream).connect(md); usedFx = true }
     } catch (e) {}
-    if (!usedFx && cam.getAudioTracks().length) { try { mix.createMediaStreamSource(cam).connect(md) } catch (e) {} }
+    if (!usedFx && md && cam.getAudioTracks().length) { try { mix.createMediaStreamSource(cam).connect(md) } catch (e) {} }
     const v = document.createElement('video')
     v.srcObject = new MediaStream(cam.getVideoTracks())
     v.muted = true; v.playsInline = true
@@ -3426,7 +3460,7 @@ async function selfRecStart() {
     const cs = canvas.captureStream(30)
     const ctrack = cs.getVideoTracks()[0]
     const tracks = [ctrack]
-    if (md.stream.getAudioTracks().length) tracks.push(md.stream.getAudioTracks()[0])
+    if (md && md.stream.getAudioTracks().length) tracks.push(md.stream.getAudioTracks()[0])
     const out = new MediaStream(tracks)
     let mime = ''
     try { mime = screenRecMime() } catch (e) {}
@@ -4091,7 +4125,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v52' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v53' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
