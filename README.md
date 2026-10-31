@@ -69,7 +69,7 @@ Main bareng lawan chat atau di room privat:
 - **WebRTC** untuk video/audio/share layar; **TURN via Cloudflare Worker** sebagai fallback kandidat.
 - Kirim gambar/gem state pakai chunk biner Trystero.
 - Single-file `index.html` (semua UI + logika), plus `sw.js` untuk service worker.
-- Ikon lucide, font VT323 (wordmark/label) + Geist (isi chat), tema gelap default `#09090b`.
+- Ikon lucide, font Geist + Geist Mono, tema gelap default `#09090b` (VT323 hanya di layar boot & bendera pixel).
 
 ## Cara pakai
 
@@ -96,6 +96,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v11** — Kuis 1001 + share layar + kirim gambar.
 - **v12** — Kuis 1001 bisa dimainkan di chat public; refactor state game.
 - **v13** — perbaikan bug game (guard dua sisi, timer 16 detik, panel bisa dibuka ulang) + tata letak video room: grid ⇄ spotlight.
+- **v14** — simplifikasi UI modern ala v0: Geist + Geist Mono di seluruh UI, input & kartu berbingkai radius, bubble pesan asimetris; tema inti zinc + hijau tetap, VT323 hanya boot & bendera pixel.
 
 ## Catatan
 
