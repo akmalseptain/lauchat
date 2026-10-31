@@ -10,6 +10,8 @@
 
 
 
+
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -2195,17 +2197,26 @@ const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcess
 registerProcessor('pitch-shift', PitchShiftProcessor)`
 
 const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() { return [{ name: 'st', defaultValue: 0, minValue: -12, maxValue: 12 }] }
+  static get parameterDescriptors() {
+    return [
+      { name: 'st', defaultValue: 0, minValue: -12, maxValue: 12 },
+      { name: 'fm', defaultValue: 1, minValue: 0.5, maxValue: 2 }
+    ]
+  }
   constructor() {
     super()
     this.mask = 32767
     this.inBuf = new Float32Array(32768)
-    this.outBuf = new Float32Array(32768)
     this.tIn = 0
+    this.rBuf = new Float32Array(32768)
+    this.tR = 0
+    this.rPos = 1
+    this.outBuf = new Float32Array(32768)
     this.tOut = 0
     this.L = 2560
     this.T = Math.round(sampleRate / 140)
     this.Ts = this.T
+    this.voiced = 0
     this.lastQ = -1
     this.nextC = this.L
     this.dMask = 8191
@@ -2219,16 +2230,18 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
     this.lags = new Float32Array(256)
   }
 
-  decimate(x) {
-    this.hp = this.hp + 0.031 * (x - this.hp)
-    const v = x - this.hp
-    this.dAcc += v
+  decimate(v) {
+    this.hp = this.hp + 0.031 * (v - this.hp)
+    const h = v - this.hp
+    this.dAcc += h
     this.dCnt++
     if (this.dCnt >= 4) {
       this.dec[this.dW & this.dMask] = this.dAcc * 0.25
       this.dW++
       this.dAcc = 0
       this.dCnt = 0
+      this.estTimer++
+      if (this.estTimer >= 64) { this.estTimer = 0; this.estimate() }
     }
   }
 
@@ -2237,10 +2250,10 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
     const W = 480
     const minLag = Math.max(24, Math.round(sampleRate / 400 / 4))
     const maxLag = Math.min(210, Math.round(sampleRate / 65 / 4))
-    if (this.dW < W + maxLag + 4) return
+    if (this.dW < W + maxLag + 4) { this.voiced = 0; return }
     let e0 = 0
     for (let i = 0; i < W; i++) { const v = d[(this.dW - W + i) & this.dMask]; e0 += v * v }
-    if (e0 < 1e-6) return
+    if (e0 < 1e-6) { this.voiced = 0; return }
     const inv = 1 / (e0 + 1e-12)
     let best = -1
     let bestV = 0
@@ -2253,7 +2266,7 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
       this.lags[lag] = v
       if (best < 0 || v > bestV + 0.04) { bestV = v; best = lag }
     }
-    if (best < 0 || bestV < 0.32) return
+    if (best < 0 || bestV < 0.32) { this.voiced = 0; return }
     let lagF = best
     const lm = best > minLag ? this.lags[best - 1] : 0
     const lp = best < maxLag ? this.lags[best + 1] : 0
@@ -2262,11 +2275,29 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
       const delta = 0.5 * (lm - lp) / den
       if (delta > -1 && delta < 1) lagF = best + delta
     }
-    let T = Math.max(110, Math.min(736, lagF * 4))
+    const T = Math.max(110, Math.min(736, lagF * 4))
     this.hist.push(Math.round(T))
     this.hist.shift()
     const sorted = this.hist.slice().sort(function (a, b) { return a - b })
     this.T = sorted[1]
+    this.voiced = 1
+  }
+
+  catmull(p) {
+    const i0 = Math.floor(p)
+    const u = p - i0
+    const u2 = u * u
+    const u3 = u2 * u
+    const a = this.inBuf[(i0 - 1) & this.mask]
+    const b = this.inBuf[i0 & this.mask]
+    const c = this.inBuf[(i0 + 1) & this.mask]
+    const d2 = this.inBuf[(i0 + 2) & this.mask]
+    return (
+      a * (-0.5 * u3 + u2 - 0.5 * u) +
+      b * (1.5 * u3 - 2.5 * u2 + 1) +
+      c * (-1.5 * u3 + 2 * u2 + 0.5 * u) +
+      d2 * (0.5 * u3 - 0.5 * u2)
+    )
   }
 
   process(inputs, outputs, params) {
@@ -2276,9 +2307,10 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
     const n = inp && inp[0] ? inp[0].length : (out[0] ? out[0].length : 0)
     if (!n) return true
     const st = params.st[0]
+    const fm = params.fm ? params.fm[0] : 1
     const y = out[0]
+    const x = (inp && inp[0]) || new Float32Array(n)
     if (Math.abs(st) < 0.01) {
-      const x = (inp && inp[0]) || new Float32Array(n)
       for (let i = 0; i < n; i++) {
         this.inBuf[this.tIn & this.mask] = x[i]
         y[i] = x[i]
@@ -2290,36 +2322,43 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
       for (let c = 1; c < out.length; c++) out[c].set(y)
       return true
     }
-    const ratio = Math.pow(2, st / 12)
-    const x = (inp && inp[0]) || new Float32Array(n)
-    for (let i = 0; i < n; i++) {
-      this.inBuf[this.tIn & this.mask] = x[i]
-      this.tIn++
-      this.decimate(x[i])
-      this.estTimer++
-      if (this.estTimer >= 256) { this.estTimer = 0; this.estimate() }
+    // 1. append input + resample by fm into rBuf (formant shift, alias-free upsampling side)
+    const step = fm
+    for (let i = 0; i < n; i++) this.inBuf[this.tIn++ & this.mask] = x[i]
+    while (this.rPos + 3 < this.tIn) {
+      const v = this.catmull(this.rPos)
+      this.rBuf[this.tR & this.mask] = v
+      this.tR++
+      this.decimate(v)
+      this.rPos += step
     }
+    // 2. emit grains
+    const ratioInt = Math.pow(2, st / 12) / fm
     let guard = 0
     for (;;) {
       if (guard++ > 128) break
-      if (this.nextC > this.tIn + this.L - this.T * 0.5 - this.Ts) break
-      const srcPos = this.nextC - this.L
-      let q
-      if (this.lastQ < 0) q = Math.round(srcPos / this.T) * this.T
-      else q = this.lastQ + Math.round((srcPos - this.lastQ) / this.T) * this.T
-      this.Ts = this.T / ratio
-      const c = Math.round(this.nextC)
+      this.Ts = this.T / ratioInt
       const half = Math.max(4, Math.round(this.Ts))
-      if (c - half >= this.tOut && q + half < this.tIn) {
+      const srcY = (this.nextC - this.L) / fm
+      if (srcY + this.T * 0.5 + half > this.tR) break
+      let q
+      if (this.voiced && this.lastQ >= 0) {
+        q = this.lastQ + Math.round((srcY - this.lastQ) / this.T) * this.T
+      } else {
+        q = Math.round(srcY)
+      }
+      const c = Math.round(this.nextC)
+      if (c - half >= this.tOut && q + half < this.tR) {
+        const scale = 1 / (half + half)
         for (let i = -half; i < half; i++) {
-          const p = (i + half) / (2 * half)
-          const s = Math.sin(Math.PI * p)
-          this.outBuf[(c + i) & this.mask] += this.inBuf[(q + i) & this.mask] * s * s
+          const s = Math.sin(Math.PI * (i + half) * scale)
+          this.outBuf[(c + i) & this.mask] += this.rBuf[(q + i) & this.mask] * s * s
         }
       }
       this.lastQ = q
       this.nextC += this.Ts
     }
+    // 3. read output
     for (let i = 0; i < n; i++) {
       const pos = this.tOut & this.mask
       const v = this.outBuf[pos]
@@ -2334,8 +2373,8 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
 registerProcessor('psola-shift', PsolaProcessor)`
 
 const VOICE_PRESETS = [
-  { name: 'CEWEK', desc: 'suara perempuan natural', st: 2.5, psola: 3.5, eq: [{ t: 'peaking', f: 3100, g: 3, q: 1 }, { t: 'highpass', f: 85, q: 0.7 }] },
-  { name: 'COWOK', desc: 'suara laki-laki natural', st: -2.5, psola: -3.5, eq: [{ t: 'lowshelf', f: 240, g: 3 }] },
+  { name: 'CEWEK', desc: 'suara perempuan natural', st: 0, psola: 7, fm: 1.155, eq: [{ t: 'peaking', f: 3100, g: 3, q: 1 }, { t: 'highpass', f: 85, q: 0.7 }] },
+  { name: 'COWOK', desc: 'suara laki-laki natural', st: 0, psola: -7, fm: 0.866, eq: [{ t: 'lowshelf', f: 240, g: 3 }] },
   { name: 'PIDATO', desc: 'pidato partai — dalam, gema gedung', st: -4, rev: .42, low: 1 },
   { name: 'CERAMAH', desc: 'ceramah kiai — dalam, gema langgar', st: -3, rev: .35, low: 1 },
   { name: 'ALAM LIAR', desc: 'narator dokumenter — tenang megah', st: -3, rev: .22, low: 1 },
@@ -2420,6 +2459,7 @@ async function voiceOn(preset) {
     if (preset.psola) {
       const ps = new AudioWorkletNode(ctx, 'psola-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
       ps.parameters.get('st').value = preset.psola
+      ps.parameters.get('fm').value = preset.fm || 1
       node.connect(ps)
       node = ps
       vc.nodes.push(ps)
@@ -3119,7 +3159,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v33' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v34' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
