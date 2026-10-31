@@ -1,4 +1,5 @@
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -2226,6 +2227,7 @@ function setCamLayout(mode) {
   $('layout-btn').innerHTML = LAYOUT_ICONS[next] // ikon = tata letak tujuan
   try { localStorage.setItem(LAYOUT_KEY, mode) } catch (e) {}
 }
+try { if (!localStorage.getItem('lauchat-camlayout-v23')) { localStorage.setItem('lauchat-camlayout-v23', '1'); localStorage.setItem(LAYOUT_KEY, 'stack') } } catch (e) {}
 setCamLayout((() => { try { const v = localStorage.getItem(LAYOUT_KEY); return LAYOUT_ORDER.includes(v) ? v : 'stack' } catch (e) { return 'stack' } })())
 $('layout-btn').addEventListener('click', () => setCamLayout(LAYOUT_ORDER[(LAYOUT_ORDER.indexOf(state.camLayout) + 1) % LAYOUT_ORDER.length]))
 
@@ -2283,7 +2285,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v22' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v23' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
