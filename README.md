@@ -40,6 +40,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Bunyi saat ketemu lawan (bisa dimatikan).
 - Blokir permanen: lawan yang diblokir tidak akan dipasangkan lagi.
 - Suit batu-gunting-kertas bareng lawan — skor berjalan tiap ronde.
+- Nonton bareng YouTube: tempel link, play/pause/posisi sinkron dua arah.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -114,6 +115,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v24** — mode atas-bawah memakai proporsi 3/4 maks 400px di semua layar — kamera tidak terpotong di desktop.
 - **v25** — gerbang 18+, tombol ajak teman (share), bunyi saat ketemu lawan (toggle), blokir permanen.
 - **v26** — game suit batu-gunting-kertas 1-on-1 (skor berjalan).
+- **v27** — nonton bareng YouTube (sinkronisasi dua arah, koreksi drift otomatis).
 
 ## Catatan
 
