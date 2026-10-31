@@ -43,6 +43,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Nonton bareng YouTube: tempel link, play/pause/posisi sinkron dua arah.
 - Ejak suara persona: pidato partai, trailer Hollywood, anchor berita, sinden, robot, balita — pitch shift + reverb + vibrato + ring mod.
 - Transparansi efek suara: lawan otomatis diberi tahu (pesan sistem + badge "SUARA EFEK") saat efek dinyalakan atau dimatikan.
+- 10 preset ejak suara bergaya publik figur: pidato, ceramah, alam liar, siaran malam, trailer, anchor, stand-up, sinden, robot, balita — dipilih lewat panel, bukan siklus.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -121,6 +122,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v28** — ejak suara persona (voice changer, AudioWorklet granular pitch shift).
 - **v29** — perbaikan: kontrol bawah wrap anti tumpang tindih + pitch shifter 4-tap Hann (suara tidak kresek) + label preset pendek.
 - **v30** — label transparansi efek suara ke lawan (disclosure ala EU AI Act).
+- **v31** — panel pilihan ejak suara + 4 preset baru (ceramah, alam liar, siaran malam, stand-up).
 
 ## Catatan
 
