@@ -5,6 +5,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -226,7 +227,7 @@ kbd{
 #typing-indicator{min-height:20px;padding:4px 2px 0;color:var(--muted);font-size:15px;font-family:var(--pix)}
 #chat-form{display:flex;gap:8px;margin-top:12px}
 #chat-input{flex:1;max-height:110px;font-size:14px}
-.controls{display:flex;gap:8px;margin-top:12px}
+.controls{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}
 .controls .btn{flex:1;min-width:0;padding:0 8px;font-size:15px}
 .controls .btn svg{display:none}
 @media (min-width:421px){.controls .btn svg{display:block}}
@@ -255,6 +256,8 @@ footer b{color:var(--fg);font-weight:600}
   main{padding:16px 14px 32px}
   .hero{margin:16px 0 20px}
   .online span:last-child{display:none}
+  .controls{gap:6px}
+  .controls .btn{height:36px;padding:0 12px;font-size:14px}
 }
 /* ---------- boot terminal ---------- */
 #boot{position:fixed;inset:0;z-index:99;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:opacity .35s;padding:16px}
@@ -470,7 +473,7 @@ footer b{color:var(--fg);font-weight:600}
       <span>Tonton</span>
     </button>
     <button id="btn-voice" class="btn ghost" type="button" title="Ejak suara persona">
-      <span id="voice-label">Suara: off</span>
+      <span id="voice-label">Suara</span>
     </button>
     <button id="btn-block" class="btn ghost" type="button" title="Blokir lawan — tidak akan dipasangkan lagi">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
@@ -2112,7 +2115,7 @@ const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcess
     this.win = 1024
     this.buffers = []
     this.idx = 0
-    this.ph = [0, 0.5]
+    this.ph = [0, 0.25, 0.5, 0.75]
   }
   process(inputs, outputs, params) {
     const inp = inputs[0], out = outputs[0]
@@ -2126,12 +2129,16 @@ const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcess
       if (!this.buffers[ch]) this.buffers[ch] = new Float32Array(this.size)
       const buf = this.buffers[ch]
       const st = stArr[0]
+      if (Math.abs(st) < 0.01) {
+        for (let i = 0; i < n; i++) { buf[this.idx] = x[i]; y[i] = x[i]; this.idx = (this.idx + 1) % this.size }
+        continue
+      }
       const ratio = Math.pow(2, st / 12)
       const inc = (1 - ratio) / this.win
       for (let i = 0; i < n; i++) {
         buf[this.idx] = x[i]
         let s = 0
-        for (let t = 0; t < 2; t++) {
+        for (let t = 0; t < 4; t++) {
           let p = this.ph[t] + inc
           if (p >= 1) p -= 1
           if (p < 0) p += 1
@@ -2141,24 +2148,25 @@ const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcess
           const i1 = (i0 + 1) % this.size
           const f2 = dpos - i0
           const wet = buf[i0] * (1 - f2) + buf[i1] * f2
-          s += wet * Math.sin(Math.PI * p)
+          const w = Math.sin(Math.PI * p)
+          s += wet * w * w
         }
-        y[i] = s * 0.65
+        y[i] = s * 0.5
+        this.idx = (this.idx + 1) % this.size
       }
     }
-    this.idx = (this.idx + n) % this.size
     return true
   }
 }
 registerProcessor('pitch-shift', PitchShiftProcessor)`
 
 const VOICE_PRESETS = [
-  { name: 'PIDATO PARTAI', st: -4, rev: .42, low: 1 },
-  { name: 'TRAILER HOLLYWOOD', st: -6, rev: .5, low: 1 },
-  { name: 'ANCHOR BERITA', st: -1, rev: .16, low: 0 },
-  { name: 'SINDEN DANGDUT', st: 3, rev: .3, vib: 1, vibRate: 5.5, low: 0 },
-  { name: 'ROBOT AGENSI', st: 0, rev: .08, ring: 1, low: 0 },
-  { name: 'BALITA BAWEL', st: 6, rev: .1, low: 0 }
+  { name: 'PIDATO', desc: 'pidato partai — dalam, gema gedung', st: -4, rev: .42, low: 1 },
+  { name: 'TRAILER', desc: 'trailer Hollywood — dalam dramatis', st: -6, rev: .5, low: 1 },
+  { name: 'ANCHOR', desc: 'anchor berita — bersih studio', st: -1, rev: .16, low: 0 },
+  { name: 'SINDEN', desc: 'sinden dangdut — nada naik, getar', st: 3, rev: .3, vib: 1, vibRate: 5.5, low: 0 },
+  { name: 'ROBOT', desc: 'robot agensi — frekuensi logam', st: 0, rev: .08, ring: 1, low: 0 },
+  { name: 'BALITA', desc: 'balita bawel — cempreng', st: 6, rev: .1, low: 0 }
 ]
 
 async function ensureVoiceFx() {
@@ -2204,7 +2212,7 @@ function voiceOff() {
   if (micTrack) for (const s of voiceSenders()) { try { s.replaceTrack(micTrack) } catch (e) {} }
   if (state.vc) { try { state.vc.ctx.close() } catch (e) {} state.vc = null }
   state.vcPreset = null
-  $('voice-label').textContent = 'Suara: off'
+  $('voice-label').textContent = 'Suara'
 }
 
 async function voiceOn(preset) {
@@ -2279,6 +2287,7 @@ async function voiceOn(preset) {
     for (const s of voiceSenders()) { try { s.replaceTrack(outTrack); replaced++ } catch (e) {} }
     state.vcPreset = preset
     $('voice-label').textContent = 'Suara: ' + preset.name
+    toast('Ejak suara: ' + preset.desc, false, 2500)
     if (!replaced) toast('Ejak aktif, tapi audio belum sampai ke lawan.', false, 3000)
   } catch (e) {
     toast('Ejak suara gagal diaktifkan.', true)
@@ -2883,7 +2892,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v28' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v29' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
