@@ -42,6 +42,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -3262,8 +3263,8 @@ async function screenRecToggle() {
   if (screenRec.rec && screenRec.rec.state === 'recording') { screenRecStop(); return }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     const rv = $('remote-video')
-    if (rv && rv.srcObject) { await sessionRecStart() ; return }
-    toast('Browser ini tidak dukung rekam layar — buka di Chrome untuk rekam halaman, atau pakai tombol Rekam di Coba suara.', true, 4000)
+    if (rv && rv.srcObject) { await sessionRecStart(); return }
+    await selfRecStart()
     return
   }
   let disp
@@ -3395,6 +3396,80 @@ async function sessionRecStart() {
   } catch (e) {
     screenRecStop()
     toast('Gagal merekam sesi.', true, 2500)
+  }
+}
+
+// ---------- fallback 2: rekam diri (kamera + suara efek) tanpa chat ----------
+async function selfRecStart() {
+  let cam
+  try { cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }) }
+  catch (e) { toast('Izin kamera/mikrofon ditolak — tidak bisa merekam.', true, 3000); return }
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = 640; canvas.height = 480
+    const c2 = canvas.getContext('2d')
+    const mix = new (window.AudioContext || window.webkitAudioContext)()
+    if (mix.state === 'suspended') { try { await mix.resume() } catch (e) {} }
+    const md = mix.createMediaStreamDestination()
+    let usedFx = false
+    try {
+      if (prevFx.ctx && prevFx.dest) { mix.createMediaStreamSource(prevFx.dest.stream).connect(md); usedFx = true }
+    } catch (e) {}
+    if (!usedFx && cam.getAudioTracks().length) { try { mix.createMediaStreamSource(cam).connect(md) } catch (e) {} }
+    const v = document.createElement('video')
+    v.srcObject = new MediaStream(cam.getVideoTracks())
+    v.muted = true; v.playsInline = true
+    v.play().catch(() => {})
+    const cs = canvas.captureStream(30)
+    const ctrack = cs.getVideoTracks()[0]
+    const tracks = [ctrack]
+    if (md.stream.getAudioTracks().length) tracks.push(md.stream.getAudioTracks()[0])
+    const out = new MediaStream(tracks)
+    let mime = ''
+    try { mime = screenRecMime() } catch (e) {}
+    const rec = new MediaRecorder(out, mime ? { mimeType: mime } : undefined)
+    screenRec.rec = rec; screenRec.chunks = []; screenRec.mix = mix; screenRec.ctrack = ctrack
+    screenRec.stream = cam; screenRec.mode = 'diri'
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) screenRec.chunks.push(e.data) }
+    rec.onstop = () => {
+      const type = mime || 'video/webm'
+      const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm'
+      const blob = new Blob(screenRec.chunks, { type })
+      screenRec.chunks = []
+      const dur = screenRec.t0 ? Math.round((Date.now() - screenRec.t0) / 100) / 10 : 0
+      screenRec.t0 = 0
+      if (blob.size) {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'lauchat-diri-' + Math.floor(Date.now() / 1000) + '.' + ext
+        document.body.appendChild(a); a.click(); a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 4000)
+        toast('Rekaman ' + dur + ' dtk tersimpan — cek folder Download.', false, 3200)
+      } else {
+        toast('Rekaman kosong.', true, 2500)
+      }
+    }
+    const draw = () => {
+      c2.save()
+      c2.translate(640, 0); c2.scale(-1, 1)
+      sessionDrawCover(c2, v, 0, 0, 640, 480)
+      c2.restore()
+      screenRec.raf = requestAnimationFrame(draw)
+    }
+    screenRec.t0 = Date.now()
+    rec.start(1000)
+    screenRec.raf = requestAnimationFrame(draw)
+    screenRecUi(true)
+    screenRec.timer = setInterval(() => {
+      const s = Math.floor((Date.now() - screenRec.t0) / 1000)
+      const tm = $('rec-timer')
+      if (tm) tm.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+    }, 500)
+    toast(usedFx ? 'Merekam kamu + suara efek — tap ikon merah untuk berhenti.' : 'Merekam kamera + suaramu — tap ikon merah untuk berhenti.', false, 3600)
+  } catch (e) {
+    screenRecStop()
+    toast('Gagal merekam.', true, 2500)
   }
 }
 
@@ -4013,7 +4088,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v50' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v51' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
