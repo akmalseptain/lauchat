@@ -32,6 +32,8 @@
 
 
 
+
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -224,7 +226,7 @@ kbd{
 #view-home>*{position:relative;z-index:1}
 #bg-vid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(1);opacity:.20;pointer-events:none}
 body.on-home header{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;text-shadow:0 1px 2px #000,0 0 9px rgba(0,0,0,.8)}
-body.on-home.scrolled header{background:color-mix(in srgb, var(--bg) 72%, transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+body.on-home.scrolled header{background:color-mix(in srgb, var(--bg) 94%, transparent);text-shadow:none}
 #view-home{text-shadow:0 1px 2px #000,0 0 9px rgba(0,0,0,.8)}
 .try-row{display:flex;justify-content:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
 #prev-panel{margin-top:12px}
@@ -2880,8 +2882,8 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
 registerProcessor('psola-shift', PsolaProcessor)`
 
 const VOICE_PRESETS = [
-  { name: 'CEWEK', desc: 'suara perempuan natural', lib: 'ss', ssSemi: 7, ssFormant: 2.5, st: 0, psola: 7, fm: 1.155, eq: [{ t: 'peaking', f: 3100, g: 3, q: 1 }, { t: 'highpass', f: 85, q: 0.7 }] },
-  { name: 'COWOK', desc: 'suara laki-laki natural', lib: 'ss', ssSemi: -7, ssFormant: -2.5, st: 0, psola: -7, fm: 0.866, eq: [{ t: 'lowshelf', f: 240, g: 3 }] },
+  { name: 'CEWEK', desc: 'suara perempuan natural', lib: 'ss', ssSemi: 9, ssFormant: 4, st: 0, psola: 9, fm: 1.155, eq: [{ t: 'peaking', f: 3100, g: 3, q: 1 }, { t: 'highpass', f: 85, q: 0.7 }] },
+  { name: 'COWOK', desc: 'suara laki-laki natural', lib: 'ss', ssSemi: -9, ssFormant: -4, st: 0, psola: -9, fm: 0.866, eq: [{ t: 'lowshelf', f: 240, g: 3 }] },
   { name: 'PIDATO', desc: 'pidato partai — dalam, gema gedung', st: -4, rev: .42, low: 1 },
   { name: 'CERAMAH', desc: 'ceramah kiai — dalam, gema langgar', st: -3, rev: .35, low: 1 },
   { name: 'ALAM LIAR', desc: 'narator dokumenter — tenang megah', st: -3, rev: .22, low: 1 },
@@ -2953,15 +2955,17 @@ async function buildFxChain(ctx, store, preset, srcNode) {
   if (preset.lib === 'ss' && typeof SignalsmithStretch === 'function') {
     try {
       const ss = await SignalsmithStretch(ctx, { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] })
-      await ss.configure({ blockMs: 40, intervalMs: 10 })
+      await ss.configure({ blockMs: 60, intervalMs: 15, splitComputation: true })
       await ss.schedule({ active: true, semitones: preset.ssSemi, tonalityHz: 8000, formantSemitones: preset.ssFormant, formantCompensation: true, formantBaseHz: 0 })
       srcNode.connect(ss)
       store.nodes.push(ss)
       node = ss
       ssShifted = true
+      store.engine = 'Stretch'
     } catch (e) { console.warn('Signalsmith Stretch gagal — fallback ke PSOLA', e); node = null }
   }
   if (!node) {
+    store.engine = store.engine || 'PSOLA'
     const pitch = new AudioWorkletNode(ctx, 'pitch-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
     pitch.parameters.get('st').value = preset.st || 0
     srcNode.connect(pitch)
@@ -3059,7 +3063,7 @@ async function voiceOn(preset) {
     for (const s of voiceSenders()) { try { s.replaceTrack(outTrack); replaced++ } catch (e) {} }
     state.vcPreset = preset
     $('voice-label').textContent = preset.name
-    toast('Ejak suara: ' + preset.desc, false, 2500)
+    toast('Ejak suara: ' + preset.desc + ' — engine: ' + (vc.engine || '?'), false, 3000)
     try { state.chatMsg.send({fx: preset.name, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
     sysMsg('efek suara aktif — lawan sudah diberi tahu')
     if (!replaced) toast('Ejak aktif, tapi audio belum sampai ke lawan.', false, 3000)
@@ -3120,7 +3124,7 @@ async function previewOn(preset) {
     comp.connect(ctx.destination)
     store.nodes.push(comp)
     prevFx.ctx = ctx; prevFx.store = store; prevFx.mic = mic; prevFx.preset = preset
-    toast('Simulasi ' + preset.name + ' nyala — bicara sekarang.', false, 2500)
+    toast('Simulasi ' + preset.name + ' nyala — engine: ' + (store.engine || '?') + ' — bicara sekarang.', false, 3000)
   } catch (e) {
     toast('Gagal membuka mikrofon.', true, 2500)
     previewOff()
@@ -3752,7 +3756,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v44' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v45' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
