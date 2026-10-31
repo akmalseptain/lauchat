@@ -40,6 +40,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -239,6 +240,8 @@ body.on-home.scrolled header{background:color-mix(in srgb, var(--bg) 94%, transp
 .prev-note{margin:0 0 10px;color:var(--muted);font-size:14px;font-family:var(--pix)}
 #prev-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
 #btn-prev-rec.rec-on{color:#dc2626}
+#btn-screen-rec.rec-on{color:#dc2626}
+#rec-timer{font-family:var(--pix);color:#dc2626;font-size:15px}
 .prefs.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--pix);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
@@ -357,6 +360,10 @@ footer b{color:var(--fg);font-weight:600}
   </div>
   <div class="head-right">
     <span class="online"><span class="dot"></span><span id="online-count">—</span></span>
+    <span id="rec-timer" class="hidden">0:00</span>
+    <button class="icon-btn" id="btn-screen-rec" aria-label="Rekam halaman">
+      <svg id="screen-rec-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5" fill="#dc2626" stroke="none"/></svg>
+    </button>
     <button class="icon-btn" id="themeBtn" aria-label="Ganti tema">
       <svg id="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
       <svg id="icon-sun" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
@@ -3071,6 +3078,7 @@ async function voiceOn(preset) {
     const dest = ctx.createMediaStreamDestination()
     comp.connect(dest)
     vc.nodes.push(comp, dest)
+    vc.dest = dest
     const outTrack = dest.stream.getAudioTracks()[0]
     let replaced = 0
     for (const s of voiceSenders()) { try { s.replaceTrack(outTrack); replaced++ } catch (e) {} }
@@ -3218,6 +3226,94 @@ function prevRecToggle() {
   toast('Merekam suara hasil simulasi — bicara sekarang.', false, 2200)
 }
 $('btn-prev-rec').addEventListener('click', prevRecToggle)
+
+// ---------- rekam seluruh halaman (screen record internal) ----------
+const screenRec = { rec: null, chunks: [], t0: 0, timer: null, stream: null, mix: null }
+
+function screenRecMime() {
+  const cands = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
+  for (const m of cands) { try { if (MediaRecorder.isTypeSupported(m)) return m } catch (e) {} }
+  return ''
+}
+
+function screenRecUi(on) {
+  const b = $('btn-screen-rec'), ic = $('screen-rec-ic'), tm = $('rec-timer')
+  if (!b) return
+  b.classList.toggle('rec-on', !!on)
+  tm.classList.toggle('hidden', !on)
+  ic.innerHTML = on
+    ? '<rect x="7" y="7" width="10" height="10" rx="1.5" fill="#dc2626" stroke="none"/>'
+    : '<circle cx="12" cy="12" r="5" fill="#dc2626" stroke="none"/>'
+}
+
+function screenRecStop() {
+  if (screenRec.timer) { clearInterval(screenRec.timer); screenRec.timer = null }
+  if (screenRec.rec && screenRec.rec.state !== 'inactive') { try { screenRec.rec.stop() } catch (e) {} }
+  if (screenRec.stream) for (const t of screenRec.stream.getTracks()) { try { t.stop() } catch (e) {} }
+  if (screenRec.mix) { try { screenRec.mix.close() } catch (e) {} }
+  screenRec.stream = null; screenRec.mix = null
+  screenRecUi(false)
+}
+
+async function screenRecToggle() {
+  if (screenRec.rec && screenRec.rec.state === 'recording') { screenRecStop(); return }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast('Browser ini tidak dukung rekam layar — pakai tombol Rekam di Coba suara.', true, 3000); return }
+  let disp
+  try { disp = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }) }
+  catch (e) { return }
+  const tracks = []
+  const vt = disp.getVideoTracks()[0]
+  if (vt) tracks.push(vt)
+  const at = disp.getAudioTracks()[0]
+  // suara efek chat sendiri tidak terdengar lokal → campur manual ke rekaman
+  let mix = null
+  try {
+    if (state.vcPreset && state.vc && state.vc.dest) {
+      mix = new (window.AudioContext || window.webkitAudioContext)()
+      const ms = mix.createMediaStreamSource(state.vc.dest.stream)
+      const md = mix.createMediaStreamDestination()
+      ms.connect(md)
+      tracks.push(md.stream.getAudioTracks()[0])
+    }
+  } catch (e) { if (mix) { try { mix.close() } catch (e2) {} } mix = null }
+  if (!at && !mix) toast('Audio tidak ikut dibagikan — rekaman jadi tanpa suara.', true, 3000)
+  const out = new MediaStream(tracks)
+  let mime = ''
+  try { mime = screenRecMime() } catch (e) {}
+  const rec = new MediaRecorder(out, mime ? { mimeType: mime } : undefined)
+  screenRec.rec = rec; screenRec.chunks = []; screenRec.stream = disp; screenRec.mix = mix
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) screenRec.chunks.push(e.data) }
+  rec.onstop = () => {
+    const type = mime || 'video/webm'
+    const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm'
+    const blob = new Blob(screenRec.chunks, { type })
+    screenRec.chunks = []
+    const dur = screenRec.t0 ? Math.round((Date.now() - screenRec.t0) / 100) / 10 : 0
+    screenRec.t0 = 0
+    if (blob.size) {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'lauchat-layar-' + Math.floor(Date.now() / 1000) + '.' + ext
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 4000)
+      toast('Rekaman halaman ' + dur + ' dtk tersimpan — cek folder Download.', false, 3200)
+    } else {
+      toast('Rekaman kosong.', true, 2500)
+    }
+  }
+  if (vt) vt.addEventListener('ended', () => { if (screenRec.rec === rec && rec.state === 'recording') screenRecStop() })
+  screenRec.t0 = Date.now()
+  rec.start(1000)
+  screenRecUi(true)
+  screenRec.timer = setInterval(() => {
+    const s = Math.floor((Date.now() - screenRec.t0) / 1000)
+    const tm = $('rec-timer')
+    if (tm) tm.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+  }, 500)
+  toast('Merekam seluruh halaman — tap ikon merah di header untuk berhenti.', false, 3200)
+}
+$('btn-screen-rec').addEventListener('click', screenRecToggle)
 
 function renderPrevList() {
   const list = $('prev-list')
@@ -3834,7 +3930,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v48' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v49' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
