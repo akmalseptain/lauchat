@@ -46,6 +46,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -224,6 +225,10 @@ kbd{
 #room-input{flex:1;max-height:110px;font-size:14px}
 #game-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 #game-panel,#game-panel-chat{border:none;border-radius:0;background:transparent;padding:14px 0;margin-bottom:12px}
+.doodle-cv{width:100%;aspect-ratio:3/2;background:#000;touch-action:none;border:1px solid var(--border);cursor:crosshair;display:block}
+.doodle-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.doodle-sw{width:30px;height:30px;padding:0;border-radius:6px;border:1px solid var(--border)}
+.doodle-sw.pick{outline:2px solid var(--accent);outline-offset:1px}
 #watch-panel{margin:0 0 12px}
 #watch-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 #watch-cta{margin-top:8px}
@@ -313,7 +318,7 @@ footer b{color:var(--fg);font-weight:600}
   main{padding:16px 14px 32px}
   .hero{margin:16px 0 20px}
   .online span:last-child{display:none}
-  .controls{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .controls{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
   .controls .btn{height:36px;padding:0 2px;font-size:13px;gap:4px}
 }
 /* ---------- boot terminal ---------- */
@@ -553,6 +558,13 @@ footer b{color:var(--fg);font-weight:600}
     </button>
     <button id="btn-suit-chat" class="btn ghost" type="button" title="Suit batu-gunting-kertas bareng lawan">
       <span>Suit</span>
+    </button>
+    <button id="btn-doodle-chat" class="btn ghost" type="button" title="Doodle duel — gambar bareng lawan">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      <span>Doodle</span>
+    </button>
+    <button id="btn-icebreaker-chat" class="btn ghost" type="button" title="Kirim kartu icebreaker ke lawan">
+      <span>Icebreaker</span>
     </button>
     <button id="btn-watch" class="btn ghost" type="button" title="Nonton bareng YouTube">
       <span>Tonton</span>
@@ -2137,8 +2149,11 @@ function joinPrivateRoom(rawCode) {
 
 function sendRoomChat() {
   const input = $('room-input')
-  const text = input.value.trim().slice(0, MAX_MSG_LEN)
+  let text = input.value.trim().slice(0, MAX_MSG_LEN)
   if (!text || !roomState.room) return
+  const sc = slashProcess(text, true)
+  if (sc === false) { input.value = ''; input.style.height = 'auto'; return }
+  if (typeof sc === 'string') text = sc
   try { roomState.chat.send({t: text}) } catch (e) {}
   addRoomMsg('me', '', text)
   input.value = ''
@@ -2262,6 +2277,7 @@ function startGuessGame() {
   if (!roomState.room) return
   if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Selesaikan kuisnya dulu.', true, 2500); return }
   if (gameState.type === 'guess') { toast('Tebak angka sedang jalan.', true, 2500); return }
+  if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null, quiz: null }
   sendGame({t: 'g-start'})
@@ -2421,6 +2437,7 @@ function startQuizGame() {
   if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   if (gameState.type === 'suit' && gameState.suit) { toast('Selesaikan suit dulu.', true, 2500); return }
+  if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
   try { sendGame({t: 'q-open'}) } catch (e) {}
@@ -2447,6 +2464,7 @@ function startSuitGame() {
   if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
+  if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
   try { sendGame({t: 's-open'}) } catch (e) {}
@@ -2482,6 +2500,170 @@ function suitMaybeResolve() {
     S.myPick = null; S.oppPick = null; S.done = false; S.round++
     renderSuit()
   }, 2200)
+}
+
+// ---------- slash command terminal + kartu icebreaker ----------
+const EIGHT_BALL = ['YA', 'TIDAK', 'MUNGKIN', 'JANGAN BERHARAP', 'PASTI BANGET', 'NANYA LAGI NANTI', 'KAYAKNYA IYA', 'JANGAN DULU', 'TANDA-TANDANYA YA', 'GAK USAH DIPIKIRIN']
+const ICEBREAKERS = [
+  'kalau bisa teleport ke satu tempat sekarang, ke mana dan kenapa?',
+  'lagu apa yang paling sering kamu putar belakangan ini?',
+  'makanan apa yang bisa kamu makan tiap hari tanpa bosan?',
+  'kalau bisa punya satu skill instan, apa itu?',
+  'film/serial apa yang paling sering kamu tonton ulang?',
+  'kamu tim anjing atau tim kucing, dan kenapa?',
+  'apa hal kecil yang bikin harimu langsung membaik?',
+  'kalau hidupmu jadi film, judulnya apa?',
+  'kopi, teh, atau yang manis-manis?',
+  'game apa yang paling banyak menyita waktumu?',
+  'kalau bisa makan malam sama siapa pun, sama siapa?',
+  'tempat terjauh yang pernah kamu kunjungi?',
+  'hobi apa yang dulu pernah kamu seriusin?',
+  'apa ketakutan kamu yang paling nggak masuk akal?',
+  'junk food apa yang paling susah kamu tolak?',
+  'kalau besok bebas dari kerja/sekolah, kamu ngapain?',
+  'waktu kecil kamu pengen jadi apa pas gede?',
+  'apa yang bikin kamu tertawa terakhir kali?',
+  'pantai atau gunung? jawab cepat!',
+  'kalau bisa ganti namamu sekarang, mau namanya apa?',
+  'aplikasi apa yang paling lama kamu buka tiap hari?',
+  'zodiak kamu apa, cocok nggak sama kamu?',
+  'olahraga apa yang kamu bakal tinju kalau disuruh lakukan tiap hari?',
+  'kalau dapat gaji 2x bulan ini, hal pertama yang kamu beli apa?'
+]
+const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /help'
+
+function slashProcess(text, isRoom) {
+  if (!text || text.charCodeAt(0) !== 47) return undefined
+  const sp = text.indexOf(' ')
+  const cmd = (sp < 0 ? text : text.slice(0, sp)).toLowerCase()
+  const arg = sp < 0 ? '' : text.slice(sp + 1).trim()
+  const local = (t) => { (isRoom ? roomSys : sysMsg)(t); return false }
+  if (cmd === '/help') return local(SLASH_HELP)
+  if (cmd === '/flip') return 'FLIP: ' + (Math.random() < 0.5 ? 'KEPALA' : 'EKOR')
+  if (cmd === '/roll') {
+    const m = arg.match(/^d?(\d{1,6})$/i)
+    const sides = m ? Math.min(Math.max(parseInt(m[1], 10), 2), 1000) : 6
+    return 'ROLL d' + sides + ': ' + (1 + Math.floor(Math.random() * sides))
+  }
+  if (cmd === '/8ball') {
+    if (!arg) return local('8ball: tulis pertanyaannya — /8ball apa aku ganteng')
+    return '8BALL ' + arg + ' → ' + EIGHT_BALL[Math.floor(Math.random() * EIGHT_BALL.length)]
+  }
+  if (cmd === '/me') {
+    if (!arg) return local('/me: tulis aksinya — /me dansa santuy')
+    return '* ' + myNick() + ' ' + arg
+  }
+  if (cmd === '/ice') return 'ICEBREAKER: ' + ICEBREAKERS[Math.floor(Math.random() * ICEBREAKERS.length)]
+  return local('perintah tak dikenal — ' + SLASH_HELP)
+}
+
+// ---------- doodle duel: gambar bareng di kanvas (chat 1-on-1) ----------
+const DOODLE_COLORS = [['#fafafa', 'putih'], ['#16a34a', 'hijau'], ['#dc2626', 'merah'], ['#facc15', 'kuning'], ['#38bdf8', 'biru']]
+const DOODLE_WIDTHS = [2, 4, 8]
+
+function newDoodleState() { return { color: '#fafafa', w: 4, down: false, last: null, sent: null, cv: null } }
+
+function startDoodleGame() {
+  if (gameCtx.isRoom) return
+  if (!gameReady()) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
+  if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
+  if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
+  if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
+  clearQuizTimers()
+  gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
+  try { sendGame({ t: 'd-open' }) } catch (e) {}
+  showGamePanel('DOODLE DUEL')
+  renderDoodle()
+  roomGameLog('doodle dibuka — kanvas sama, gambar bareng lawan')
+}
+
+function doodleSeg(a, b, c, w) {
+  const D = gameState.doodle
+  if (!D || !D.cv || !a || !b) return
+  const ctx = D.cv.getContext('2d')
+  ctx.strokeStyle = c; ctx.lineWidth = w
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(a[0] * D.cv.width, a[1] * D.cv.height)
+  ctx.lineTo(b[0] * D.cv.width, b[1] * D.cv.height)
+  ctx.stroke()
+}
+
+function doodleClear(send) {
+  const D = gameState.doodle
+  if (D && D.cv) { const ctx = D.cv.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, D.cv.width, D.cv.height) }
+  if (send) { try { sendGame({ t: 'd-clear' }) } catch (e) {} }
+}
+
+function doodleClose(send) {
+  if (send) { try { sendGame({ t: 'd-close' }) } catch (e) {} }
+  gameState = { type: null, hostId: null, secret: 0, ttt: null }
+  hideGamePanel()
+}
+
+function renderDoodle() {
+  const g = gameState, body = gp('game-body')
+  body.innerHTML = ''
+  if (g.type !== 'doodle' || !g.doodle) return
+  const D = g.doodle
+  const cv = document.createElement('canvas')
+  cv.width = 480; cv.height = 320
+  cv.className = 'doodle-cv'
+  body.appendChild(cv)
+  D.cv = cv
+  const ctx = cv.getContext('2d')
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height)
+  const bar = document.createElement('div')
+  bar.className = 'doodle-bar'
+  for (const c of DOODLE_COLORS) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'doodle-sw' + (D.color === c[0] ? ' pick' : '')
+    b.style.background = c[0]
+    b.title = c[1]
+    b.addEventListener('click', () => { D.color = c[0]; bar.querySelectorAll('.doodle-sw').forEach(x => x.classList.remove('pick')); b.classList.add('pick') })
+    bar.appendChild(b)
+  }
+  for (const w of DOODLE_WIDTHS) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'btn ghost sm' + (D.w === w ? ' pick' : '')
+    b.textContent = w
+    b.title = 'ketebalan garis ' + w
+    b.addEventListener('click', () => { D.w = w; bar.querySelectorAll('.btn').forEach(x => x.classList.remove('pick')); b.classList.add('pick') })
+    bar.appendChild(b)
+  }
+  const clr = document.createElement('button')
+  clr.type = 'button'; clr.className = 'btn ghost sm'; clr.textContent = 'Hapus'
+  clr.addEventListener('click', () => doodleClear(true))
+  bar.appendChild(clr)
+  const cls = document.createElement('button')
+  cls.type = 'button'; cls.className = 'btn ghost sm'; cls.textContent = 'Tutup'
+  cls.addEventListener('click', () => doodleClose(true))
+  bar.appendChild(cls)
+  body.appendChild(bar)
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height] }
+  cv.addEventListener('pointerdown', (e) => {
+    if (gameState.type !== 'doodle' || !gameState.doodle) return
+    D.down = true; D.last = pos(e); D.sent = D.last
+    try { cv.setPointerCapture(e.pointerId) } catch (err) {}
+    doodleSeg(D.last, D.last, D.color, D.w)
+    try { sendGame({ t: 'd-seg', pts: [D.last, D.last], c: D.color, w: D.w }) } catch (err) {}
+    e.preventDefault()
+  })
+  cv.addEventListener('pointermove', (e) => {
+    if (!D.down || gameState.type !== 'doodle' || !gameState.doodle) return
+    const p = pos(e)
+    const dx = p[0] - D.sent[0], dy = p[1] - D.sent[1]
+    if (dx * dx + dy * dy < 0.0000225) return
+    doodleSeg(D.last, p, D.color, D.w)
+    try { sendGame({ t: 'd-seg', pts: [D.last, p], c: D.color, w: D.w }) } catch (err) {}
+    D.last = p; D.sent = p
+  })
+  const up = () => { D.down = false }
+  cv.addEventListener('pointerup', up)
+  cv.addEventListener('pointercancel', up)
 }
 
 function renderSuit() {
@@ -3678,6 +3860,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'guess') return
     if (g.type === 'suit' && g.suit) return
+    if (g.type === 'doodle' && g.doodle) return
     gameState = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
     renderGuessBody()
@@ -3707,6 +3890,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'guess') return
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'doodle' && g.doodle) return
     gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
     showGamePanel('TIC-TAC-TOE')
     renderTtt()
@@ -3731,6 +3915,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'guess') return
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'doodle' && g.doodle) return
     clearQuizTimers()
     gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
     showGamePanel('SUIT')
@@ -3743,11 +3928,36 @@ function onRoomGame(data, peerId) {
     S.oppPick = data.v
     renderSuit()
     suitMaybeResolve()
+  } else if (data.t === 'd-open') {
+    if (gameCtx.isRoom) return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
+    if (g.type === 'guess') return
+    if (g.type === 'suit' && g.suit) return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'doodle' && g.doodle) return
+    clearQuizTimers()
+    gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
+    showGamePanel('DOODLE DUEL')
+    renderDoodle()
+    roomGameLog(pidTag(peerId) + ' mengajak doodle — gambar bareng!')
+  } else if (data.t === 'd-seg') {
+    if (g.type !== 'doodle' || !g.doodle) return
+    if (!Array.isArray(data.pts) || data.pts.length < 2) return
+    doodleSeg(data.pts[0], data.pts[1], data.c || '#fafafa', data.w || 4)
+  } else if (data.t === 'd-clear') {
+    if (g.type !== 'doodle' || !g.doodle) return
+    doodleClear(false)
+    roomGameLog(pidTag(peerId) + ' menghapus kanvas')
+  } else if (data.t === 'd-close') {
+    if (g.type !== 'doodle' || !g.doodle) return
+    doodleClose(false)
+    sysMsg('lawan menutup doodle')
   } else if (data.t === 'q-open') {
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
     if (g.type === 'guess') return
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'doodle' && g.doodle) return
     clearQuizTimers()
     gameState = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
     showGamePanel('KUIS 1001')
@@ -3827,6 +4037,14 @@ $('btn-screen').addEventListener('click', togglePairScreen)
 $('btn-room-screen').addEventListener('click', toggleRoomScreen)
 $('btn-quiz-chat').addEventListener('click', () => startQuizGame())
 $('btn-suit-chat').addEventListener('click', () => startSuitGame())
+$('btn-doodle-chat').addEventListener('click', () => startDoodleGame())
+$('btn-icebreaker-chat').addEventListener('click', () => {
+  if (state.mode !== 'chatting' || !state.chatMsg) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
+  const t = 'ICEBREAKER: ' + ICEBREAKERS[Math.floor(Math.random() * ICEBREAKERS.length)]
+  try { state.chatMsg.send({t, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
+  addMsg('me', t, Date.now())
+})
+$('game-close-chat').addEventListener('click', () => { if (gameState.type === 'doodle' && gameState.doodle) doodleClose(true) })
 $('btn-watch').addEventListener('click', () => { openWatchPanel(false); try { $('watch-url').focus() } catch (e) {} })
 $('btn-watch-play').addEventListener('click', () => watchNewLocal($('watch-url').value))
 $('btn-watch-close').addEventListener('click', () => watchClose(true))
@@ -3982,8 +4200,11 @@ function showTyping() {
 // ---------- kirim pesan ----------
 function sendChat() {
   const input = $('chat-input')
-  const text = input.value.trim().slice(0, MAX_MSG_LEN)
+  let text = input.value.trim().slice(0, MAX_MSG_LEN)
   if (!text || state.mode !== 'chatting' || !state.chatMsg) return
+  const sc = slashProcess(text, false)
+  if (sc === false) { input.value = ''; input.style.height = 'auto'; return }
+  if (typeof sc === 'string') text = sc
   state.chatMsg.send({t: text, ts: Date.now()}, {target: state.partnerId})
   addMsg('me', text, Date.now())
   input.value = ''
@@ -4126,7 +4347,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v54' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v55' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
