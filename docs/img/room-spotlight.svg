@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 860" font-family="VT323, ui-monospace, Menlo, Consolas, monospace">
+  <rect width="480" height="860" fill="#09090b"/>
+
+  <!-- header -->
+  <text x="40" y="42" fill="#fafafa" font-size="14" font-weight="bold">ROOM AB12CD</text>
+  <text x="180" y="42" fill="#a1a1aa" font-size="14">·</text>
+  <text x="190" y="42" fill="#a1a1aa" font-size="15">3 orang</text>
+
+  <!-- video utama spotlight 16:9 -->
+  <g transform="translate(40,58)">
+    <rect width="400" height="225" fill="#0a0a0a"/>
+    <rect x="6" y="201" width="46" height="18" rx="3" fill="rgba(0,0,0,.55)"/>
+    <text x="13" y="214" fill="#e6e6e6" font-size="13">dina</text>
+    <rect x="362" y="8" width="26" height="26" rx="6" fill="rgba(0,0,0,.55)" stroke="rgba(255,255,255,.18)"/>
+    <rect x="368" y="14" width="14" height="14" rx="2" fill="#000000" stroke="#e6e6e6" stroke-width="1.5"/>
+    <path d="M368 14 l7 -4 7 4" fill="none" stroke="#e6e6e6" stroke-width="1.5"/>
+    <rect width="400" height="225" fill="none" stroke="#27272a"/>
+  </g>
+
+  <!-- thumbnail strip -->
+  <g transform="translate(40,293)">
+    <rect width="110" height="66" fill="#111113" stroke="#16a34a"/>
+    <rect x="4" y="48" width="32" height="14" rx="2" fill="rgba(0,0,0,.55)"/>
+    <text x="9" y="58" fill="#e6e6e6" font-size="12">aku</text>
+    <rect x="120" width="110" height="66" fill="#111113" stroke="#27272a"/>
+    <rect x="124" y="48" width="32" height="14" rx="2" fill="rgba(0,0,0,.55)"/>
+    <text x="129" y="58" fill="#e6e6e6" font-size="12">boi</text>
+    <text x="245" y="40" fill="#71717a" font-size="13">← klik untuk tukar</text>
+  </g>
+
+  <text x="40" y="392" fill="#a1a1aa" font-size="15">aku · dina · boi</text>
+
+  <!-- game bar -->
+  <g transform="translate(40,406)" font-size="14" text-anchor="middle">
+    <rect x="0" y="0" width="120" height="32" rx="8" fill="none" stroke="#27272a"/>
+    <text x="60" y="21" fill="#fafafa">Tebak Angka</text>
+    <rect x="130" y="0" width="120" height="32" rx="8" fill="none" stroke="#27272a"/>
+    <text x="190" y="21" fill="#fafafa">Tic-tac-toe</text>
+    <rect x="260" y="0" width="110" height="32" rx="8" fill="none" stroke="#27272a"/>
+    <text x="315" y="21" fill="#fafafa">Kuis 1001</text>
+  </g>
+
+  <!-- chat log -->
+  <g transform="translate(40,458)" font-size="15">
+    <text x="0" y="0" fill="#a1a1aa" font-size="14">boi masuk room</text>
+    <rect x="0" y="18" width="180" height="34" rx="12" fill="#1f1f23"/>
+    <text x="14" y="40" fill="#fafafa">gas kuis 1001 3 ronde</text>
+    <rect x="216" y="60" width="160" height="34" rx="12" fill="#16a34a"/>
+    <text x="230" y="82" fill="#ffffff">siap, aku duluan</text>
+  </g>
+
+  <!-- form + controls -->
+  <g transform="translate(40,600)">
+    <text x="0" y="28" fill="#71717a" font-size="16">Ketik pesan…</text>
+    <line x1="0" y1="38" x2="320" y2="38" stroke="#e4e4e7"/>
+    <rect x="334" y="2" width="40" height="40" rx="8" fill="none" stroke="#27272a"/>
+    <rect x="342" y="10" width="24" height="24" rx="4" fill="none" stroke="#a1a1aa" stroke-width="1.5"/>
+    <circle cx="350" cy="18" r="2.5" fill="none" stroke="#a1a1aa" stroke-width="1.5"/>
+    <rect x="382" y="2" width="40" height="40" rx="8" fill="#16a34a"/>
+    <path d="M410 16 l-9 9 -3 -7 -7 -3 9 9 z" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(40,636)" font-size="13" text-anchor="middle">
+    <rect x="0" y="16" width="192" height="42" rx="8" fill="none" stroke="#27272a"/>
+    <text x="96" y="42" fill="#fafafa">Kamera on</text>
+    <rect x="208" y="16" width="110" height="42" rx="8" fill="none" stroke="#27272a"/>
+    <text x="263" y="42" fill="#fafafa">Layar</text>
+    <rect x="326" y="16" width="96" height="42" rx="8" fill="none" stroke="#27272a"/>
+    <text x="374" y="42" fill="#fafafa">Keluar</text>
+  </g>
+
+  <text x="240" y="836" text-anchor="middle" fill="#3f3f46" font-size="11">pratinjau UI — mode spotlight (klik thumbnail untuk tukar)</text>
+</svg>
