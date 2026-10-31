@@ -106,6 +106,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v21** — tata letak kamera atas-bawah (lawan atas, self bawah) ala Umingle/OmeTV jadi default; tombol siklus 3 mode: atas-bawah, berdampingan, PiP.
 - **v22** — tata letak atas-bawah disamakan besar (1:1, ala Umingle asli) — bukan lawan dominan.
 - **v23** — reset pilihan tata letak lama (sekali) — pengguna awal yang tersimpan mode split/PiP otomatis dapat default atas-bawah.
+- **v24** — mode atas-bawah memakai proporsi 3/4 maks 400px di semua layar — kamera tidak terpotong di desktop.
 
 ## Catatan
 
