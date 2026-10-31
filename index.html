@@ -1,5 +1,6 @@
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -145,7 +146,7 @@ kbd{
 #remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#8b8b90;font-size:15px;font-family:var(--pix);background:#000;text-align:center;padding:10px}
 #pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 #pip .off{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#8b8b90;background:#000}
-#video-wrap.stack{flex-direction:column}
+#video-wrap.stack{flex-direction:column;aspect-ratio:3/4;max-width:400px;margin:0 auto 12px}
 #video-wrap.stack #remote-cell{flex:1}
 #video-wrap.stack #pip{flex:1}
 #video-wrap.pip-mode{display:block}
@@ -2285,7 +2286,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v23' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v24' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
