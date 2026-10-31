@@ -41,6 +41,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Blokir permanen: lawan yang diblokir tidak akan dipasangkan lagi.
 - Suit batu-gunting-kertas bareng lawan — skor berjalan tiap ronde.
 - Nonton bareng YouTube: tempel link, play/pause/posisi sinkron dua arah.
+- Ejak suara persona: pidato partai, trailer Hollywood, anchor berita, sinden, robot, balita — pitch shift + reverb + vibrato + ring mod.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -116,6 +117,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v25** — gerbang 18+, tombol ajak teman (share), bunyi saat ketemu lawan (toggle), blokir permanen.
 - **v26** — game suit batu-gunting-kertas 1-on-1 (skor berjalan).
 - **v27** — nonton bareng YouTube (sinkronisasi dua arah, koreksi drift otomatis).
+- **v28** — ejak suara persona (voice changer, AudioWorklet granular pitch shift).
 
 ## Catatan
 
