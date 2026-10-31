@@ -139,6 +139,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v43** — header dinamis di beranda: transparan saat halaman di puncak, berubah jadi frosted blur saat di-scroll ke bawah agar konten yang lewat tidak ketimpa teks header.
 - **v44** — suara CEWEK/COWOK diganti ke Signalsmith Stretch (library pitch/formant shifter open source MIT kelas industri, WASM ter-vendored utuh di file): pitch ±7 semitone dengan geser formant ±2.5 semitone terkompensasi + tonality preservation, block 40ms (latency 40ms), jauh lebih halus dari PSOLA lama; preset lama tetap jadi fallback otomatis kalau WASM gagal dimuat.
 - **v45** — fix video latar ikut membesar saat scroll di Chrome Android (backdrop-filter di header scrolled memicu bug magnifikasi elemen fixed — diganti latar solid 94%); suara CEWEK/COWOK dinaikkan ke ±9 semitone dengan formant ±4 semitone + block 60ms + splitComputation (kualitas & pitch tracking jauh lebih stabil di shift besar, clarity output bahkan naik); toast simulasi/ejak kini menampilkan engine aktif (Stretch/PSOLA) untuk memudahkan diagnosis.
+- **v46** — fix definitif video latar ngezoom saat scroll: penyebab sebenarnya adalah address bar Chrome Android yang mengecil saat scroll → viewport berubah → video fixed ukuran persen ikut membesar dan object-fit:cover me-recrop. Video k dikunci ke ukuran large viewport (100vw × 100lvh) yang konstan, plus diberi layer compositor sendiri — tidak ada re-crop, tidak ada zoom.
 
 ## Catatan
 
