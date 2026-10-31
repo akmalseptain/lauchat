@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 860" font-family="VT323, ui-monospace, Menlo, Consolas, monospace">
+  <defs>
+    <pattern id="scan" width="480" height="4" patternUnits="userSpaceOnUse">
+      <rect width="480" height="1" y="0" fill="#ffffff" opacity="0.035"/>
+    </pattern>
+  </defs>
+  <rect width="480" height="860" fill="#000000"/>
+  <text x="56" y="240" fill="#16a34a" font-size="13" xml:space="preserve">██╗      █████╗ ██╗   ██╗ ██████╗ ██╗  ██╗ █████╗
+██║     ██╔══██╗██║   ██║██╔════╝ ██║  ██╗██╔══██╗
+██║     ███████║██║   ██║██║      ███████║███████║
+██║     ██╔══██║██║   ██║██║      ██╔══██║██╔══██║
+███████╗██║  ██║╚██████╔╝╚██████╗ ██║  ██║██║  ██╗
+╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝</text>
+  <g fill="#e4e4e7" font-size="15">
+    <text x="56" y="330">$ lauchat --start</text>
+    <text x="56" y="352">&gt; engine p2p trystero ........ OK</text>
+    <text x="56" y="374">&gt; relay nostr ................ OK</text>
+    <text x="56" y="396">&gt; ice/turn cloudflare ......... OK</text>
+    <text x="56" y="418">&gt; bahasa &amp; region ............. OK</text>
+    <text x="56" y="440">ready. siap bertemu orang asing…</text>
+  </g>
+  <rect x="56" y="452" width="9" height="15" fill="#16a34a">
+    <animate attributeName="opacity" values="1;1;0;0" dur="1s" repeatCount="indefinite"/>
+  </rect>
+  <rect width="480" height="860" fill="url(#scan)"/>
+  <text x="240" y="820" text-anchor="middle" fill="#3f3f46" font-size="11">pratinjau UI — layar boot</text>
+</svg>
