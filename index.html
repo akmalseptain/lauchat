@@ -47,6 +47,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -1853,6 +1854,10 @@ function cleanupPair(stopStream) {
   stopAiDetect()
   stopPairScreen()
   clearQuizTimers()
+  if (gameState.war) {
+    if (gameState.war.raf) cancelAnimationFrame(gameState.war.raf)
+    warStopEvents(gameState.war)
+  }
   gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
   hideGamePanel()
   state.incomingLock = false
@@ -2278,6 +2283,7 @@ function startGuessGame() {
   if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Selesaikan kuisnya dulu.', true, 2500); return }
   if (gameState.type === 'guess') { toast('Tebak angka sedang jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
+  if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null, quiz: null }
   sendGame({t: 'g-start'})
@@ -2438,6 +2444,7 @@ function startQuizGame() {
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   if (gameState.type === 'suit' && gameState.suit) { toast('Selesaikan suit dulu.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
+  if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
   try { sendGame({t: 'q-open'}) } catch (e) {}
@@ -2465,6 +2472,7 @@ function startSuitGame() {
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
+  if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
   try { sendGame({t: 's-open'}) } catch (e) {}
@@ -2530,7 +2538,7 @@ const ICEBREAKERS = [
   'olahraga apa yang kamu bakal tinju kalau disuruh lakukan tiap hari?',
   'kalau dapat gaji 2x bulan ini, hal pertama yang kamu beli apa?'
 ]
-const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /help'
+const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /war /help'
 
 function slashProcess(text, isRoom) {
   if (!text || text.charCodeAt(0) !== 47) return undefined
@@ -2554,6 +2562,11 @@ function slashProcess(text, isRoom) {
     return '* ' + myNick() + ' ' + arg
   }
   if (cmd === '/ice') return 'ICEBREAKER: ' + ICEBREAKERS[Math.floor(Math.random() * ICEBREAKERS.length)]
+  if (cmd === '/war') {
+    if (isRoom) return local('war hanya untuk chat 1-on-1 — keluar dari room dulu')
+    startWarGame()
+    return false
+  }
   return local('perintah tak dikenal — ' + SLASH_HELP)
 }
 
@@ -2570,6 +2583,7 @@ function startDoodleGame() {
   if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
+  if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
   try { sendGame({ t: 'd-open' }) } catch (e) {}
@@ -2664,6 +2678,261 @@ function renderDoodle() {
   const up = () => { D.down = false }
   cv.addEventListener('pointerup', up)
   cv.addEventListener('pointercancel', up)
+}
+
+// ---------- WAR!: run & gun co-op ala metal slug (chat 1-on-1, /war) ----------
+const WAR = { W: 480, H: 270, G: 240, PW: 14, PH: 18, BS: 10 }
+
+function newWarState(host) {
+  return { host: !!host, hp: 3, x: 80, y: 0, vy: 0, dir: 1, dead: false, inv: 0,
+    en: new Map(), sc: 0, wave: 0, ph: 'idle', spawnLeft: 0, spawnT: 0, pauseT: 0,
+    seq: 0, bossNext: false, bs: [], ox: 80, odir: 1, ohp: 3, odead: false,
+    raf: 0, kb: { l: false, r: false, j: false, s: false }, shootCd: 0,
+    tickF: 0, sendP: 0, over: false, cv: null }
+}
+
+function startWarGame() {
+  if (gameCtx.isRoom) return
+  if (!gameReady()) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
+  if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
+  if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
+  if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
+  if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
+  if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
+  clearQuizTimers()
+  gameState = { type: 'war', hostId: null, secret: 0, ttt: null, quiz: null, war: newWarState(true) }
+  try { sendGame({ t: 'ms-open' }) } catch (e) {}
+  warShow()
+  roomGameLog('WAR dibuka — kamu host. Gerak: tombol / panah, lompat, tembak!')
+}
+
+function warShow() {
+  showGamePanel('WAR!')
+  renderWar()
+}
+
+function warClose(send) {
+  if (send) { try { sendGame({ t: 'ms-close' }) } catch (e) {} }
+  if (gameState.war && gameState.war.raf) cancelAnimationFrame(gameState.war.raf)
+  warStopEvents(gameState.war)
+  gameState = { type: null, hostId: null, secret: 0, ttt: null }
+  hideGamePanel()
+}
+
+// --- sim host (murni, bisa dites) ---
+function warNextWave(W) {
+  W.wave++
+  W.spawnLeft = 5 + 2 * W.wave
+  if (W.wave > 1 && W.wave % 5 === 0) W.bossNext = true
+  W.ph = 'play'
+  W.spawnT = 1
+}
+
+function warSpawnEnemy(W) {
+  W.spawnLeft--
+  const boss = W.bossNext === true
+  if (boss) W.bossNext = false
+  const id = ++W.seq
+  W.en.set(id, { id, x: 520, v: boss ? 0.6 : 1 + Math.random() * 0.8 + W.wave * 0.15, hp: boss ? 12 : 1, b: boss ? 1 : 0, tx: null })
+}
+
+function warStepHost(W) {
+  if (W.over) return
+  if (W.ph === 'play') {
+    if (W.spawnLeft > 0) { W.spawnT--; if (W.spawnT <= 0) { warSpawnEnemy(W); W.spawnT = 50 } }
+    for (const [id, e] of W.en) { e.x -= e.v; if (e.x < -30) W.en.delete(id) }
+    if (W.spawnLeft === 0 && W.en.size === 0) { W.ph = 'pause'; W.pauseT = 130 }
+  } else if (W.ph === 'pause') {
+    W.pauseT--
+    if (W.pauseT <= 0) warNextWave(W)
+  }
+}
+
+function warHit(a, b, e) {
+  if (!e) return false
+  const ew = e.b ? 22 : 12, eh = e.b ? 26 : 16
+  return b >= e.x - ew / 2 && b <= e.x + ew / 2 && a >= WAR.G - eh && a <= WAR.G
+}
+
+// --- render + loop ---
+function renderWar() {
+  const body = gp('game-body')
+  body.innerHTML = ''
+  const W = gameState.war
+  if (!W) return
+  const cv = document.createElement('canvas')
+  cv.width = WAR.W; cv.height = WAR.H
+  cv.className = 'doodle-cv'
+  body.appendChild(cv)
+  W.cv = cv
+  const bar = document.createElement('div')
+  bar.className = 'doodle-bar'
+  const mkBtn = (label, key, extra) => {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'btn ghost sm'
+    b.textContent = label
+    if (extra) b.style.minWidth = extra
+    const on = (e) => { e.preventDefault(); W.kb[key] = true }
+    const off = () => { W.kb[key] = false }
+    b.addEventListener('pointerdown', on)
+    b.addEventListener('pointerup', off)
+    b.addEventListener('pointerleave', off)
+    b.addEventListener('pointercancel', off)
+    bar.appendChild(b)
+  }
+  mkBtn('\u25C0', 'l')
+  mkBtn('\u25B6', 'r')
+  mkBtn('LOMPAT', 'j', '72px')
+  mkBtn('TEMBAK', 's', '72px')
+  const cls = document.createElement('button')
+  cls.type = 'button'; cls.className = 'btn ghost sm'; cls.textContent = 'Tutup'
+  cls.addEventListener('click', () => warClose(true))
+  bar.appendChild(cls)
+  body.appendChild(bar)
+  const kd = (e) => {
+    if (gameState.type !== 'war' || !gameState.war) return
+    const K = gameState.war.kb
+    if (e.key === 'ArrowLeft') K.l = true
+    if (e.key === 'ArrowRight') K.r = true
+    if (e.key === 'ArrowUp' || e.key === 'w') K.j = true
+    if (e.key === ' ' || e.key === 'f') K.s = true
+  }
+  const ku = (e) => {
+    if (!gameState.war) return
+    const K = gameState.war.kb
+    if (e.key === 'ArrowLeft') K.l = false
+    if (e.key === 'ArrowRight') K.r = false
+    if (e.key === 'ArrowUp' || e.key === 'w') K.j = false
+    if (e.key === ' ' || e.key === 'f') K.s = false
+  }
+  document.addEventListener('keydown', kd)
+  document.addEventListener('keyup', ku)
+  W.kd = kd; W.ku = ku
+  if (W.ph === 'idle') warNextWave(W)
+  if (!W.raf) W.raf = requestAnimationFrame(warLoop)
+}
+
+function warStopEvents(W) {
+  if (W.kd) { document.removeEventListener('keydown', W.kd); document.removeEventListener('keyup', W.ku); W.kd = null; W.ku = null }
+}
+
+function warLoop() {
+  const g = gameState
+  if (g.type !== 'war' || !g.war) return
+  const W = g.war
+  W.tickF++
+  // gerak sendiri
+  if (!W.dead && !W.over) {
+    if (W.kb.l) { W.x -= 3; W.dir = -1 }
+    if (W.kb.r) { W.x += 3; W.dir = 1 }
+    if (W.x < 10) W.x = 10
+    if (W.x > WAR.W - 10) W.x = WAR.W - 10
+    if (W.kb.j && W.y === 0) W.vy = 7.5
+  }
+  if (W.y > 0 || W.vy !== 0) { W.y += W.vy; W.vy -= 0.55; if (W.y <= 0) { W.y = 0; W.vy = 0 } }
+  if (W.inv > 0) W.inv--
+  // tembak
+  if (W.shootCd > 0) W.shootCd--
+  if (W.kb.s && !W.dead && !W.over && W.shootCd === 0) {
+    W.shootCd = 9
+    const bx = W.x + W.dir * 15, by = WAR.G - 14 - W.y
+    W.bs.push({ x: bx, y: by, d: W.dir, o: 1 })
+    try { sendGame({ t: 'ms-shot', x: bx, y: by, d: W.dir }) } catch (e) {}
+  }
+  // musuh: host sim, klien lerp ke target
+  if (W.host) warStepHost(W)
+  else for (const e of W.en.values()) { if (e.tx != null) e.x += (e.tx - e.x) * 0.3 }
+  // peluru
+  for (let i = W.bs.length - 1; i >= 0; i--) {
+    const b = W.bs[i]
+    b.x += b.d * WAR.BS
+    if (b.x < -12 || b.x > WAR.W + 12) { W.bs.splice(i, 1); continue }
+    if (b.o === 1) {
+      for (const e of W.en.values()) {
+        if (warHit(b.y, b.x, e)) {
+          e.hp--
+          if (e.hp <= 0) W.en.delete(e.id)
+          try { sendGame({ t: 'ms-kill', id: e.id }) } catch (err) {}
+          W.bs.splice(i, 1)
+          break
+        }
+      }
+    }
+  }
+  // tabrakan musuh ke badan sendiri
+  if (!W.dead && !W.over && W.inv === 0 && W.y < 12) {
+    for (const e of W.en.values()) {
+      const ew = e.b ? 22 : 12
+      if (Math.abs(e.x - W.x) < (ew + WAR.PW) / 2) {
+        W.hp--; W.inv = 90
+        if (W.hp <= 0) { W.dead = true }
+        warSendSelf(W, true)
+        break
+      }
+    }
+  }
+  // game over: dua-duanya tumbang (host memutuskan)
+  if (W.host && W.dead && W.odead && !W.over) {
+    W.over = true
+    try { sendGame({ t: 'ms-over', sc: W.sc, wv: W.wave }) } catch (e) {}
+  }
+  // broadcast host / posisi diri
+  if (W.host && W.tickF % 6 === 0) {
+    const en = []
+    for (const e of W.en.values()) en.push([e.id, +e.x.toFixed(1), e.hp, e.b])
+    try { sendGame({ t: 'ms-state', en, sc: W.sc, wv: W.wave, ph: W.ph }) } catch (e) {}
+  }
+  if (W.tickF - W.sendP >= 6) warSendSelf(W, false)
+  warDraw(W)
+  if (g.type === 'war' && g.war) W.raf = requestAnimationFrame(warLoop)
+}
+
+function warSendSelf(W, force) {
+  if (force) W.sendP = W.tickF
+  else W.sendP = W.tickF
+  try { sendGame({ t: 'ms-p', x: +W.x.toFixed(1), d: W.dir, hp: W.hp, dead: W.dead ? 1 : 0 }) } catch (e) {}
+}
+
+function warDraw(W) {
+  if (!W.cv) return
+  const c = W.cv.getContext('2d')
+  c.fillStyle = '#000'; c.fillRect(0, 0, WAR.W, WAR.H)
+  // bintang statis
+  c.fillStyle = '#26262a'
+  for (let i = 0; i < 24; i++) c.fillRect((i * 137) % WAR.W, (i * 89) % (WAR.G - 30), 1, 1)
+  // tanah
+  c.fillStyle = '#16a34a'; c.fillRect(0, WAR.G, WAR.W, 2)
+  // musuh
+  for (const e of W.en.values()) {
+    if (e.b) { c.fillStyle = '#7f1d1d'; c.fillRect(e.x - 11, WAR.G - 26, 22, 26); c.fillStyle = '#dc2626'; c.fillRect(e.x - 11, WAR.G - 26, 22, 4) }
+    else { c.fillStyle = '#dc2626'; c.fillRect(e.x - 6, WAR.G - 16, 12, 16) }
+  }
+  // pemain
+  const drawP = (x, y, color, dir, flick) => {
+    if (flick) return
+    c.fillStyle = color
+    c.fillRect(x - WAR.PW / 2, WAR.G - WAR.PH - y, WAR.PW, WAR.PH)
+    c.fillRect(x + dir * 4, WAR.G - WAR.PH - y + 5, dir * 10, 3)
+  }
+  drawP(W.ox, 0, '#3b82f6', W.odir, W.odead)
+  drawP(W.x, W.y, '#16a34a', W.dir, W.dead || (W.inv > 0 && W.tickF % 6 < 3))
+  // peluru
+  c.fillStyle = '#fafafa'
+  for (const b of W.bs) c.fillRect(b.x - 2, b.y - 1, 5, 2)
+  // HUD
+  c.fillStyle = '#fafafa'; c.font = '11px monospace'
+  c.fillText('WAVE ' + W.wave + '  SKOR ' + W.sc, 8, 14)
+  c.fillText('A ' + '[]'.repeat(Math.max(0, W.hp)) + '  B ' + '[]'.repeat(Math.max(0, W.ohp)), WAR.W - 110, 14)
+  if (W.dead && !W.over) { c.fillStyle = '#dc2626'; c.fillText('KAMU TUMBANG — tunggu pasangan…', 140, 60) }
+  if (W.ph === 'pause' && !W.over) { c.fillStyle = '#fafafa'; c.fillText('WAVE ' + (W.wave + 1) + ' MENDEKAT…', 180, 120) }
+  if (W.over) {
+    c.fillStyle = '#dc2626'; c.font = '16px monospace'
+    c.fillText('GAME OVER — SKOR ' + W.sc + ' · WAVE ' + W.wave, 100, 120)
+    c.fillStyle = '#71717a'; c.font = '11px monospace'
+    c.fillText('ketik /war untuk main lagi', 178, 140)
+  }
 }
 
 function renderSuit() {
@@ -3861,6 +4130,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'guess') return
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) return
     gameState = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
     renderGuessBody()
@@ -3891,6 +4161,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) return
     gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
     showGamePanel('TIC-TAC-TOE')
     renderTtt()
@@ -3916,6 +4187,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) return
     clearQuizTimers()
     gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
     showGamePanel('SUIT')
@@ -3935,6 +4207,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) return
     clearQuizTimers()
     gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
     showGamePanel('DOODLE DUEL')
@@ -3952,12 +4225,71 @@ function onRoomGame(data, peerId) {
     if (g.type !== 'doodle' || !g.doodle) return
     doodleClose(false)
     sysMsg('lawan menutup doodle')
+  } else if (data.t === 'ms-open') {
+    if (gameCtx.isRoom) return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
+    if (g.type === 'guess') return
+    if (g.type === 'suit' && g.suit) return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) { try { sendGame({ t: 'ms-close' }) } catch (e) {} }
+    clearQuizTimers()
+    gameState = { type: 'war', hostId: null, secret: 0, ttt: null, quiz: null, war: newWarState(false) }
+    warShow()
+    roomGameLog(pidTag(peerId) + ' mengajak WAR — run & gun bareng!')
+  } else if (data.t === 'ms-state') {
+    const W = g.war
+    if (g.type !== 'war' || !W || W.host) return
+    if (Array.isArray(data.en)) {
+      const seen = new Set()
+      for (const it of data.en) {
+        if (!Array.isArray(it) || it.length < 4) continue
+        seen.add(it[0])
+        let e = W.en.get(it[0])
+        if (!e) { e = { id: it[0], x: it[1], v: 0, hp: it[2], b: it[3], tx: null }; W.en.set(it[0], e) }
+        e.tx = it[1]; e.hp = it[2]; e.b = it[3]
+      }
+      for (const id of Array.from(W.en.keys())) { if (!seen.has(id)) W.en.delete(id) }
+    }
+    W.sc = data.sc || 0
+    W.wave = data.wv || W.wave
+    W.ph = data.ph || W.ph
+  } else if (data.t === 'ms-shot') {
+    const W = g.war
+    if (g.type !== 'war' || !W) return
+    W.bs.push({ x: data.x, y: data.y, d: data.d || 1, o: 0 })
+  } else if (data.t === 'ms-kill') {
+    const W = g.war
+    if (g.type !== 'war' || !W) return
+    if (W.host) {
+      const e = W.en.get(Number(data.id))
+      if (e) { W.sc += e.b ? 50 : 10; W.en.delete(e.id) }
+    }
+  } else if (data.t === 'ms-p') {
+    const W = g.war
+    if (g.type !== 'war' || !W) return
+    W.ox = data.x; W.odir = data.d || 1; W.ohp = data.hp == null ? 3 : data.hp; W.odead = !!data.dead
+  } else if (data.t === 'ms-over') {
+    const W = g.war
+    if (g.type !== 'war' || !W) return
+    W.over = true
+    W.sc = data.sc || W.sc
+    W.wave = data.wv || W.wave
+    roomGameLog('WAR selesai — skor ' + W.sc + ' sampai wave ' + W.wave)
+  } else if (data.t === 'ms-close') {
+    if (g.type !== 'war' || !g.war) return
+    if (g.war.raf) cancelAnimationFrame(g.war.raf)
+    warStopEvents(g.war)
+    gameState = { type: null, hostId: null, secret: 0, ttt: null }
+    hideGamePanel()
+    sysMsg('lawan menutup WAR')
   } else if (data.t === 'q-open') {
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
     if (g.type === 'guess') return
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) return
     clearQuizTimers()
     gameState = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
     showGamePanel('KUIS 1001')
@@ -4044,7 +4376,7 @@ $('btn-icebreaker-chat').addEventListener('click', () => {
   try { state.chatMsg.send({t, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
   addMsg('me', t, Date.now())
 })
-$('game-close-chat').addEventListener('click', () => { if (gameState.type === 'doodle' && gameState.doodle) doodleClose(true) })
+$('game-close-chat').addEventListener('click', () => { if (gameState.type === 'doodle' && gameState.doodle) doodleClose(true); if (gameState.type === 'war' && gameState.war) warClose(true) })
 $('btn-watch').addEventListener('click', () => { openWatchPanel(false); try { $('watch-url').focus() } catch (e) {} })
 $('btn-watch-play').addEventListener('click', () => watchNewLocal($('watch-url').value))
 $('btn-watch-close').addEventListener('click', () => watchClose(true))
@@ -4347,7 +4679,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v55' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v56' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
