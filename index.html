@@ -122,6 +122,7 @@ kbd{
 .loc-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .loc-chip:hover{color:var(--fg)}
 .loc-chip svg{flex:none;opacity:.8}
+.loc-flag{flex:none;font-family:'VT323',monospace;font-size:14px;line-height:.68;letter-spacing:0;border-radius:2px;overflow:hidden}
 #loc-map{margin-top:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 #loc-iframe{width:100%;height:180px;border:0;display:block;background:var(--card)}
 #search-sub{color:var(--muted);font-size:13px;max-width:340px}
@@ -267,6 +268,7 @@ footer b{color:var(--fg);font-weight:600}
   <div id="loc-line" class="hidden">
     <button id="loc-chip" class="loc-chip" type="button">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span id="loc-flag" class="loc-flag" aria-hidden="true"></span>
       <span id="loc-text"></span>
     </button>
     <div id="loc-map" class="hidden"><iframe id="loc-iframe" title="Perkiraan lokasi lawan" loading="lazy"></iframe></div>
@@ -426,7 +428,8 @@ function requestMyLoc() {
   navigator.geolocation.getCurrentPosition(
     async p => {
       myLoc = {lat: round2(p.coords.latitude), lon: round2(p.coords.longitude)}
-      const name = await reverseGeocode(myLoc)
+      const geo = await reverseGeocode(myLoc)
+      const name = geo ? geo.name : null
       toast('Lokasi siap: ' + (name || myLoc.lat + ', ' + myLoc.lon) + ' · ±1 km')
       if (state.mode === 'chatting' && state.locAct && state.partnerId) {
         try { state.locAct.send(myLoc, {target: state.partnerId}) } catch (e) {}
@@ -446,18 +449,69 @@ async function reverseGeocode(loc) {
     if (!r.ok) throw 0
     const d = await r.json()
     const city = d.city || d.locality || d.principalSubdivision || ''
-    if (city && d.countryName) return city + ', ' + d.countryName
-    return d.countryName || null
+    let name = null
+    if (city && d.countryName) name = city + ', ' + d.countryName
+    else name = d.countryName || null
+    return {name, cc: (d.countryCode || '').toUpperCase()}
   } catch (e) { return null }
+}
+
+// flag pixel ala terminal: gambar flag region via flagcdn → canvas 8x4 → karakter blok berwarna (pas dengan VT323)
+const flagCache = new Map()
+function flagArt(cc, w = 8, h = 4) {
+  if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return Promise.resolve(null)
+  const key = cc.toUpperCase()
+  if (flagCache.has(key)) return flagCache.get(key)
+  const p = new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const cv = document.createElement('canvas')
+        cv.width = w; cv.height = h
+        const ctx = cv.getContext('2d', {willReadFrequently: true})
+        ctx.drawImage(img, 0, 0, w, h)
+        const d = ctx.getImageData(0, 0, w, h).data
+        const px = (x, y) => {
+          const i = (y * w + x) * 4
+          return d[i] + ',' + d[i + 1] + ',' + d[i + 2]
+        }
+        let html = ''
+        for (let y = 0; y < h; y += 2) {
+          let cf = '', cb = '', run = 0
+          const flush = () => {
+            if (run > 0 && cf && cb) html += '<span style="color:rgb(' + cf + ');background:rgb(' + cb + ')">' + '▀'.repeat(run) + '</span>'
+            run = 0
+          }
+          for (let x = 0; x < w; x++) {
+            const f = px(x, y), b = px(x, y + 1)
+            if (f !== cf || b !== cb) { flush(); cf = f; cb = b }
+            run++
+          }
+          flush()
+          if (y + 2 < h) html += '<br>'
+        }
+        resolve(html || null)
+      } catch (e) { resolve(null) }
+    }
+    img.onerror = () => resolve(null)
+    img.src = 'https://flagcdn.com/w80/' + key.toLowerCase() + '.png'
+  })
+  flagCache.set(key, p)
+  return p
 }
 
 async function renderPartnerLoc() {
   const loc = state.partnerLoc
   if (!loc) return
   clearTimeout(state.locWaitTimer)
-  const name = await reverseGeocode(loc)
-  $('loc-text').textContent = 'Dari ' + (name || loc.lat + ', ' + loc.lon) + ' · ±1 km'
+  const geo = await reverseGeocode(loc)
+  $('loc-text').textContent = 'Dari ' + ((geo && geo.name) || loc.lat + ', ' + loc.lon) + ' · ±1 km'
   $('loc-line').classList.remove('hidden')
+  const fl = $('loc-flag')
+  fl.innerHTML = ''
+  const art = (geo && geo.cc) ? await flagArt(geo.cc) : null
+  if (art) fl.innerHTML = art
 }
 
 function osmEmbedUrl(loc) {
