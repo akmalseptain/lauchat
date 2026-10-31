@@ -97,7 +97,8 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v12** — Kuis 1001 bisa dimainkan di chat public; refactor state game.
 - **v13** — perbaikan bug game (guard dua sisi, timer 16 detik, panel bisa dibuka ulang) + tata letak video room: grid ⇄ spotlight.
 - **v14** — simplifikasi UI modern ala v0: Geist + Geist Mono di seluruh UI, input & kartu berbingkai radius, bubble pesan asimetris; tema inti zinc + hijau tetap, VT323 hanya boot & bendera pixel.
-- **v15** — background gelap jadi hitam pekat #000000 (tanpa tone abu), kartu #0b0b0d, bubble lawan #1c1c1f.
+- **v15** — background gelap jadi hitam pekat #000000 (tanpa tone abu), bubble lawan #1c1c1f.
+- **v16** — surface gelap transparan: kartu, panel game, area pesan, dan input nyatu ke background hitam, hanya border 1px; light theme tetap kartu putih.
 
 ## Catatan
 
