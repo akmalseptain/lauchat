@@ -1,6 +1,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -116,6 +117,10 @@ kbd{
 .tr-line{display:block;margin-top:3px;font-size:12px;color:var(--muted);font-style:italic;word-break:break-word}
 #lang-badge{color:var(--muted);text-transform:uppercase;font-family:var(--pix);font-size:15px}
 .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.share-row{display:flex;justify-content:center;margin-top:12px}
+#age-gate{position:fixed;inset:0;z-index:120;background:#000;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
+#age-gate h2{font-family:var(--pix);font-weight:400;font-size:22px;margin:0 0 8px}
+#age-gate p{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 16px}
 .foot-note{margin-top:20px;text-align:center;color:var(--muted);font-size:15px;font-family:var(--pix)}
 
 /* ---------- mencari ---------- */
@@ -272,6 +277,17 @@ footer b{color:var(--fg);font-weight:600}
     <span id="boot-cur">█</span>
   </div>
 
+  <div id="age-gate" class="hidden">
+    <div class="card">
+      <h2>LAUCHAT 18+</h2>
+      <p>Situs ini memasangkan kamu dengan orang asing secara acak. Konten tidak dimoderasi dan hanya untuk dewasa. Dengan lanjut, kamu bertanggung jawab atas penggunaanmu.</p>
+      <div class="btn-row">
+        <button id="btn-age-yes" class="btn primary" type="button">Saya 18+, lanjut</button>
+        <button id="btn-age-no" class="btn ghost" type="button">Keluar</button>
+      </div>
+    </div>
+  </div>
+
 <header>
   <div class="wordmark">
     <svg viewBox="0 0 64 64" aria-hidden="true"><path fill="#3b82f6" d="M13 45 4 61l22-15z"/><rect x="2" y="2" width="60" height="48" rx="14" fill="#3b82f6"/><circle cx="32" cy="26" r="13" fill="#fff"/><circle cx="32" cy="26" r="5" fill="#3b82f6"/></svg>
@@ -314,6 +330,9 @@ footer b{color:var(--fg);font-weight:600}
     <div class="prefs">
       <label class="ai-row"><input type="checkbox" id="ai-skip"> Deteksi AI lawan: baca wajah, auto-skip bila tak sesuai</label>
     </div>
+    <div class="prefs">
+      <label class="ai-row"><input type="checkbox" id="snd-toggle" checked> Bunyi saat ketemu lawan</label>
+    </div>
     <div class="btn-row">
       <button id="btn-start-text" class="btn primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
@@ -330,6 +349,12 @@ footer b{color:var(--fg);font-weight:600}
       <button id="btn-room-new" class="btn ghost sm" type="button">Buat room</button>
     </div>
   </div>
+  <div class="share-row">
+    <button id="btn-share" class="btn ghost sm" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg>
+      Ajak teman ke LAUCHAT
+    </button>
+  </div>
   <p class="foot-note">LAUCHAT <span id="app-build"></span> · 18+ · Tidak dimoderasi · <kbd>Esc</kbd> untuk pindah orang</p>
 </main>
 
@@ -341,6 +366,7 @@ footer b{color:var(--fg);font-weight:600}
     <p id="search-sub">Menunggu orang lain yang sedang mencari pasangan ngobrol.</p>
     <div id="search-pip" class="hidden"><video id="self-video-search" autoplay playsinline muted></video></div>
     <button id="btn-cancel-search" class="btn ghost sm">Batal</button>
+    <button id="btn-share-search" class="btn ghost sm" type="button">Sepi? Ajak teman</button>
   </div>
 </main>
 
@@ -413,6 +439,10 @@ footer b{color:var(--fg);font-weight:600}
     </button>
     <button id="btn-quiz-chat" class="btn ghost" type="button" title="Main kuis bareng lawan">
       <span>Kuis</span>
+    </button>
+    <button id="btn-block" class="btn ghost" type="button" title="Blokir lawan — tidak akan dipasangkan lagi">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+      <span>Blokir</span>
     </button>
     <button id="btn-skip" class="btn primary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
@@ -737,6 +767,62 @@ aiSkipEl.addEventListener('change', () => {
   if (aiSkipEl.checked) loadFaceApi().catch(() => {})
 })
 const aiSkipOn = () => aiSkipEl.checked
+
+// ---------- bunyi saat ketemu lawan ----------
+const sndEl = $('snd-toggle')
+try { sndEl.checked = localStorage.getItem('lauchat-snd') !== '0' } catch (e) {}
+sndEl.addEventListener('change', () => { try { localStorage.setItem('lauchat-snd', sndEl.checked ? '1' : '0') } catch (e) {} })
+let audioCtx = null
+function playDing() {
+  if (!sndEl.checked) return
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    const t = audioCtx.currentTime
+    for (const [f, d] of [[880, 0], [1318.5, 0.12]]) {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain()
+      o.type = 'sine'; o.frequency.value = f
+      g.gain.setValueAtTime(0.0001, t + d)
+      g.gain.exponentialRampToValueAtTime(0.18, t + d + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.25)
+      o.connect(g); g.connect(audioCtx.destination)
+      o.start(t + d); o.stop(t + d + 0.3)
+    }
+  } catch (e) {}
+}
+
+// ---------- ajak teman ----------
+async function doShare() {
+  const url = location.origin + location.pathname
+  try {
+    if (navigator.share) { await navigator.share({ title: 'LAUCHAT', text: 'Ngobrol sama orang asing, tanpa akun — coba LAUCHAT', url }); return }
+  } catch (e) { if (e && e.name === 'AbortError') return }
+  try { await navigator.clipboard.writeText(url); toast('Link LAUCHAT tersalin — sebar ke temanmu') }
+  catch (e) { toast('Salin link: ' + url, false, 6000) }
+}
+$('btn-share').addEventListener('click', doShare)
+$('btn-share-search').addEventListener('click', doShare)
+
+// ---------- blokir permanen ----------
+const BLOCK_KEY = 'lauchat-blocked'
+const blocked = new Set()
+try { for (const p of JSON.parse(localStorage.getItem(BLOCK_KEY) || '[]')) blocked.add(p) } catch (e) {}
+function persistBlocked() { try { localStorage.setItem(BLOCK_KEY, JSON.stringify([...blocked])) } catch (e) {} }
+function blockPartner() {
+  if (state.mode !== 'chatting') return
+  if (state.partnerId) { blocked.add(state.partnerId); persistBlocked(); blacklist.add(state.partnerId) }
+  sysMsg('Lawan diblokir — kamu tidak akan dipasangkan lagi dengannya.')
+  cleanupPair(false)
+  startLooking(state.wantVideo)
+}
+$('btn-block').addEventListener('click', blockPartner)
+
+// ---------- gerbang 18+ ----------
+const AGE_KEY = 'lauchat-18'
+const ageGate = $('age-gate')
+try { if (localStorage.getItem(AGE_KEY) !== '1') ageGate.classList.remove('hidden') } catch (e) { ageGate.classList.remove('hidden') }
+$('btn-age-yes').addEventListener('click', () => { try { localStorage.setItem(AGE_KEY, '1') } catch (e) {} ageGate.classList.add('hidden') })
+$('btn-age-no').addEventListener('click', () => { location.href = 'https://www.google.com' })
 function myTags() {
   return $('tags-input').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).slice(0, 5)
 }
@@ -990,7 +1076,7 @@ function langScore(ps) {
 // supaya tidak dua-duanya menembakkan permintaan secara bersamaan.
 function maybeInitiate(peerId) {
   if (state.mode !== 'looking' || state.incomingLock) return
-  if (blacklist.has(peerId) || pending.has(peerId)) return
+  if (blacklist.has(peerId) || blocked.has(peerId) || pending.has(peerId)) return
   if (!(selfId > peerId)) return
   const ps = lobbyPeers.get(peerId)
   if (!genderOk(ps?.g, ps?.w)) return
@@ -1013,7 +1099,7 @@ function clearAllPending() {
 }
 
 function onMatchReq(data, peerId) {
-  if (blacklist.has(peerId)) { mbusy.send({}, {target: peerId}); return }
+  if (blacklist.has(peerId) || blocked.has(peerId)) { mbusy.send({}, {target: peerId}); return }
   if (!genderOk(data.g, data.w)) { mbusy.send({}, {target: peerId}); return }
   if (state.mode === 'looking' && !state.incomingLock) {
     // terima: kunci, buat kode ruang, balas accept lalu masuk ruang privat
@@ -1116,6 +1202,7 @@ function onPartnerJoined() {
   clearTimeout(state.incomingTimer)
   state.incomingLock = false
   setStatus('terhubung, katakan hai')
+  playDing()
   sysMsg('Kamu sekarang ngobrol dengan orang asing.')
   updatePartnerLabel()
   if (myLoc && state.locAct) {
@@ -2286,7 +2373,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v24' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v25' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
