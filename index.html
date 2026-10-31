@@ -69,7 +69,7 @@ main.active{display:block;animation:fade .2s ease}
 
 /* ---------- komponen dasar ---------- */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px}
-input,textarea{
+input,textarea,select{
   width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
   padding:0 12px;height:40px;font-size:14px;font-family:inherit;color:var(--fg);outline:none;
   transition:border-color .15s, box-shadow .15s;
@@ -101,6 +101,14 @@ kbd{
 /* ---------- home ---------- */
 .field{margin-bottom:10px}
 .field input{height:42px}
+.prefs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.prefs select{flex:1;min-width:130px;height:38px;padding:0 8px;font-size:13px}
+.ai-row{display:flex;align-items:center;gap:8px;flex:1;min-width:130px;font-size:13px;color:var(--muted);user-select:none;cursor:pointer}
+.ai-row input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.tr-btn{display:inline-block;margin-top:4px;font-size:11px;color:var(--muted);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px}
+.tr-btn:hover{color:var(--fg)}
+.tr-line{display:block;margin-top:3px;font-size:12px;color:var(--muted);font-style:italic;word-break:break-word}
+#lang-badge{color:var(--muted);text-transform:uppercase}
 .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .foot-note{margin-top:16px;text-align:center;color:var(--muted);font-size:12px}
 
@@ -201,6 +209,25 @@ footer b{color:var(--fg);font-weight:600}
   <div class="card">
     <div class="field"><input id="nick-input" maxlength="20" placeholder="Nama (opsional)" autocomplete="off" spellcheck="false"></div>
     <div class="field"><input id="tags-input" maxlength="60" placeholder="Topik, mis. musik, game (opsional)" autocomplete="off" spellcheck="false"></div>
+    <div class="prefs">
+      <select id="my-gender" aria-label="Jenis kelaminmu">
+        <option value="">Saya: rahasia</option>
+        <option value="m">Saya: cowok</option>
+        <option value="f">Saya: cewek</option>
+      </select>
+      <select id="want-gender" aria-label="Preferensi lawan">
+        <option value="">Cari: random</option>
+        <option value="f">Cari: cewek</option>
+        <option value="m">Cari: cowok</option>
+      </select>
+    </div>
+    <div class="prefs">
+      <select id="lang-native" aria-label="Bahasa yang kamu fasih"></select>
+      <select id="lang-learn" aria-label="Bahasa yang sedang dipelajari"></select>
+    </div>
+    <div class="prefs">
+      <label class="ai-row"><input type="checkbox" id="ai-skip"> Deteksi AI lawan: baca wajah, auto-skip bila tak sesuai</label>
+    </div>
     <div class="btn-row">
       <button id="btn-start-text" class="btn primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
@@ -232,6 +259,8 @@ footer b{color:var(--fg);font-weight:600}
     <span class="who" id="partner-label">Orang asing</span>
     <span class="sep">·</span>
     <span class="st" id="chat-status">Menyambungkan…</span>
+    <span class="sep" id="lang-sep" style="display:none">·</span>
+    <span class="st" id="lang-badge"></span>
   </div>
 
   <div id="loc-line" class="hidden">
@@ -351,6 +380,8 @@ const state = {
   partnerId: null,
   partnerNick: null,
   partnerConnected: false,
+  partnerLang: null,
+  partnerGender: null,
   pairRoom: null,
   chatMsg: null,
   typingAct: null,
@@ -450,8 +481,105 @@ function toast(text, warn = false, ms = 3000) {
 }
 
 function myNick() { return $('nick-input').value.trim().slice(0, 20) }
+
+// ---------- preferensi: jenis lawan & bahasa ----------
+const LANGS = [
+  ['id', 'Indonesia'], ['en', 'Inggris'], ['ja', 'Jepang'], ['ko', 'Korea'],
+  ['zh', 'Mandarin'], ['ar', 'Arab'], ['es', 'Spanyol'], ['fr', 'Prancis'],
+  ['de', 'Jerman'], ['hi', 'Hindi'],
+]
+for (const [code, label] of LANGS) {
+  $('lang-native').add(new Option('Fasih: ' + label, code))
+  $('lang-learn').add(new Option('Belajar: ' + label, code))
+}
+for (const [id, key] of [
+  ['my-gender', 'lauchat-gender'], ['want-gender', 'lauchat-want'],
+  ['lang-native', 'lauchat-lang-n'], ['lang-learn', 'lauchat-lang-l'],
+]) {
+  let v = ''
+  try { v = localStorage.getItem(key) || '' } catch (e) {}
+  if (v && [...$(id).options].some(o => o.value === v)) $(id).value = v
+  $(id).addEventListener('change', () => {
+    try { localStorage.setItem(key, $(id).value) } catch (e) {}
+    broadcastPresence()
+  })
+}
+const myGender = () => $('my-gender').value
+const myWant = () => $('want-gender').value
+const myNativeLang = () => $('lang-native').value
+const myLearnLang = () => $('lang-learn').value
+const aiSkipEl = $('ai-skip')
+try { aiSkipEl.checked = localStorage.getItem('lauchat-ai') === '1' } catch (e) {}
+aiSkipEl.addEventListener('change', () => {
+  try { localStorage.setItem('lauchat-ai', aiSkipEl.checked ? '1' : '0') } catch (e) {}
+  if (aiSkipEl.checked) loadFaceApi().catch(() => {})
+})
+const aiSkipOn = () => aiSkipEl.checked
 function myTags() {
   return $('tags-input').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).slice(0, 5)
+}
+
+// ---------- deteksi AI jenis lawan (face-api, 100% lokal di perangkat) ----------
+const FACEAPI_JS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js'
+const FACEAPI_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/'
+let faceApiLoading = null
+function loadFaceApi() {
+  if (faceApiLoading) return faceApiLoading
+  faceApiLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = FACEAPI_JS
+    s.onload = () => {
+      Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODELS),
+        faceapi.nets.ageGenderNet.loadFromUri(FACEAPI_MODELS),
+      ]).then(resolve, reject)
+    }
+    s.onerror = () => reject(new Error('gagal memuat face-api'))
+    document.head.appendChild(s)
+  })
+  return faceApiLoading
+}
+if (aiSkipOn()) loadFaceApi().catch(() => {})
+
+let aiTimer = null, aiVotes = [], aiStopTimer = null
+function stopAiDetect() {
+  clearInterval(aiTimer); aiTimer = null
+  clearTimeout(aiStopTimer); aiStopTimer = null
+  aiVotes = []
+}
+async function aiFrame() {
+  const rv = $('remote-video')
+  if (!rv.srcObject || !rv.videoWidth) return
+  try {
+    const det = await faceapi
+      .detectSingleFace(rv, new faceapi.TinyFaceDetectorOptions({inputSize: 224, scoreThreshold: 0.4}))
+      .withAgeAndGender()
+    if (det) {
+      aiVotes.push(det.gender)
+      const fem = aiVotes.filter(g => g === 'female').length
+      const mal = aiVotes.filter(g => g === 'male').length
+      if (fem >= 3 || mal >= 3) {
+        const g = fem >= 3 ? 'f' : 'm'
+        const label = g === 'f' ? 'cewek' : 'cowok'
+        stopAiDetect()
+        const want = myWant()
+        if (want && g !== want) {
+          toast('Deteksi AI: lawan terlihat ' + label + ' — tidak sesuai preferensi, dilewati otomatis.', true, 4000)
+          skip()
+        } else {
+          toast('Deteksi AI: lawan terlihat ' + label)
+        }
+      }
+    }
+  } catch (e) { stopAiDetect() }
+}
+function startAiDetect() {
+  stopAiDetect()
+  loadFaceApi().then(() => {
+    if (!state.partnerId || aiTimer) return
+    aiTimer = setInterval(aiFrame, 1200)
+    aiStopTimer = setTimeout(stopAiDetect, 25000)
+  }).catch(() => toast('Model deteksi gagal dimuat, filter AI nonaktif.', true, 4000))
 }
 
 function addMsg(kind, text, ts) {
@@ -460,6 +588,14 @@ function addMsg(kind, text, ts) {
   const body = document.createElement('span')
   body.textContent = text
   div.appendChild(body)
+  if (kind === 'them') {
+    const tr = document.createElement('button')
+    tr.className = 'tr-btn'
+    tr.type = 'button'
+    tr.textContent = 'terjemah'
+    tr.addEventListener('click', () => translateMsg(text, tr))
+    div.appendChild(tr)
+  }
   if (kind !== 'sys' && ts) {
     const time = document.createElement('span')
     time.className = 'time'
@@ -553,7 +689,10 @@ function updateDeviceButtons() {
 let lobby = null, presence = null, mreq = null, macc = null, mbusy = null
 
 function curPresence() {
-  return { s: state.mode, v: state.wantVideo, n: myNick(), t: myTags() }
+  return {
+    s: state.mode, v: state.wantVideo, n: myNick(), t: myTags(),
+    g: myGender(), w: myWant(), ln: myNativeLang(), ll: myLearnLang(),
+  }
 }
 function broadcastPresence() { if (presence) presence.send(curPresence()) }
 
@@ -606,12 +745,33 @@ function hasSharedTags(peerId) {
   return mine.some(t => theirs.includes(t))
 }
 
+// filter jenis lawan: dua arah (saya nyaring lawan, lawan nyaring saya)
+function genderOk(g, w) {
+  const mine = myGender(), want = myWant()
+  if (want && g !== want) return false
+  if (w && mine && w !== mine) return false
+  if (w && !mine) return false
+  return true
+}
+
+// skor prioritas bahasa: tukar dua arah > lawan fasih bahasa yang kupelajari
+function langScore(ps) {
+  if (!ps) return 0
+  const myN = myNativeLang(), myL = myLearnLang()
+  let s = 0
+  if (myN && myL && ps.ll === myN && ps.ln === myL) s += 3
+  else if (myL && ps.ln === myL) s += 2
+  return s
+}
+
 // Aturan deterministik: hanya peer dengan selfId LEBIH BESAR yang memulai,
 // supaya tidak dua-duanya menembakkan permintaan secara bersamaan.
 function maybeInitiate(peerId) {
   if (state.mode !== 'looking' || state.incomingLock) return
   if (blacklist.has(peerId) || pending.has(peerId)) return
   if (!(selfId > peerId)) return
+  const ps = lobbyPeers.get(peerId)
+  if (!genderOk(ps?.g, ps?.w)) return
   initiate(peerId)
 }
 
@@ -619,7 +779,7 @@ function initiate(peerId) {
   const nonce = Math.random().toString(36).slice(2, 10)
   const timer = setTimeout(() => pending.delete(peerId), 6000)
   pending.set(peerId, {nonce, timer})
-  mreq.send({t: nonce, n: myNick(), v: state.wantVideo}, {target: peerId})
+  mreq.send({t: nonce, n: myNick(), v: state.wantVideo, g: myGender(), w: myWant()}, {target: peerId})
 }
 
 function clearPending(peerId) {
@@ -632,6 +792,7 @@ function clearAllPending() {
 
 function onMatchReq(data, peerId) {
   if (blacklist.has(peerId)) { mbusy.send({}, {target: peerId}); return }
+  if (!genderOk(data.g, data.w)) { mbusy.send({}, {target: peerId}); return }
   if (state.mode === 'looking' && !state.incomingLock) {
     // terima: kunci, buat kode ruang, balas accept lalu masuk ruang privat
     state.incomingLock = true
@@ -658,6 +819,9 @@ function startPair(peerId, code, nick) {
   state.partnerId = peerId
   state.partnerNick = nick || null
   state.partnerConnected = false
+  const pps = lobbyPeers.get(peerId) || {}
+  state.partnerLang = {ln: pps.ln || '', ll: pps.ll || ''}
+  state.partnerGender = pps.g || ''
   state.streamSent = false
   clearAllPending()
   broadcastPresence()
@@ -723,6 +887,7 @@ function onPartnerJoined() {
     state.streamSent = true
     try { state.pairRoom.addStream(state.selfStream, {target: state.partnerId}) } catch (e) {}
   }
+  if (state.wantVideo && aiSkipOn()) startAiDetect()
 }
 
 function onPartnerLeft() {
@@ -739,6 +904,7 @@ function cleanupPair(stopStream) {
   clearTimeout(state.pairFailTimer)
   clearTimeout(state.incomingTimer)
   clearTimeout(state.locWaitTimer)
+  stopAiDetect()
   state.incomingLock = false
   if (state.pairRoom) { try { state.pairRoom.leave() } catch (e) {} }
   state.pairRoom = null
@@ -748,6 +914,8 @@ function cleanupPair(stopStream) {
   state.partnerLoc = null
   state.partnerId = null
   state.partnerNick = null
+  state.partnerLang = null
+  state.partnerGender = null
   state.partnerConnected = false
   state.streamSent = false
   clearAllPending()
@@ -782,8 +950,11 @@ async function startLooking(video) {
   setSearchStatus(video ? 'Mencari orang asing dengan kamera…' : 'Mencari orang asing…')
   // cek kandidat yang sudah ada sekarang
   const cands = [...lobbyPeers.entries()].filter(([, ps]) => ps?.s === 'looking')
-  // prioritaskan yang topiknya sama
-  cands.sort((a, b) => (hasSharedTags(b[0]) ? 1 : 0) - (hasSharedTags(a[0]) ? 1 : 0))
+  // prioritaskan: tukar bahasa > fasih bahasaku > topik sama
+  cands.sort((a, b) =>
+    (langScore(b[1]) + (hasSharedTags(b[0]) ? 1 : 0)) -
+    (langScore(a[1]) + (hasSharedTags(a[0]) ? 1 : 0))
+  )
   for (const [pid] of cands) maybeInitiate(pid)
 }
 
@@ -819,6 +990,7 @@ function openChatUI(statusText) {
   showView('chat')
   setStatus(statusText)
   updatePartnerLabel()
+  updateLangBadge()
   const showVideo = state.wantVideo || !!state.selfStream
   $('video-wrap').classList.toggle('hidden', !showVideo)
   if (!showVideo) attachRemoteStream(null)
@@ -830,6 +1002,49 @@ function updatePartnerLabel() {
   $('partner-label').textContent = state.partnerNick
     ? 'Orang asing: ' + state.partnerNick
     : 'Orang asing'
+}
+
+function updateLangBadge() {
+  const pl = state.partnerLang
+  const myN = myNativeLang()
+  const sep = $('lang-sep')
+  if (pl?.ln && myN && myN !== pl.ln) {
+    $('lang-badge').textContent = pl.ln.toUpperCase() + ' ⇄ ' + myN.toUpperCase()
+    sep.style.display = ''
+  } else if (pl?.ln && !myN) {
+    $('lang-badge').textContent = pl.ln.toUpperCase()
+    sep.style.display = ''
+  } else {
+    $('lang-badge').textContent = ''
+    sep.style.display = 'none'
+  }
+}
+
+// ---------- terjemahan pesan lawan (MyMemory, gratis, client-side) ----------
+async function translateMsg(text, btn) {
+  if (btn.dataset.busy) return
+  btn.dataset.busy = '1'
+  btn.textContent = 'menterjemah…'
+  const src = state.partnerLang?.ln || 'en'
+  const tgt = myNativeLang() || 'id'
+  if (src === tgt) { btn.textContent = 'terjemah'; delete btn.dataset.busy; return }
+  try {
+    const r = await fetch(
+      'https://api.mymemory.translated.net/get?q=' +
+      encodeURIComponent(text.slice(0, 450)) + '&langpair=' + src + '|' + tgt
+    )
+    const d = await r.json()
+    const out = d?.responseData?.translatedText
+    if (!out || /^(INVALID|PLEASE SELECT|MYMEMORY WARNING)/i.test(out)) throw 0
+    btn.classList.add('hidden')
+    const line = document.createElement('span')
+    line.className = 'tr-line'
+    line.textContent = out
+    btn.after(line)
+  } catch (e) {
+    btn.textContent = 'terjemahan gagal, coba lagi'
+    delete btn.dataset.busy
+  }
 }
 
 // ---------- typing indicator ----------
