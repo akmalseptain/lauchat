@@ -34,7 +34,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 
 ### Chat teks & video 1-on-1
 
-- Tata letak video default atas-bawah ala OmeTV/Umingle: lawan di atas besar, kamu di bawah; tombol siklus ke berdampingan (split) atau lawan besar + PiP.
+- Tata letak video default atas-bawah ala OmeTV/Umingle: lawan di atas, kamu di bawah, keduanya sama besar; tombol siklus ke berdampingan (split) atau lawan besar + PiP.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -104,6 +104,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v19** — font tertanam base64 (Geist, Geist Mono, VT323 penuh) — tanpa dependensi jaringan; memperbaiki boot logo/bendera yang bocor ke font fallback.
 - **v20** — VT323 ke seluruh UI ala terminal (wordmark, hero, label, tombol, status, game, toast, footer); isi bubble chat & kolom ketik tetap Geist.
 - **v21** — tata letak kamera atas-bawah (lawan atas, self bawah) ala Umingle/OmeTV jadi default; tombol siklus 3 mode: atas-bawah, berdampingan, PiP.
+- **v22** — tata letak atas-bawah disamakan besar (1:1, ala Umingle asli) — bukan lawan dominan.
 
 ## Catatan
 
