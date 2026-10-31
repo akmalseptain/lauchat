@@ -109,6 +109,13 @@ kbd{
 .spinner{width:24px;height:24px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #search-status{font-weight:500}
+/* ---------- lokasi lawan ---------- */
+#loc-line{margin:2px 0 10px}
+.loc-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.loc-chip:hover{color:var(--fg)}
+.loc-chip svg{flex:none;opacity:.8}
+#loc-map{margin-top:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+#loc-iframe{width:100%;height:180px;border:0;display:block;background:var(--card)}
 #search-sub{color:var(--muted);font-size:13px;max-width:340px}
 #search-pip{width:min(280px,80vw);aspect-ratio:4/3;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border)}
 #search-pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
@@ -227,6 +234,14 @@ footer b{color:var(--fg);font-weight:600}
     <span class="st" id="chat-status">Menyambungkan…</span>
   </div>
 
+  <div id="loc-line" class="hidden">
+    <button id="loc-chip" class="loc-chip" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span id="loc-text"></span>
+    </button>
+    <div id="loc-map" class="hidden"><iframe id="loc-iframe" title="Perkiraan lokasi lawan" loading="lazy"></iframe></div>
+  </div>
+
   <div id="video-wrap" class="hidden">
     <video id="remote-video" autoplay playsinline></video>
     <div id="remote-placeholder">menunggu video…</div>
@@ -339,6 +354,8 @@ const state = {
   pairRoom: null,
   chatMsg: null,
   typingAct: null,
+  locAct: null,
+  partnerLoc: null,
   selfStream: null,
   camOn: false,
   micOn: false,
@@ -363,6 +380,57 @@ function showView(name) {
 }
 function setStatus(t) { $('chat-status').textContent = t }
 function setSearchStatus(t) { $('search-status').textContent = t }
+
+// ---------- lokasi (dibulatkan ±1 km, hanya dikirim ke lawan yang sudah match) ----------
+let myLoc = null
+const round2 = n => Math.round(n * 100) / 100
+
+function requestMyLoc() {
+  if (myLoc || !navigator.geolocation) return
+  navigator.geolocation.getCurrentPosition(
+    p => {
+      myLoc = {lat: round2(p.coords.latitude), lon: round2(p.coords.longitude)}
+      if (state.mode === 'chatting' && state.locAct && state.partnerId) {
+        try { state.locAct.send(myLoc, {target: state.partnerId}) } catch (e) {}
+      }
+    },
+    () => {},
+    {maximumAge: 300000, timeout: 8000}
+  )
+}
+
+async function reverseGeocode(loc) {
+  try {
+    const r = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + loc.lat + '&longitude=' + loc.lon + '&localityLanguage=id')
+    if (!r.ok) throw 0
+    const d = await r.json()
+    const city = d.city || d.locality || d.principalSubdivision || ''
+    if (city && d.countryName) return city + ', ' + d.countryName
+    return d.countryName || null
+  } catch (e) { return null }
+}
+
+async function renderPartnerLoc() {
+  const loc = state.partnerLoc
+  if (!loc) return
+  const name = await reverseGeocode(loc)
+  $('loc-text').textContent = 'Dari ' + (name || loc.lat + ', ' + loc.lon) + ' · ±1 km'
+  $('loc-line').classList.remove('hidden')
+}
+
+function osmEmbedUrl(loc) {
+  return 'https://www.openstreetmap.org/export/embed.html?bbox=' + (loc.lon - 0.03) + ',' + (loc.lat - 0.015) + ',' + (loc.lon + 0.03) + ',' + (loc.lat + 0.015) + '&layer=mapnik&marker=' + loc.lat + ',' + loc.lon
+}
+
+$('loc-chip').addEventListener('click', () => {
+  const m = $('loc-map')
+  if (m.classList.contains('hidden')) {
+    if (state.partnerLoc) $('loc-iframe').src = osmEmbedUrl(state.partnerLoc)
+    m.classList.remove('hidden')
+  } else {
+    m.classList.add('hidden')
+  }
+})
 
 function toast(text, warn = false, ms = 3000) {
   const el = $('toast')
@@ -590,12 +658,23 @@ function startPair(peerId, code, nick) {
   state.pairRoom = room
   state.chatMsg = room.makeAction('msg')
   state.typingAct = room.makeAction('typing')
+  state.locAct = room.makeAction('loc')
+  state.partnerLoc = null
+  $('loc-line').classList.add('hidden')
+  $('loc-map').classList.add('hidden')
+  $('loc-iframe').removeAttribute('src')
 
   state.chatMsg.onMessage = (data, {peerId: pid}) => {
     if (pid === peerId && data?.t) addMsg('them', String(data.t).slice(0, MAX_MSG_LEN), data.ts)
   }
   state.typingAct.onMessage = (d, {peerId: pid}) => {
     if (pid === peerId) showTyping()
+  }
+  state.locAct.onMessage = (d, {peerId: pid}) => {
+    if (pid === peerId && d && typeof d.lat === 'number' && typeof d.lon === 'number') {
+      state.partnerLoc = {lat: d.lat, lon: d.lon}
+      renderPartnerLoc()
+    }
   }
   room.onPeerStream = (stream, pid) => {
     if (pid === peerId) attachRemoteStream(stream)
@@ -624,6 +703,9 @@ function onPartnerJoined() {
   setStatus('terhubung, katakan hai')
   sysMsg('Kamu sekarang ngobrol dengan orang asing.')
   updatePartnerLabel()
+  if (myLoc && state.locAct) {
+    try { state.locAct.send(myLoc, {target: state.partnerId}) } catch (e) {}
+  }
   if (state.selfStream && !state.streamSent) {
     state.streamSent = true
     try { state.pairRoom.addStream(state.selfStream, {target: state.partnerId}) } catch (e) {}
@@ -648,6 +730,8 @@ function cleanupPair(stopStream) {
   state.pairRoom = null
   state.chatMsg = null
   state.typingAct = null
+  state.locAct = null
+  state.partnerLoc = null
   state.partnerId = null
   state.partnerNick = null
   state.partnerConnected = false
@@ -665,6 +749,7 @@ async function startLooking(video) {
     return
   }
   state.wantVideo = video
+  requestMyLoc()
   if (video && !state.selfStream) {
     try {
       await ensureSelfStream(true)
