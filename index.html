@@ -8,6 +8,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -260,8 +261,8 @@ footer b{color:var(--fg);font-weight:600}
   main{padding:16px 14px 32px}
   .hero{margin:16px 0 20px}
   .online span:last-child{display:none}
-  .controls{gap:6px}
-  .controls .btn{height:36px;padding:0 12px;font-size:14px}
+  .controls{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .controls .btn{height:36px;padding:0 2px;font-size:13px;gap:4px}
 }
 /* ---------- boot terminal ---------- */
 #boot{position:fixed;inset:0;z-index:99;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:opacity .35s;padding:16px}
@@ -2326,7 +2327,7 @@ async function voiceOn(preset) {
     let replaced = 0
     for (const s of voiceSenders()) { try { s.replaceTrack(outTrack); replaced++ } catch (e) {} }
     state.vcPreset = preset
-    $('voice-label').textContent = 'Suara: ' + preset.name
+    $('voice-label').textContent = preset.name
     toast('Ejak suara: ' + preset.desc, false, 2500)
     try { state.chatMsg.send({fx: preset.name, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
     sysMsg('efek suara aktif — lawan sudah diberi tahu')
@@ -2953,7 +2954,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v31' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v32' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
