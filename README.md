@@ -1,20 +1,104 @@
 # LAUCHAT
 
+Chat orang asing ala Omegle/OmeTV — satu file HTML, P2P tanpa server aplikasi.
+
 Live: **https://akmalseptain.github.io/lauchat/**
 
-Chat teks & video acak dengan orang asing. Satu file `index.html`, tanpa backend — matchmaking & signaling WebRTC via [Trystero](https://github.com/dmotriv/trystero), media P2P terenkripsi.
+Ketemu orang asing acak, ngobrol lewat teks atau video, main game bareng, atau bikin room privat buat ngajak teman. Semua koneksi langsung antar perangkat (P2P) — tidak ada server yang menyimpan percakapan.
 
-## Deploy
+## Pratinjau UI
 
-Hosting statis apa pun (GitHub Pages, Netlify, Vercel). Untuk GitHub Pages: Settings → Pages → Source: **GitHub Actions**, lalu workflow `.github/workflows/pages.yml` otomatis deploy tiap push ke `main`.
+Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai tampilan aplikasi.
 
-Kamera butuh konteks aman (HTTPS / localhost).
+| Beranda | Layar boot |
+| --- | --- |
+| <img src="docs/img/beranda.svg" alt="Beranda LAUCHAT" width="320"> | <img src="docs/img/boot.svg" alt="Layar boot terminal" width="320"> |
 
-## Pakai
+| Chat public | Room privat — Kuis 1001 |
+| --- | --- |
+| <img src="docs/img/chat-public.svg" alt="Chat public dengan video split view dan chip lokasi" width="320"> | <img src="docs/img/room-quiz.svg" alt="Room privat dengan panel Kuis 1001" width="320"> |
 
-Buka URL yang sama di dua perangkat → klik "Chat teks" / "Chat video" → otomatis dipasangkan. `Esc` = skip ke orang berikutnya. Topik favorit = prioritas match.
+| Mode spotlight | Panel game |
+| --- | --- |
+| <img src="docs/img/room-spotlight.svg" alt="Mode spotlight room privat" width="320"> | <img src="docs/img/games.svg" alt="Panel tic-tac-toe dan tebak angka" width="320"> |
+
+## Fitur
+
+### Matchmaking acak
+
+- Bertemu orang asing acak yang sedang online, tanpa akun.
+- Filter gender dua arah: pilih identitasmu dan yang kamu cari, sistem menyaring dua-duanya sebelum nyambung.
+- Prioritas bahasa: pencocokan lebih suka lawan dengan bahasa yang sama, badge `EN ⇄ ID` menandai pasangan bilingual.
+- Tags minat (mis. `mobil, kode, musik`) biar obrolan langsung nyambung.
+- AI skip: wajah yang tidak terdeteksi bisa otomatis di-skip (opsional, pakai face-api di browser).
+
+### Chat teks & video 1-on-1
+
+- Video lawan dan video sendiri sama besar (split view), bisa ditukar ke PiP.
+- Share layar: tampilkan layarmu ke lawan chat.
+- Kirim gambar lewat chat, langsung P2P tanpa server.
+- Terjemahan pesan sekali klik (MyMemory).
+- Chip lokasi lawan: nama kota + jarak ±1 km, dengan bendera negara pixel 5x6.
+- Typing indicator, tema gelap/terang, ikon lucide.
+
+### Room privat
+
+- Buat room dengan kode 4–8 karakter, share kodenya ke teman.
+- Chat grup + video mesh: semua peserta saling terlihat.
+- Tata letak video bisa diatur: grid semua sama besar, atau spotlight satu video besar + thumbnail (klik thumbnail untuk tukar).
+- Kamera tiap orang bisa on/off sendiri.
+
+### Games
+
+Main bareng lawan chat atau di room privat:
+
+- **Tebak Angka** — angka rahasia 1–100, saling menebak, petunjuk "besar, turun" / "kecil, naik".
+- **Tic-tac-toe** — X/O sinkron dua sisi, giliran otomatis.
+- **Kuis 1001** — 8 soal pilihan ganda, timer 16 detik per soal, skor real-time semua peserta. Jalan di room privat dan di chat public 1-on-1.
+
+### Lain-lain
+
+- **Layar boot terminal** — logo ASCII + urutan boot ala terminal, tap untuk skip.
+- **Service worker anti-stale** — halaman selalu versi terbaru, tidak kena cache lama.
+- **Penanda versi** — footer beranda menunjukkan versi build (mis. `v13`), gampang cek versi yang jalan di device.
+- 18+, tanpa iklan, tanpa pelacakan.
+
+## Teknis
+
+- **Trystero** (topic nostr) untuk signaling P2P — tidak ada server aplikasi; relay publik hanya untuk salaman koneksi.
+- **WebRTC** untuk video/audio/share layar; **TURN via Cloudflare Worker** sebagai fallback kandidat.
+- Kirim gambar/gem state pakai chunk biner Trystero.
+- Single-file `index.html` (semua UI + logika), plus `sw.js` untuk service worker.
+- Ikon lucide, font VT323 (wordmark/label) + Geist (isi chat), tema gelap default `#09090b`.
+
+## Cara pakai
+
+1. Buka https://akmalseptain.github.io/lauchat/
+2. Isi nick, pilih gender/kriteria/bahasa, tulis tags (opsional).
+3. Klik **Chat teks** atau **Chat video** — tunggu sampai ketemu orang asing.
+4. Untuk room privat: tulis kode room, klik **Masuk** (atau **Buat** untuk bikin baru), share kode ke teman.
+5. Saat chat: tombol **Kuis** untuk main kuis, **Layar** untuk share screen, ikon klip kirim gambar.
+
+## Struktur repo
+
+```
+index.html   — seluruh aplikasi (UI + logika P2P + games)
+sw.js        — service worker (anti-stale cache)
+docs/img/    — mockup UI untuk dokumentasi
+```
+
+## Changelog
+
+- **v7** — penanda versi build di footer (`APP_BUILD`).
+- **v8** — bendera negara pixel 5x6 di chip lokasi (flagcdn, render ke blok berwarna).
+- **v9** — toggle tata letak video chat 1-on-1: split ⇄ PiP.
+- **v10** — room privat (kode, grup chat, video mesh) + game tebak angka, tic-tac-toe.
+- **v11** — Kuis 1001 + share layar + kirim gambar.
+- **v12** — Kuis 1001 bisa dimainkan di chat public; refactor state game.
+- **v13** — perbaikan bug game (guard dua sisi, timer 16 detik, panel bisa dibuka ulang) + tata letak video room: grid ⇄ spotlight.
 
 ## Catatan
 
-- 18+, konten tidak dimoderasi.
-- Jangan bagikan data pribadi.
+- 18+. Konten dari orang asing tidak dimoderasi — skip atau stop kapan saja.
+- Tidak ada server yang menyimpan pesan/gambar/video; semuanya langsung antar perangkat. Relay nostr hanya untuk signaling, TURN hanya meneruskan media terenkripsi.
+- Lokasi hanya selevel kota + jarak ±1 km, tidak pernah koordinat persis.
