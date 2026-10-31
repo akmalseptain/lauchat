@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 920" font-family="VT323, ui-monospace, Menlo, Consolas, monospace">
+  <rect width="480" height="920" fill="#09090b"/>
+  <rect x="16" y="16" width="448" height="888" fill="none" stroke="#27272a" stroke-width="1"/>
+
+  <text x="40" y="86" fill="#16a34a" font-size="34">LAUCHAT<span fill="#3f3f46">█</span></text>
+  <text x="40" y="108" fill="#a1a1aa" font-size="15">v13</text>
+  <g transform="translate(40,124)">
+    <rect width="96" height="22" rx="11" fill="#1f1f23"/>
+    <circle cx="12" cy="11" r="3" fill="#16a34a"/>
+    <text x="22" y="16" fill="#a1a1aa" font-size="14">12 online</text>
+  </g>
+
+  <!-- nick -->
+  <text x="40" y="190" fill="#a1a1aa" font-size="13">nama tampilan (opsional)</text>
+  <text x="40" y="216" fill="#fafafa" font-size="16">akmal</text>
+  <line x1="40" y1="224" x2="440" y2="224" stroke="#e4e4e7" stroke-width="1"/>
+
+  <!-- prefs: gender + want -->
+  <g font-size="14">
+    <rect x="40" y="246" width="192" height="30" fill="#18181b"/>
+    <line x1="40" y1="276" x2="232" y2="276" stroke="#27272a"/>
+    <text x="52" y="266" fill="#fafafa">Cowok</text>
+    <path d="M216 258 l6 6 -6 6" stroke="#a1a1aa" stroke-width="1.5" fill="none"/>
+    <rect x="248" y="246" width="192" height="30" fill="#18181b"/>
+    <line x1="248" y1="276" x2="440" y2="276" stroke="#27272a"/>
+    <text x="260" y="266" fill="#fafafa">Cari: cewek</text>
+    <path d="M424 258 l6 6 -6 6" stroke="#a1a1aa" stroke-width="1.5" fill="none"/>
+  </g>
+
+  <!-- prefs: bahasa -->
+  <g font-size="14">
+    <rect x="40" y="292" width="192" height="30" fill="#18181b"/>
+    <line x1="40" y1="322" x2="232" y2="322" stroke="#27272a"/>
+    <text x="52" y="312" fill="#fafafa">ID — fasih</text>
+    <path d="M216 304 l6 6 -6 6" stroke="#a1a1aa" stroke-width="1.5" fill="none"/>
+    <rect x="248" y="292" width="192" height="30" fill="#18181b"/>
+    <line x1="248" y1="322" x2="440" y2="322" stroke="#27272a"/>
+    <text x="260" y="312" fill="#fafafa">EN — dipelajari</text>
+    <path d="M424 304 l6 6 -6 6" stroke="#a1a1aa" stroke-width="1.5" fill="none"/>
+  </g>
+
+  <!-- tags -->
+  <text x="40" y="352" fill="#a1a1aa" font-size="13">topik favorit (diprioritaskan)</text>
+  <text x="40" y="378" fill="#fafafa" font-size="16">mobil, kode, musik</text>
+  <line x1="40" y1="386" x2="440" y2="386" stroke="#e4e4e7" stroke-width="1"/>
+
+  <!-- ai skip -->
+  <g transform="translate(40,404)">
+    <rect width="16" height="16" rx="3" fill="none" stroke="#71717a"/>
+    <path d="M4 9 l3 3 6-7" stroke="#16a34a" stroke-width="2" fill="none"/>
+    <text x="26" y="13" fill="#a1a1aa" font-size="14">Deteksi AI lawan: baca wajah, auto-skip bila tak sesuai</text>
+  </g>
+
+  <!-- tombol mulai -->
+  <g font-size="15" text-anchor="middle">
+    <rect x="40" y="444" width="192" height="44" rx="8" fill="#16a34a"/>
+    <text x="136" y="471" fill="#ffffff">Chat teks</text>
+    <rect x="248" y="444" width="192" height="44" rx="8" fill="none" stroke="#27272a"/>
+    <text x="344" y="471" fill="#fafafa">Chat video</text>
+  </g>
+
+  <!-- room privat -->
+  <line x1="40" y1="520" x2="440" y2="520" stroke="#27272a"/>
+  <g font-size="15" text-anchor="middle">
+    <rect x="40" y="544" width="230" height="40" fill="none" stroke="#27272a"/>
+    <text x="155" y="569" fill="#fafafa" letter-spacing="2">KODE ROOM</text>
+    <rect x="284" y="544" width="74" height="40" rx="8" fill="none" stroke="#27272a"/>
+    <text x="321" y="569" fill="#fafafa" font-size="14">Masuk</text>
+    <rect x="366" y="544" width="74" height="40" rx="8" fill="none" stroke="#27272a"/>
+    <text x="403" y="569" fill="#fafafa" font-size="14">Buat</text>
+  </g>
+
+  <text x="40" y="872" fill="#a1a1aa" font-size="15">LAUCHAT v13 · 18+ · Tidak dimoderasi · <tspan fill="#fafafa">Esc</tspan> untuk pindah orang</text>
+  <text x="240" y="896" text-anchor="middle" fill="#3f3f46" font-size="11">pratinjau UI — beranda / lobby</text>
+</svg>
