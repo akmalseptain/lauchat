@@ -48,6 +48,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -227,6 +228,7 @@ kbd{
 #game-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 #game-panel,#game-panel-chat{border:none;border-radius:0;background:transparent;padding:14px 0;margin-bottom:12px}
 .doodle-cv{width:100%;aspect-ratio:3/2;background:#000;touch-action:none;border:1px solid var(--border);cursor:crosshair;display:block}
+.war-cv{width:100%;aspect-ratio:16/9;background:#000;touch-action:manipulation;border:1px solid var(--border);display:block;image-rendering:pixelated}
 .doodle-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .doodle-sw{width:30px;height:30px;padding:0;border-radius:6px;border:1px solid var(--border)}
 .doodle-sw.pick{outline:2px solid var(--accent);outline-offset:1px}
@@ -2688,7 +2690,49 @@ function newWarState(host) {
     en: new Map(), sc: 0, wave: 0, ph: 'idle', spawnLeft: 0, spawnT: 0, pauseT: 0,
     seq: 0, bossNext: false, bs: [], ox: 80, odir: 1, ohp: 3, odead: false,
     raf: 0, kb: { l: false, r: false, j: false, s: false }, shootCd: 0,
-    tickF: 0, sendP: 0, over: false, cv: null }
+    tickF: 0, sendP: 0, over: false, cv: null,
+    pb: [], eb: [], pk: [], pp: [], shk: 0, fl: 0, wf: 0, owf: 0, lastOx: null, snd: true, ac: null }
+}
+
+function warSfx(W, k) {
+  if (!W || !W.snd) return
+  try {
+    if (!W.ac) W.ac = new (window.AudioContext || window.webkitAudioContext)()
+    if (W.ac.state === 'suspended') W.ac.resume()
+    const ac = W.ac, t = ac.currentTime, g = ac.createGain()
+    g.connect(ac.destination)
+    if (k === 'shot' || k === 'jump' || k === 'hit') {
+      const o = ac.createOscillator()
+      o.type = k === 'hit' ? 'sawtooth' : 'square'
+      if (k === 'shot') { o.frequency.setValueAtTime(760, t); o.frequency.exponentialRampToValueAtTime(90, t + 0.07); g.gain.setValueAtTime(0.05, t) }
+      if (k === 'jump') { o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(520, t + 0.08); g.gain.setValueAtTime(0.05, t) }
+      if (k === 'hit') { o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.12); g.gain.setValueAtTime(0.08, t) }
+      g.gain.exponentialRampToValueAtTime(0.001, t + (k === 'hit' ? 0.13 : 0.09))
+      o.connect(g); o.start(t); o.stop(t + 0.14)
+    } else if (k === 'boom') {
+      const len = Math.floor(ac.sampleRate * 0.25), buf = ac.createBuffer(1, len, ac.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len)
+      const n = ac.createBufferSource(); n.buffer = buf
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'
+      f.frequency.setValueAtTime(1100, t); f.frequency.exponentialRampToValueAtTime(90, t + 0.22)
+      g.gain.setValueAtTime(0.14, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.24)
+      n.connect(f); f.connect(g); n.start(t)
+    } else if (k === 'heal') {
+      const o = ac.createOscillator(); o.type = 'triangle'
+      o.frequency.setValueAtTime(520, t); o.frequency.setValueAtTime(780, t + 0.09)
+      g.gain.setValueAtTime(0.07, t); g.gain.setValueAtTime(0.07, t + 0.09); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2)
+      o.connect(g); o.start(t); o.stop(t + 0.2)
+    }
+  } catch (e) {}
+}
+
+function warBoom(W, x, y, n, big) {
+  W.shk = Math.max(W.shk, big ? 16 : 7)
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = (big ? 3.4 : 2.1) * (0.4 + Math.random())
+    W.pb.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (big ? 1.6 : 0.5), c: ['#fde047', '#f59e0b', '#dc2626', '#fafafa'][Math.floor(Math.random() * 4)], l: 20 + Math.floor(Math.random() * 16) })
+  }
 }
 
 function startWarGame() {
@@ -2734,19 +2778,30 @@ function warSpawnEnemy(W) {
   const boss = W.bossNext === true
   if (boss) W.bossNext = false
   const id = ++W.seq
-  W.en.set(id, { id, x: 520, v: boss ? 0.6 : 1 + Math.random() * 0.8 + W.wave * 0.15, hp: boss ? 12 : 1, b: boss ? 1 : 0, tx: null })
+  W.en.set(id, { id, x: 520, v: boss ? 0.6 : 1 + Math.random() * 0.8 + W.wave * 0.15, hp: boss ? 12 : 1, b: boss ? 1 : 0, tx: null, sT: boss ? 110 : 100 + Math.floor(Math.random() * 160) })
 }
 
 function warStepHost(W) {
   if (W.over) return
   if (W.ph === 'play') {
     if (W.spawnLeft > 0) { W.spawnT--; if (W.spawnT <= 0) { warSpawnEnemy(W); W.spawnT = 50 } }
-    for (const [id, e] of W.en) { e.x -= e.v; if (e.x < -30) W.en.delete(id) }
+    for (const [id, e] of W.en) {
+      e.x -= e.v
+      if (e.x < -30) { W.en.delete(id); continue }
+      e.sT--
+      if (e.sT <= 0 && e.x > 60 && e.x < 440) {
+        const bx = e.x - (e.b ? 16 : 8), by = WAR.G - (e.b ? 18 : 10)
+        W.eb.push({ x: bx, y: by })
+        try { sendGame({ t: 'ms-eshot', x: bx, y: by }) } catch (err) {}
+        e.sT = (e.b ? 95 : 150) + Math.floor(Math.random() * 120)
+      }
+    }
     if (W.spawnLeft === 0 && W.en.size === 0) { W.ph = 'pause'; W.pauseT = 130 }
   } else if (W.ph === 'pause') {
     W.pauseT--
     if (W.pauseT <= 0) warNextWave(W)
   }
+  for (const p of W.pk) { if (p.y < 0) { p.vy = (p.vy || 0) + 0.3; p.y += p.vy; if (p.y > 0) p.y = 0 } }
 }
 
 function warHit(a, b, e) {
@@ -2763,7 +2818,7 @@ function renderWar() {
   if (!W) return
   const cv = document.createElement('canvas')
   cv.width = WAR.W; cv.height = WAR.H
-  cv.className = 'doodle-cv'
+  cv.className = 'war-cv'
   body.appendChild(cv)
   W.cv = cv
   const bar = document.createElement('div')
@@ -2786,6 +2841,15 @@ function renderWar() {
   mkBtn('\u25B6', 'r')
   mkBtn('LOMPAT', 'j', '72px')
   mkBtn('TEMBAK', 's', '72px')
+  const snd = document.createElement('button')
+  snd.type = 'button'; snd.className = 'btn ghost sm'; snd.textContent = 'SUARA'
+  snd.addEventListener('click', () => {
+    const W = gameState.war
+    if (!W) return
+    W.snd = !W.snd
+    snd.textContent = W.snd ? 'SUARA' : 'BISU'
+  })
+  bar.appendChild(snd)
   const cls = document.createElement('button')
   cls.type = 'button'; cls.className = 'btn ghost sm'; cls.textContent = 'Tutup'
   cls.addEventListener('click', () => warClose(true))
@@ -2815,7 +2879,9 @@ function renderWar() {
 }
 
 function warStopEvents(W) {
+  if (!W) return
   if (W.kd) { document.removeEventListener('keydown', W.kd); document.removeEventListener('keyup', W.ku); W.kd = null; W.ku = null }
+  if (W.ac) { try { W.ac.close() } catch (e) {} W.ac = null }
 }
 
 function warLoop() {
@@ -2829,8 +2895,11 @@ function warLoop() {
     if (W.kb.r) { W.x += 3; W.dir = 1 }
     if (W.x < 10) W.x = 10
     if (W.x > WAR.W - 10) W.x = WAR.W - 10
-    if (W.kb.j && W.y === 0) W.vy = 7.5
-  }
+    if (W.kb.j && W.y === 0) { W.vy = 7.5; warSfx(W, 'jump') }
+    W.wf = (W.kb.l || W.kb.r) ? W.wf + 1 : 0
+  } else W.wf = 0
+  W.owf = W.lastOx != null && Math.abs(W.ox - W.lastOx) > 0.4
+  W.lastOx = W.ox
   if (W.y > 0 || W.vy !== 0) { W.y += W.vy; W.vy -= 0.55; if (W.y <= 0) { W.y = 0; W.vy = 0 } }
   if (W.inv > 0) W.inv--
   // tembak
@@ -2839,6 +2908,8 @@ function warLoop() {
     W.shootCd = 9
     const bx = W.x + W.dir * 15, by = WAR.G - 14 - W.y
     W.bs.push({ x: bx, y: by, d: W.dir, o: 1 })
+    W.fl = 4
+    warSfx(W, 'shot')
     try { sendGame({ t: 'ms-shot', x: bx, y: by, d: W.dir }) } catch (e) {}
   }
   // musuh: host sim, klien lerp ke target
@@ -2853,12 +2924,35 @@ function warLoop() {
       for (const e of W.en.values()) {
         if (warHit(b.y, b.x, e)) {
           e.hp--
-          if (e.hp <= 0) W.en.delete(e.id)
+          if (e.hp <= 0) {
+            warBoom(W, e.x, WAR.G - (e.b ? 14 : 8), e.b ? 26 : 12, e.b)
+            warSfx(W, 'boom')
+            if (W.host) {
+              W.sc += e.b ? 50 : 10
+              W.pp.push({ x: e.x, y: WAR.G - 34, t: '+' + (e.b ? 50 : 10), l: 42 })
+              if (e.b) W.pk.push({ x: e.x, y: -40, vy: 0, t: 900 })
+            }
+            W.en.delete(e.id)
+          }
           try { sendGame({ t: 'ms-kill', id: e.id }) } catch (err) {}
           W.bs.splice(i, 1)
           break
         }
       }
+    }
+  }
+  // peluru musuh (event ms-eshot, gerak deterministik kedua sisi)
+  for (let i = W.eb.length - 1; i >= 0; i--) {
+    const b = W.eb[i]
+    b.x -= 4
+    if (b.x < -14) { W.eb.splice(i, 1); continue }
+    if (!W.dead && !W.over && W.inv === 0 && W.y < 12 && Math.abs(b.x - W.x) < 9) {
+      W.eb.splice(i, 1)
+      W.hp--; W.inv = 90
+      warBoom(W, W.x, WAR.G - 10, 10, false)
+      warSfx(W, 'hit')
+      if (W.hp <= 0) W.dead = true
+      warSendSelf(W, true)
     }
   }
   // tabrakan musuh ke badan sendiri
@@ -2867,6 +2961,8 @@ function warLoop() {
       const ew = e.b ? 22 : 12
       if (Math.abs(e.x - W.x) < (ew + WAR.PW) / 2) {
         W.hp--; W.inv = 90
+        warBoom(W, W.x, WAR.G - 10, 10, false)
+        warSfx(W, 'hit')
         if (W.hp <= 0) { W.dead = true }
         warSendSelf(W, true)
         break
@@ -2878,11 +2974,31 @@ function warLoop() {
     W.over = true
     try { sendGame({ t: 'ms-over', sc: W.sc, wv: W.wave }) } catch (e) {}
   }
+  // medkit: host putuskan siapa yang ambil
+  if (W.host) {
+    for (let i = W.pk.length - 1; i >= 0; i--) {
+      const p = W.pk[i]
+      if (p.y === 0 && !W.dead && W.hp > 0 && W.hp < 3 && Math.abs(p.x - W.x) < 12) {
+        W.pk.splice(i, 1); W.hp++
+        warSfx(W, 'heal'); W.pp.push({ x: W.x, y: WAR.G - 40, t: '+1 HP', l: 50 })
+        warSendSelf(W, true); continue
+      }
+      if (p.y === 0 && !W.odead && W.ohp > 0 && W.ohp < 3 && Math.abs(p.x - W.ox) < 12) {
+        W.pk.splice(i, 1); try { sendGame({ t: 'ms-heal' }) } catch (e) {}
+      }
+    }
+  }
+  // partikel & efek
+  for (let i = W.pb.length - 1; i >= 0; i--) { const p = W.pb[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.l--; if (p.l <= 0 || p.y > WAR.G + 4) W.pb.splice(i, 1) }
+  for (let i = W.pp.length - 1; i >= 0; i--) { const p = W.pp[i]; p.y -= 0.5; p.l--; if (p.l <= 0) W.pp.splice(i, 1) }
+  if (W.fl > 0) W.fl--
+  if (W.shk > 0) W.shk--
   // broadcast host / posisi diri
   if (W.host && W.tickF % 6 === 0) {
     const en = []
     for (const e of W.en.values()) en.push([e.id, +e.x.toFixed(1), e.hp, e.b])
-    try { sendGame({ t: 'ms-state', en, sc: W.sc, wv: W.wave, ph: W.ph }) } catch (e) {}
+    const pk = W.pk.map(p => [Math.round(p.x), Math.round(p.y * 10) / 10, p.t])
+    try { sendGame({ t: 'ms-state', en, pk, sc: W.sc, wv: W.wave, ph: W.ph }) } catch (e) {}
   }
   if (W.tickF - W.sendP >= 6) warSendSelf(W, false)
   warDraw(W)
@@ -2898,41 +3014,143 @@ function warSendSelf(W, force) {
 function warDraw(W) {
   if (!W.cv) return
   const c = W.cv.getContext('2d')
-  c.fillStyle = '#000'; c.fillRect(0, 0, WAR.W, WAR.H)
-  // bintang statis
-  c.fillStyle = '#26262a'
-  for (let i = 0; i < 24; i++) c.fillRect((i * 137) % WAR.W, (i * 89) % (WAR.G - 30), 1, 1)
-  // tanah
-  c.fillStyle = '#16a34a'; c.fillRect(0, WAR.G, WAR.W, 2)
-  // musuh
-  for (const e of W.en.values()) {
-    if (e.b) { c.fillStyle = '#7f1d1d'; c.fillRect(e.x - 11, WAR.G - 26, 22, 26); c.fillStyle = '#dc2626'; c.fillRect(e.x - 11, WAR.G - 26, 22, 4) }
-    else { c.fillStyle = '#dc2626'; c.fillRect(e.x - 6, WAR.G - 16, 12, 16) }
-  }
-  // pemain
-  const drawP = (x, y, color, dir, flick) => {
-    if (flick) return
+  c.imageSmoothingEnabled = false
+  c.setTransform(1, 0, 0, 1, 0, 0)
+  // --- langit senja ala PS1 ---
+  const sky = c.createLinearGradient(0, 0, 0, WAR.G)
+  sky.addColorStop(0, '#0b0b1a'); sky.addColorStop(0.55, '#1c1533'); sky.addColorStop(1, '#3b1d2e')
+  c.fillStyle = sky; c.fillRect(0, 0, WAR.W, WAR.H)
+  const sx = W.shk > 0 ? (Math.random() * 2 - 1) * Math.min(4, W.shk / 3) : 0
+  const sy = W.shk > 0 ? (Math.random() * 2 - 1) * Math.min(3, W.shk / 4) : 0
+  c.save(); c.translate(sx, sy)
+  // bintang + bulan
+  c.fillStyle = '#a5a5c8'
+  for (let i = 0; i < 28; i++) c.fillRect((i * 167 + 31) % WAR.W, (i * 89) % (WAR.G - 90), 1, 1)
+  c.fillStyle = '#e4e4ed'; c.fillRect(WAR.W - 72, 24, 18, 18)
+  c.fillStyle = '#c7c7d4'; c.fillRect(WAR.W - 66, 28, 4, 4); c.fillRect(WAR.W - 60, 34, 3, 3)
+  // --- parallax: gunung + bukit + kota ---
+  const sil = (spd, hMax, color) => {
+    const o = (W.tickF * spd) % 120
     c.fillStyle = color
-    c.fillRect(x - WAR.PW / 2, WAR.G - WAR.PH - y, WAR.PW, WAR.PH)
-    c.fillRect(x + dir * 4, WAR.G - WAR.PH - y + 5, dir * 10, 3)
+    for (let x = -o; x < WAR.W + 120; x += 120) {
+      c.fillRect(x, WAR.G - hMax, 30, hMax)
+      c.fillRect(x + 18, WAR.G - hMax * 0.65, 44, hMax * 0.65)
+      c.fillRect(x + 50, WAR.G - hMax * 0.85, 26, hMax * 0.85)
+    }
   }
-  drawP(W.ox, 0, '#3b82f6', W.odir, W.odead)
-  drawP(W.x, W.y, '#16a34a', W.dir, W.dead || (W.inv > 0 && W.tickF % 6 < 3))
-  // peluru
-  c.fillStyle = '#fafafa'
-  for (const b of W.bs) c.fillRect(b.x - 2, b.y - 1, 5, 2)
-  // HUD
-  c.fillStyle = '#fafafa'; c.font = '11px monospace'
-  c.fillText('WAVE ' + W.wave + '  SKOR ' + W.sc, 8, 14)
-  c.fillText('A ' + '[]'.repeat(Math.max(0, W.hp)) + '  B ' + '[]'.repeat(Math.max(0, W.ohp)), WAR.W - 110, 14)
-  if (W.dead && !W.over) { c.fillStyle = '#dc2626'; c.fillText('KAMU TUMBANG — tunggu pasangan…', 140, 60) }
-  if (W.ph === 'pause' && !W.over) { c.fillStyle = '#fafafa'; c.fillText('WAVE ' + (W.wave + 1) + ' MENDEKAT…', 180, 120) }
+  sil(0.12, 92, '#251a40')
+  sil(0.3, 58, '#33184a')
+  const oc = (W.tickF * 0.45) % 84
+  for (let x = -oc; x < WAR.W + 84; x += 84) {
+    c.fillStyle = '#160f26'; c.fillRect(x, WAR.G - 40, 30, 40); c.fillRect(x + 6, WAR.G - 52, 14, 12)
+    c.fillStyle = '#f59e0b'
+    c.fillRect(x + 4, WAR.G - 30, 2, 2); c.fillRect(x + 12, WAR.G - 22, 2, 2); c.fillRect(x + 20, WAR.G - 34, 2, 2)
+  }
+  // --- tanah ---
+  c.fillStyle = '#101418'; c.fillRect(0, WAR.G, WAR.W, WAR.H - WAR.G)
+  c.fillStyle = '#16a34a'; c.fillRect(0, WAR.G, WAR.W, 3)
+  c.fillStyle = '#14532d'
+  for (let x = 0; x < WAR.W; x += 13) c.fillRect(x, WAR.G + 7 + (x % 3) * 7, 5, 1)
+  c.fillStyle = '#1c1c22'
+  for (let x = 3; x < WAR.W; x += 17) c.fillRect(x, WAR.G + 18 + (x % 2) * 5, 6, 2)
+  // --- medkit drop ---
+  for (const p of W.pk) {
+    const px = Math.round(p.x), py = WAR.G - 12 + Math.round(p.y)
+    c.fillStyle = '#f5f5f5'; c.fillRect(px - 7, py, 14, 11)
+    c.fillStyle = '#dc2626'; c.fillRect(px - 7, py, 14, 3)
+    c.fillStyle = '#16a34a'; c.fillRect(px - 2, py + 4, 4, 6); c.fillRect(px - 4, py + 6, 8, 2)
+    if (p.y === 0 && ((W.tickF >> 3) & 1)) { c.fillStyle = '#fde047'; c.fillRect(px - 10, py - 4, 2, 2); c.fillRect(px + 8, py - 4, 2, 2) }
+  }
+  // --- musuh ---
+  for (const e of W.en.values()) {
+    const ex = Math.round(e.x)
+    if (e.b) {
+      c.fillStyle = '#7f1d1d'; c.fillRect(ex - 11, WAR.G - 24, 22, 14)
+      c.fillStyle = '#991b1b'; c.fillRect(ex - 11, WAR.G - 24, 22, 4)
+      c.fillStyle = '#dc2626'; c.fillRect(ex - 6, WAR.G - 30, 10, 6)
+      c.fillStyle = '#fde047'; c.fillRect(ex - 14, WAR.G - 28, 4, 2)
+      c.fillStyle = '#111114'; c.fillRect(ex - 13, WAR.G - 10, 26, 10)
+      c.fillStyle = '#3f3f46'
+      const tr = (W.tickF >> 2) % 4
+      for (let k = 0; k < 6; k++) c.fillRect(ex - 12 + k * 4 + tr, WAR.G - 8, 2, 6)
+      for (let k = 0; k < e.hp; k++) { c.fillStyle = '#dc2626'; c.fillRect(ex - 11 + k * 2, WAR.G - 33, 2, 2) }
+    } else {
+      const step = ((W.tickF >> 3) & 1) ? 1 : -1
+      c.fillStyle = '#7f1d1d'; c.fillRect(ex - 5, WAR.G - 26, 10, 5)
+      c.fillStyle = '#e8a87c'; c.fillRect(ex - 4, WAR.G - 21, 8, 5)
+      c.fillStyle = '#dc2626'; c.fillRect(ex - 6, WAR.G - 16, 12, 8)
+      c.fillStyle = '#991b1b'; c.fillRect(ex - 6 + step, WAR.G - 8, 4, 8); c.fillRect(ex + 2 - step, WAR.G - 8, 4, 8)
+      c.fillStyle = '#3f3f46'; c.fillRect(ex - 12, WAR.G - 14, 8, 2)
+    }
+  }
+  // --- pemain (sprite trooper pixel) ---
+  const drawTrooper = (x, y, dir, main, dark, dead, blink, walk, gun) => {
+    const px = Math.round(x)
+    if (dead) { c.fillStyle = '#26262b'; c.fillRect(px - 7, WAR.G - 4, 15, 4); c.fillStyle = dark; c.fillRect(px - 7, WAR.G - 6, 8, 2); return }
+    if (blink) return
+    const step = walk ? (((W.tickF >> 3) & 1) ? 1 : -1) : 0
+    c.fillStyle = '#26262b'; c.fillRect(px - 6 + (walk ? step : 0), WAR.G - 8 - y, 5, 8); c.fillRect(px + 1 - (walk ? step : 0), WAR.G - 8 - y, 5, 8)
+    c.fillStyle = main; c.fillRect(px - 7, WAR.G - 16 - y, 14, 9)
+    c.fillStyle = dark; c.fillRect(px - 7, WAR.G - 11 - y, 14, 4)
+    c.fillStyle = '#e8a87c'; c.fillRect(px - 4, WAR.G - 22 - y, 8, 6)
+    c.fillStyle = dark; c.fillRect(px - 5, WAR.G - 24 - y, 10, 4)
+    c.fillStyle = '#a1a1aa'; c.fillRect(px + dir * 3 - 6, WAR.G - 14 - y, 14, 2)
+    c.fillStyle = '#52525b'; c.fillRect(px + dir * 9, WAR.G - 14 - y, 4, 3)
+    if (gun) { c.fillStyle = '#fde047'; c.fillRect(px + dir * 12, WAR.G - 16 - y, 5, 6) }
+  }
+  drawTrooper(W.ox, 0, W.odir, '#3b82f6', '#1e3a8a', W.odead, false, W.owf, false)
+  drawTrooper(W.x, W.y, W.dir, '#16a34a', '#14532d', W.dead, W.inv > 0 && W.tickF % 6 < 3, W.wf > 0, W.fl > 0)
+  // --- peluru ---
+  for (const b of W.bs) {
+    c.fillStyle = '#fbbf24'; c.fillRect(Math.round(b.x) - 2, Math.round(b.y) - 1, 5, 2)
+    c.fillStyle = '#fde68a'; c.fillRect(Math.round(b.x) - b.d * 7 - 2, Math.round(b.y) - 1, 5, 2)
+  }
+  for (const b of W.eb) {
+    c.fillStyle = '#f87171'; c.fillRect(Math.round(b.x) - 2, Math.round(b.y) - 1, 4, 2)
+    c.fillStyle = '#fecaca'; c.fillRect(Math.round(b.x) + 3, Math.round(b.y) - 1, 3, 2)
+  }
+  // --- partikel & popup skor ---
+  for (const p of W.pb) { c.fillStyle = p.c; c.fillRect(Math.round(p.x), Math.round(p.y), 2, 2) }
+  c.font = '9px monospace'
+  for (const p of W.pp) { c.fillStyle = '#fde047'; c.fillText(p.t, Math.round(p.x), Math.round(p.y)) }
+  // --- HUD ---
+  const drawHearts = (x0, n, col) => {
+    for (let i = 0; i < n; i++) {
+      const hx = x0 + i * 9
+      c.fillStyle = col
+      c.fillRect(hx + 1, 6, 2, 2); c.fillRect(hx + 4, 6, 2, 2); c.fillRect(hx + 3, 5, 1, 1)
+      c.fillRect(hx, 7, 7, 2); c.fillRect(hx + 1, 9, 5, 1); c.fillRect(hx + 2, 10, 3, 1)
+    }
+  }
+  c.fillStyle = '#fafafa'; c.font = '10px monospace'
+  c.fillText('WAVE ' + W.wave, 8, 14)
+  c.fillText('SKOR ' + String(W.sc).padStart(5, '0'), 62, 14)
+  drawHearts(WAR.W - 104, Math.max(0, W.ohp), '#3b82f6')
+  drawHearts(WAR.W - 56, Math.max(0, W.hp), '#16a34a')
+  c.fillStyle = '#3b82f6'; c.fillText('B', WAR.W - 116, 14)
+  c.fillStyle = '#16a34a'; c.fillText('A', WAR.W - 68, 14)
+  // --- teks status ---
+  if (W.dead && !W.over) { c.fillStyle = '#dc2626'; c.font = '12px monospace'; c.fillText('KAMU TUMBANG — tunggu pasangan…', 150, 60) }
+  if (W.ph === 'pause' && !W.over) {
+    c.fillStyle = '#fde047'; c.font = 'bold 16px monospace'
+    c.fillText('WAVE ' + (W.wave + 1), 205, 120)
+    c.fillStyle = '#a1a1aa'; c.font = '10px monospace'
+    c.fillText('BERSIAP…', 212, 136)
+  }
   if (W.over) {
-    c.fillStyle = '#dc2626'; c.font = '16px monospace'
-    c.fillText('GAME OVER — SKOR ' + W.sc + ' · WAVE ' + W.wave, 100, 120)
-    c.fillStyle = '#71717a'; c.font = '11px monospace'
-    c.fillText('ketik /war untuk main lagi', 178, 140)
+    c.fillStyle = '#dc2626'; c.font = 'bold 18px monospace'
+    c.fillText('GAME OVER', 178, 115)
+    c.fillStyle = '#fafafa'; c.font = '11px monospace'
+    c.fillText('SKOR ' + W.sc + ' · WAVE ' + W.wave, 190, 132)
+    c.fillStyle = '#71717a'
+    c.fillText('ketik /war untuk main lagi', 178, 148)
   }
+  c.restore()
+  // --- scanline CRT + vignette ala PS1 ---
+  c.fillStyle = 'rgba(0,0,0,0.13)'
+  for (let y = 0; y < WAR.H; y += 3) c.fillRect(0, y, WAR.W, 1)
+  if (!W.vg) { W.vg = c.createRadialGradient(WAR.W / 2, WAR.H / 2, 80, WAR.W / 2, WAR.H / 2, 300); W.vg.addColorStop(0, 'rgba(0,0,0,0)'); W.vg.addColorStop(1, 'rgba(0,0,0,0.35)') }
+  c.fillStyle = W.vg; c.fillRect(0, 0, WAR.W, WAR.H)
 }
 
 function renderSuit() {
@@ -4254,6 +4472,7 @@ function onRoomGame(data, peerId) {
     W.sc = data.sc || 0
     W.wave = data.wv || W.wave
     W.ph = data.ph || W.ph
+    if (Array.isArray(data.pk)) W.pk = data.pk.map(function (a) { return { x: a[0], y: a[1], vy: 0, t: a[2] } })
   } else if (data.t === 'ms-shot') {
     const W = g.war
     if (g.type !== 'war' || !W) return
@@ -4261,10 +4480,13 @@ function onRoomGame(data, peerId) {
   } else if (data.t === 'ms-kill') {
     const W = g.war
     if (g.type !== 'war' || !W) return
-    if (W.host) {
-      const e = W.en.get(Number(data.id))
-      if (e) { W.sc += e.b ? 50 : 10; W.en.delete(e.id) }
-    }
+    const e = W.en.get(Number(data.id))
+    if (!e) return
+    warBoom(W, e.x, WAR.G - (e.b ? 14 : 8), e.b ? 26 : 12, e.b)
+    warSfx(W, 'boom')
+    W.pp.push({ x: e.x, y: WAR.G - 34, t: '+' + (e.b ? 50 : 10), l: 42 })
+    if (W.host) { W.sc += e.b ? 50 : 10; if (e.b) W.pk.push({ x: e.x, y: -40, vy: 0, t: 900 }) }
+    W.en.delete(e.id)
   } else if (data.t === 'ms-p') {
     const W = g.war
     if (g.type !== 'war' || !W) return
@@ -4276,6 +4498,16 @@ function onRoomGame(data, peerId) {
     W.sc = data.sc || W.sc
     W.wave = data.wv || W.wave
     roomGameLog('WAR selesai — skor ' + W.sc + ' sampai wave ' + W.wave)
+  } else if (data.t === 'ms-eshot') {
+    const W = g.war
+    if (g.type !== 'war' || !W) return
+    W.eb.push({ x: data.x, y: data.y })
+  } else if (data.t === 'ms-heal') {
+    const W = g.war
+    if (g.type !== 'war' || !W) return
+    if (W.hp > 0 && W.hp < 3) { W.hp++; W.pp.push({ x: W.x, y: WAR.G - 40, t: '+1 HP', l: 50 }) }
+    warSfx(W, 'heal')
+    warSendSelf(W, true)
   } else if (data.t === 'ms-close') {
     if (g.type !== 'war' || !g.war) return
     if (g.war.raf) cancelAnimationFrame(g.war.raf)
@@ -4679,7 +4911,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v56' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v57' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
