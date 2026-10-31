@@ -36,6 +36,8 @@
 
 
 
+
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -2884,7 +2886,7 @@ const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
 registerProcessor('psola-shift', PsolaProcessor)`
 
 const VOICE_PRESETS = [
-  { name: 'CEWEK', desc: 'suara perempuan natural', lib: 'ss', ssSemi: 9, ssFormant: 4, st: 0, psola: 9, fm: 1.155, eq: [{ t: 'peaking', f: 3100, g: 3, q: 1 }, { t: 'highpass', f: 85, q: 0.7 }] },
+  { name: 'CEWEK', desc: 'cewek seksi — dalam & hangat', lib: 'ss', ssSemi: 8, ssFormant: 2.5, st: 0, psola: 8, fm: 1.155, eq: [{ t: 'lowshelf', f: 200, g: 2.5 }, { t: 'highpass', f: 85, q: 0.7 }] },
   { name: 'COWOK', desc: 'suara laki-laki natural', lib: 'ss', ssSemi: -9, ssFormant: -4, st: 0, psola: -9, fm: 0.866, eq: [{ t: 'lowshelf', f: 240, g: 3 }] },
   { name: 'PIDATO', desc: 'pidato partai — dalam, gema gedung', st: -4, rev: .42, low: 1 },
   { name: 'CERAMAH', desc: 'ceramah kiai — dalam, gema langgar', st: -3, rev: .35, low: 1 },
@@ -3758,7 +3760,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v46' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v47' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
