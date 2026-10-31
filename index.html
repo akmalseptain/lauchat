@@ -45,6 +45,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -3280,8 +3281,8 @@ async function screenRecToggle() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     const rv = $('remote-video')
     if (rv && rv.srcObject) { await sessionRecStart(); return }
-    const ok = window.confirm('Browser HP tidak bisa merekam halaman web — ini batasan Android, bukan bug.\n\nRekam kamera depan + suara efek sebagai gantinya?\n\nUntuk merekam seluruh halaman: pakai Screen Recorder bawaan Android (quick settings), pilih suara "perangkat/internal".')
-    if (!ok) { toast('Tip: tarik quick settings HP → Screen Recorder → sumber suara pilih "perangkat/internal".', false, 4500); return }
+    const ok = window.confirm('Browser HP tidak bisa merekam halaman web — ini batasan Android, bukan bug.\n\nRekam kamera depan + suara efek sebagai gantinya?\n\n(Suara dari Chrome TIDAK bisa ditangkap perekam layar di HP — Chrome memblokirnya. Video halaman tanpa suara: Screen Recorder bawaan Android; dengan suara: tombol ini atau Rekam di Coba suara.)')
+    if (!ok) { toast('Catatan: perekam layar HP tidak bisa menangkap suara dari Chrome. Suara efek hanya terekam lewat tombol rekam LAUCHAT.', false, 4500); return }
     await selfRecStart()
     return
   }
@@ -4125,7 +4126,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v53' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v54' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
