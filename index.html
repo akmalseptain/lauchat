@@ -6,6 +6,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -391,6 +392,7 @@ footer b{color:var(--fg);font-weight:600}
     <span class="st" id="chat-status">Menyambungkan…</span>
     <span class="sep" id="lang-sep" style="display:none">·</span>
     <span class="st" id="lang-badge"></span>
+    <span class="st" id="fx-badge" style="display:none"></span>
   </div>
 
   <div id="loc-line" class="hidden">
@@ -1189,8 +1191,26 @@ function startPair(peerId, code, nick) {
   }, 8000)
 
   state.chatMsg.onMessage = (data, {peerId: pid}) => {
-    if (pid === peerId && data?.t) addMsg('them', String(data.t).slice(0, MAX_MSG_LEN), data.ts)
+    if (pid !== peerId) return
+    if (data?.fx) {
+      const b = $('fx-badge')
+      if (data.off) {
+        state.partnerFx = null
+        b.style.display = 'none'
+        addMsg('sys', 'lawan mematikan efek suara')
+      } else {
+        state.partnerFx = data.fx
+        b.textContent = 'SUARA EFEK'
+        b.style.display = ''
+        addMsg('sys', 'lawan memakai efek suara (' + data.fx + ') — bukan suara aslinya')
+      }
+      return
+    }
+    if (data?.t) addMsg('them', String(data.t).slice(0, MAX_MSG_LEN), data.ts)
   }
+  state.partnerFx = null
+  $('fx-badge').style.display = 'none'
+  $('fx-badge').textContent = ''
   state.typingAct.onMessage = (d, {peerId: pid}) => {
     if (pid === peerId) showTyping()
   }
@@ -2207,6 +2227,10 @@ function voiceChainDestroy() {
 }
 
 function voiceOff() {
+  const had = state.vcPreset
+  if (had && state.chatMsg && state.partnerConnected) {
+    try { state.chatMsg.send({fx: had.name, off: 1, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
+  }
   voiceChainDestroy()
   const micTrack = state.selfStream && state.selfStream.getAudioTracks()[0]
   if (micTrack) for (const s of voiceSenders()) { try { s.replaceTrack(micTrack) } catch (e) {} }
@@ -2288,6 +2312,8 @@ async function voiceOn(preset) {
     state.vcPreset = preset
     $('voice-label').textContent = 'Suara: ' + preset.name
     toast('Ejak suara: ' + preset.desc, false, 2500)
+    try { state.chatMsg.send({fx: preset.name, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
+    sysMsg('efek suara aktif — lawan sudah diberi tahu')
     if (!replaced) toast('Ejak aktif, tapi audio belum sampai ke lawan.', false, 3000)
   } catch (e) {
     toast('Ejak suara gagal diaktifkan.', true)
@@ -2892,7 +2918,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v29' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v30' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
