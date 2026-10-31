@@ -133,10 +133,10 @@ kbd{
 .chat-line .who{font-weight:600}
 .chat-line .sep{color:var(--muted)}
 .chat-line .st{color:var(--muted)}
-#video-wrap{position:relative;border-radius:var(--r-lg);overflow:hidden;background:#000;aspect-ratio:16/9;border:1px solid var(--border);margin-bottom:12px}
+#video-wrap{position:relative;display:flex;gap:3px;border-radius:var(--r-lg);overflow:hidden;background:#000;aspect-ratio:16/9;border:1px solid var(--border);margin-bottom:12px}
+.vid-cell{position:relative;flex:1;min-width:0;height:100%;overflow:hidden;background:#000}
 #remote-video{width:100%;height:100%;object-fit:cover;display:block}
 #remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#8b8b90;font-size:12px;font-family:'Geist Mono',monospace;background:#000;text-align:center;padding:10px}
-#pip{position:absolute;right:10px;bottom:10px;width:110px;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;border:1px solid rgba(255,255,255,.25);background:#000}
 #pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 #pip .off{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#8b8b90;background:#000}
 #messages{
@@ -272,9 +272,11 @@ footer b{color:var(--fg);font-weight:600}
   </div>
 
   <div id="video-wrap" class="hidden">
-    <video id="remote-video" autoplay playsinline></video>
-    <div id="remote-placeholder">menunggu video…</div>
-    <div id="pip">
+    <div id="remote-cell" class="vid-cell">
+      <video id="remote-video" autoplay playsinline></video>
+      <div id="remote-placeholder">menunggu video…</div>
+    </div>
+    <div id="pip" class="vid-cell">
       <video id="self-video" autoplay playsinline muted></video>
       <div id="pip-off" class="off hidden">kamera mati</div>
     </div>
