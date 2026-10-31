@@ -29,7 +29,6 @@
   --ring:rgba(34,197,94,.22);
   color-scheme:dark;
 }
-.dark input,.dark textarea,.dark select{background:transparent}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{
@@ -56,7 +55,7 @@ header{
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .icon-btn{
   width:34px;height:34px;display:grid;place-items:center;border-radius:var(--r);
-  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;
+  border:none;background:transparent;color:var(--muted);cursor:pointer;
 }
 .icon-btn:hover{color:var(--fg);background:var(--hover)}
 
@@ -70,14 +69,14 @@ main.active{display:block;animation:fade .2s ease}
 .hero p{margin-top:8px;color:var(--muted);font-size:14px;max-width:400px}
 
 /* ---------- komponen dasar ---------- */
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px}
+.card{background:transparent;border:none;border-radius:0;padding:0}
 input,textarea,select{
-  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;
-  padding:0 12px;height:40px;font-size:14px;font-family:inherit;color:var(--fg);outline:none;
-  transition:border-color .15s, box-shadow .15s;
+  width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;
+  padding:0 2px;height:40px;font-size:14px;font-family:inherit;color:var(--fg);outline:none;
+  transition:border-color .15s;
 }
 textarea{height:auto;min-height:40px;padding:10px 12px;resize:none}
-input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+input:focus,textarea:focus,select:focus{border-bottom-color:var(--accent)}
 input::placeholder,textarea::placeholder{color:var(--muted)}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -90,14 +89,14 @@ input::placeholder,textarea::placeholder{color:var(--muted)}
 .btn svg{flex:0 0 auto}
 .btn.primary{background:var(--accent);color:var(--accent-fg)}
 .btn.primary:hover{opacity:.9}
-.btn.ghost{background:transparent;color:var(--fg);border-color:var(--border)}
+.btn.ghost{background:transparent;color:var(--fg);border-color:transparent}
 .btn.ghost:hover{background:var(--hover)}
 .btn.ghost.off{color:var(--muted)}
 .btn.sm{height:32px;padding:0 12px;font-size:13px}
 .btn.icon-only{width:40px;padding:0}
 kbd{
-  border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;
-  padding:0 6px;font-family:var(--mono);font-size:11px;color:var(--muted);
+  border:none;border-radius:0;padding:0;
+  font-family:var(--mono);font-size:11px;color:var(--muted);
 }
 
 /* ---------- home ---------- */
@@ -122,14 +121,14 @@ kbd{
 #search-status{font-weight:500}
 /* ---------- lokasi lawan ---------- */
 #loc-line{margin:2px 0 12px}
-.loc-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:999px;padding:5px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.loc-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;color:var(--muted);background:transparent;border:none;border-radius:999px;padding:5px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .loc-chip:hover{color:var(--fg)}
 .loc-chip svg{flex:none;opacity:.8}
-.loc-flag{flex:none;font-family:'VT323',monospace;font-size:16px;line-height:.68;letter-spacing:0;border-radius:2px;overflow:hidden}
-#loc-map{margin-top:8px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.loc-flag{flex:none;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.08em}
+#loc-map{margin-top:8px;border:none;border-radius:var(--r);overflow:hidden}
 #loc-iframe{width:100%;height:180px;border:0;display:block;background:var(--card)}
 #search-sub{color:var(--muted);font-size:13px;max-width:340px}
-#search-pip{width:min(280px,80vw);aspect-ratio:4/3;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border)}
+#search-pip{width:min(280px,80vw);aspect-ratio:4/3;border-radius:var(--r-lg);overflow:hidden;background:#000;border:none}
 #search-pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 
 /* ---------- chat ---------- */
@@ -137,7 +136,7 @@ kbd{
 .chat-line .who{font-weight:600}
 .chat-line .sep{color:var(--muted)}
 .chat-line .st{color:var(--muted);font-family:var(--mono);font-size:12px}
-#video-wrap{position:relative;display:flex;gap:4px;border-radius:var(--r-lg);overflow:hidden;background:#000;aspect-ratio:16/9;border:1px solid var(--border);margin-bottom:12px}
+#video-wrap{position:relative;display:flex;gap:4px;border-radius:var(--r-lg);overflow:hidden;background:#000;aspect-ratio:16/9;border:none;margin-bottom:12px}
 .vid-cell{position:relative;flex:1;min-width:0;height:100%;overflow:hidden;background:#000}
 #remote-video{width:100%;height:100%;object-fit:cover;display:block}
 #remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#8b8b90;font-size:13px;background:#000;text-align:center;padding:10px}
@@ -152,7 +151,7 @@ kbd{
 /* ---------- room privat & game ---------- */
 .room-row{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
 .room-row input{flex:1;min-width:0;text-transform:uppercase;font-family:var(--mono);font-size:13px;letter-spacing:.2em;text-align:center}
-#room-videos{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:4px;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border);margin-bottom:12px}
+#room-videos{position:relative;display:flex;flex-wrap:wrap;gap:4px;border-radius:var(--r-lg);overflow:hidden;background:#000;border:none;margin-bottom:12px}
 #room-videos.spot{display:flex;flex-wrap:wrap}
 #room-videos.spot .rcell.main{flex:1 1 100%;aspect-ratio:16/9}
 #room-videos.spot .rcell.main video{aspect-ratio:16/9}
@@ -163,12 +162,12 @@ kbd{
 #room-videos .off{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;color:#8b8b90}
 #room-videos .tag{position:absolute;left:4px;bottom:4px;font-family:var(--mono);font-size:10px;line-height:1;color:#e6e6e6;background:rgba(0,0,0,.55);padding:3px 6px;border-radius:6px}
 .room-members{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:12px;color:var(--muted);margin:0 0 12px}
-#room-messages{min-height:180px;max-height:38vh;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;display:flex;flex-direction:column;gap:8px}
+#room-messages{min-height:180px;max-height:38vh;overflow-y:auto;background:transparent;border:none;border-radius:0;padding:4px 0;display:flex;flex-direction:column;gap:8px}
 #room-messages .msg .who{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
 #room-form{display:flex;gap:8px;margin-top:12px}
 #room-input{flex:1;max-height:110px;font-size:14px}
 #game-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-#game-panel,#game-panel-chat{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card);padding:14px;margin-bottom:12px}
+#game-panel,#game-panel-chat{border:none;border-radius:0;background:transparent;padding:14px 0;margin-bottom:12px}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 #game-body .st{color:var(--muted);font-family:var(--mono);font-size:12px;margin:6px 0 0}
@@ -185,17 +184,17 @@ kbd{
 .msg.img img{max-width:220px;max-height:220px;border-radius:10px;display:block}
 .quiz-q{font-size:14px;margin:6px 0 0}
 .quiz-opts{display:grid;gap:6px;margin-top:10px}
-.quiz-opts button{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;color:var(--fg);font-size:13px;cursor:pointer;text-align:left}
+.quiz-opts button{display:flex;align-items:center;gap:8px;background:transparent;border:none;border-radius:var(--r);padding:9px 2px;color:var(--fg);font-size:13px;cursor:pointer;text-align:left}
 .quiz-opts button b{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:500;flex:none}
 .quiz-opts button:disabled{cursor:default;opacity:.55}
-.quiz-opts button.pick{border-color:var(--accent);opacity:1}
-.quiz-opts button.ok{border-color:var(--accent);opacity:1}
-.quiz-opts button.bad{border-color:#dc2626;opacity:.9}
+.quiz-opts button.pick{background:rgba(22,163,74,.14);opacity:1}
+.quiz-opts button.ok{background:rgba(22,163,74,.2);opacity:1}
+.quiz-opts button.bad{background:rgba(220,38,38,.16);opacity:.9}
 .quiz-score{margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--fg)}
 #messages{
   min-height:220px;max-height:44vh;overflow-y:auto;
-  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
-  padding:12px;display:flex;flex-direction:column;gap:8px;
+  background:transparent;border:none;border-radius:0;
+  padding:4px 0;display:flex;flex-direction:column;gap:8px;
 }
 .msg{max-width:78%;padding:8px 12px;border-radius:var(--r-lg);font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap}
 .msg.me{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-bottom-right-radius:4px}
@@ -668,9 +667,7 @@ async function renderPartnerLoc() {
   $('loc-text').textContent = 'Dari ' + ((geo && geo.name) || loc.lat + ', ' + loc.lon) + ' · ±1 km'
   $('loc-line').classList.remove('hidden')
   const fl = $('loc-flag')
-  fl.innerHTML = ''
-  const art = (geo && geo.cc) ? await flagArt(geo.cc) : null
-  if (art) fl.innerHTML = art
+  fl.textContent = (geo && geo.cc) ? geo.cc.toUpperCase() : ''
 }
 
 function osmEmbedUrl(loc) {
@@ -1510,7 +1507,7 @@ function setRoomLayout(mode) {
   $('room-layout-btn').innerHTML = (mode === 'spot') ? ROOM_LAYOUT_ICONS.grid : ROOM_LAYOUT_ICONS.spot
   try { localStorage.setItem(ROOM_LAYOUT_KEY, mode) } catch (e) {}
 }
-setRoomLayout((() => { try { return localStorage.getItem(ROOM_LAYOUT_KEY) === 'spot' ? 'spot' : 'grid' } catch (e) { return 'grid' } })())
+setRoomLayout((() => { try { return localStorage.getItem(ROOM_LAYOUT_KEY) === 'grid' ? 'grid' : 'spot' } catch (e) { return 'spot' } })())
 $('room-layout-btn').addEventListener('click', () => setRoomLayout(roomState.layout === 'spot' ? 'grid' : 'spot'))
 $('room-videos').addEventListener('click', e => {
   if (roomState.layout !== 'spot') return
@@ -2274,7 +2271,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v16' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v17' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
