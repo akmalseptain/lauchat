@@ -124,7 +124,7 @@ kbd{
 .loc-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;color:var(--muted);background:transparent;border:none;border-radius:999px;padding:5px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .loc-chip:hover{color:var(--fg)}
 .loc-chip svg{flex:none;opacity:.8}
-.loc-flag{flex:none;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.08em}
+.loc-flag{flex:none;font-family:'VT323',monospace;font-size:16px;line-height:.68;letter-spacing:0;border-radius:2px;overflow:hidden}
 #loc-map{margin-top:8px;border:none;border-radius:var(--r);overflow:hidden}
 #loc-iframe{width:100%;height:180px;border:0;display:block;background:var(--card)}
 #search-sub{color:var(--muted);font-size:13px;max-width:340px}
@@ -667,7 +667,9 @@ async function renderPartnerLoc() {
   $('loc-text').textContent = 'Dari ' + ((geo && geo.name) || loc.lat + ', ' + loc.lon) + ' · ±1 km'
   $('loc-line').classList.remove('hidden')
   const fl = $('loc-flag')
-  fl.textContent = (geo && geo.cc) ? geo.cc.toUpperCase() : ''
+  fl.innerHTML = ''
+  const art = (geo && geo.cc) ? await flagArt(geo.cc) : null
+  if (art) fl.innerHTML = art
 }
 
 function osmEmbedUrl(loc) {
@@ -2271,7 +2273,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v17' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v18' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
