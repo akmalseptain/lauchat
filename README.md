@@ -123,6 +123,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v29** — perbaikan: kontrol bawah wrap anti tumpang tindih + pitch shifter 4-tap Hann (suara tidak kresek) + label preset pendek.
 - **v30** — label transparansi efek suara ke lawan (disclosure ala EU AI Act).
 - **v31** — panel pilihan ejak suara + 4 preset baru (ceramah, alam liar, siaran malam, stand-up).
+- **v32** — kontrol bawah di ponsel menjadi grid 5 kolom yang rapi — tidak ada lagi tumpang tindih.
 
 ## Catatan
 
