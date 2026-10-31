@@ -42,6 +42,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Suit batu-gunting-kertas bareng lawan — skor berjalan tiap ronde.
 - Nonton bareng YouTube: tempel link, play/pause/posisi sinkron dua arah.
 - Ejak suara persona: pidato partai, trailer Hollywood, anchor berita, sinden, robot, balita — pitch shift + reverb + vibrato + ring mod.
+- Transparansi efek suara: lawan otomatis diberi tahu (pesan sistem + badge "SUARA EFEK") saat efek dinyalakan atau dimatikan.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -119,6 +120,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v27** — nonton bareng YouTube (sinkronisasi dua arah, koreksi drift otomatis).
 - **v28** — ejak suara persona (voice changer, AudioWorklet granular pitch shift).
 - **v29** — perbaikan: kontrol bawah wrap anti tumpang tindih + pitch shifter 4-tap Hann (suara tidak kresek) + label preset pendek.
+- **v30** — label transparansi efek suara ke lawan (disclosure ala EU AI Act).
 
 ## Catatan
 
