@@ -41,6 +41,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -3228,7 +3229,7 @@ function prevRecToggle() {
 $('btn-prev-rec').addEventListener('click', prevRecToggle)
 
 // ---------- rekam seluruh halaman (screen record internal) ----------
-const screenRec = { rec: null, chunks: [], t0: 0, timer: null, stream: null, mix: null }
+const screenRec = { rec: null, chunks: [], t0: 0, timer: null, stream: null, mix: null, raf: null, ctrack: null, mode: 'layar' }
 
 function screenRecMime() {
   const cands = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
@@ -3248,16 +3249,23 @@ function screenRecUi(on) {
 
 function screenRecStop() {
   if (screenRec.timer) { clearInterval(screenRec.timer); screenRec.timer = null }
+  if (screenRec.raf) { cancelAnimationFrame(screenRec.raf); screenRec.raf = null }
   if (screenRec.rec && screenRec.rec.state !== 'inactive') { try { screenRec.rec.stop() } catch (e) {} }
   if (screenRec.stream) for (const t of screenRec.stream.getTracks()) { try { t.stop() } catch (e) {} }
+  if (screenRec.ctrack) { try { screenRec.ctrack.stop() } catch (e) {} }
   if (screenRec.mix) { try { screenRec.mix.close() } catch (e) {} }
-  screenRec.stream = null; screenRec.mix = null
+  screenRec.stream = null; screenRec.mix = null; screenRec.ctrack = null
   screenRecUi(false)
 }
 
 async function screenRecToggle() {
   if (screenRec.rec && screenRec.rec.state === 'recording') { screenRecStop(); return }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast('Browser ini tidak dukung rekam layar — pakai tombol Rekam di Coba suara.', true, 3000); return }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    const rv = $('remote-video')
+    if (rv && rv.srcObject) { await sessionRecStart() ; return }
+    toast('Browser ini tidak dukung rekam layar — buka di Chrome untuk rekam halaman, atau pakai tombol Rekam di Coba suara.', true, 4000)
+    return
+  }
   let disp
   try { disp = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }) }
   catch (e) { return }
@@ -3281,7 +3289,7 @@ async function screenRecToggle() {
   let mime = ''
   try { mime = screenRecMime() } catch (e) {}
   const rec = new MediaRecorder(out, mime ? { mimeType: mime } : undefined)
-  screenRec.rec = rec; screenRec.chunks = []; screenRec.stream = disp; screenRec.mix = mix
+  screenRec.rec = rec; screenRec.chunks = []; screenRec.stream = disp; screenRec.mix = mix; screenRec.mode = 'layar'
   rec.ondataavailable = (e) => { if (e.data && e.data.size) screenRec.chunks.push(e.data) }
   rec.onstop = () => {
     const type = mime || 'video/webm'
@@ -3294,7 +3302,7 @@ async function screenRecToggle() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'lauchat-layar-' + Math.floor(Date.now() / 1000) + '.' + ext
+      a.download = 'lauchat-' + (screenRec.mode === 'sesi' ? 'sesi' : 'layar') + '-' + Math.floor(Date.now() / 1000) + '.' + ext
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(url), 4000)
       toast('Rekaman halaman ' + dur + ' dtk tersimpan — cek folder Download.', false, 3200)
@@ -3314,6 +3322,81 @@ async function screenRecToggle() {
   toast('Merekam seluruh halaman — tap ikon merah di header untuk berhenti.', false, 3200)
 }
 $('btn-screen-rec').addEventListener('click', screenRecToggle)
+
+// ---------- fallback: rekam sesi via canvas (tanpa getDisplayMedia) ----------
+function sessionDrawCover(c2, vid, x, y, w, h) {
+  c2.fillStyle = '#000'
+  c2.fillRect(x, y, w, h)
+  if (!vid || !vid.videoWidth || !vid.videoHeight) return
+  const vr = vid.videoWidth / vid.videoHeight, r = w / h
+  let sx = 0, sy = 0, sw = vid.videoWidth, sh = vid.videoHeight
+  if (vr > r) { sh = vid.videoHeight; sw = sh * r; sx = (vid.videoWidth - sw) / 2 }
+  else { sw = vid.videoWidth; sh = sw / r; sy = (vid.videoHeight - sh) / 2 }
+  try { c2.drawImage(vid, sx, sy, sw, sh, x, y, w, h) } catch (e) {}
+}
+
+async function sessionRecStart() {
+  const rv = $('remote-video'), sv = $('self-video')
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = 640; canvas.height = 480
+    const c2 = canvas.getContext('2d')
+    const mix = new (window.AudioContext || window.webkitAudioContext)()
+    if (mix.state === 'suspended') { try { await mix.resume() } catch (e) {} }
+    const md = mix.createMediaStreamDestination()
+    const wire = (stream) => { try { if (stream && stream.getAudioTracks().length) mix.createMediaStreamSource(stream).connect(md) } catch (e) {} }
+    wire(rv.srcObject)
+    wire(state.vcPreset && state.vc && state.vc.dest ? state.vc.dest.stream : (state.selfStream || null))
+    const cs = canvas.captureStream(30)
+    const ctrack = cs.getVideoTracks()[0]
+    const tracks = [ctrack]
+    if (md.stream.getAudioTracks().length) tracks.push(md.stream.getAudioTracks()[0])
+    const out = new MediaStream(tracks)
+    let mime = ''
+    try { mime = screenRecMime() } catch (e) {}
+    const rec = new MediaRecorder(out, mime ? { mimeType: mime } : undefined)
+    screenRec.rec = rec; screenRec.chunks = []; screenRec.mix = mix; screenRec.ctrack = ctrack
+    screenRec.mode = 'sesi'
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) screenRec.chunks.push(e.data) }
+    rec.onstop = () => {
+      const type = mime || 'video/webm'
+      const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm'
+      const blob = new Blob(screenRec.chunks, { type })
+      screenRec.chunks = []
+      const dur = screenRec.t0 ? Math.round((Date.now() - screenRec.t0) / 100) / 10 : 0
+      screenRec.t0 = 0
+      if (blob.size) {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'lauchat-sesi-' + Math.floor(Date.now() / 1000) + '.' + ext
+        document.body.appendChild(a); a.click(); a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 4000)
+        toast('Rekaman sesi ' + dur + ' dtk tersimpan — cek folder Download.', false, 3200)
+      } else {
+        toast('Rekaman kosong.', true, 2500)
+      }
+    }
+    const draw = () => {
+      sessionDrawCover(c2, rv, 0, 0, 640, 320)
+      sessionDrawCover(c2, sv, 0, 320, 640, 160)
+      screenRec.raf = requestAnimationFrame(draw)
+    }
+    screenRec.t0 = Date.now()
+    rec.start(1000)
+    screenRec.raf = requestAnimationFrame(draw)
+    screenRecUi(true)
+    screenRec.timer = setInterval(() => {
+      const s = Math.floor((Date.now() - screenRec.t0) / 1000)
+      const tm = $('rec-timer')
+      if (tm) tm.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+    }, 500)
+    toast('Browser ini tanpa rekam layar — merekam sesi chat (video lawan + kamu, suara dua arah).', false, 3600)
+  } catch (e) {
+    screenRecStop()
+    toast('Gagal merekam sesi.', true, 2500)
+  }
+}
 
 function renderPrevList() {
   const list = $('prev-list')
@@ -3930,7 +4013,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v49' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v50' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
