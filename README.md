@@ -16,7 +16,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 
 | Chat public | Room privat — Kuis 1001 |
 | --- | --- |
-| <img src="docs/img/chat-public.svg" alt="Chat public dengan video split view dan chip lokasi" width="320"> | <img src="docs/img/room-quiz.svg" alt="Room privat dengan panel Kuis 1001" width="320"> |
+| <img src="docs/img/chat-public.svg" alt="Chat public dengan video atas-bawah (default) dan chip lokasi" width="320"> | <img src="docs/img/room-quiz.svg" alt="Room privat dengan panel Kuis 1001" width="320"> |
 
 | Mode spotlight | Panel game |
 | --- | --- |
@@ -34,7 +34,7 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 
 ### Chat teks & video 1-on-1
 
-- Video lawan dan video sendiri sama besar (split view), bisa ditukar ke PiP.
+- Tata letak video default atas-bawah ala OmeTV/Umingle: lawan di atas besar, kamu di bawah; tombol siklus ke berdampingan (split) atau lawan besar + PiP.
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -102,6 +102,8 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v17** — tanpa grid: input/kartu/panel borderless (garis bawah saja), tombol ghost jadi teks, video room default spotlight, opsi kuis pakai tint; papan tic-tac-toe tetap karena papan permainan.
 - **v18** — bendera pixel 5x6 dikembalikan di chip lokasi.
 - **v19** — font tertanam base64 (Geist, Geist Mono, VT323 penuh) — tanpa dependensi jaringan; memperbaiki boot logo/bendera yang bocor ke font fallback.
+- **v20** — VT323 ke seluruh UI ala terminal (wordmark, hero, label, tombol, status, game, toast, footer); isi bubble chat & kolom ketik tetap Geist.
+- **v21** — tata letak kamera atas-bawah (lawan atas, self bawah) ala Umingle/OmeTV jadi default; tombol siklus 3 mode: atas-bawah, berdampingan, PiP.
 
 ## Catatan
 
