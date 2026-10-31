@@ -129,6 +129,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v33** — preset suara CEWEK & COWOK natural: pitch shift PSOLA (formant terjaga, bukan efek cempreng) + shift formant granular + EQ tipis; daftar preset bisa di-scroll.
 - **v34** — suara cewek/cowok jauh lebih natural: stage pitch-shift granular lama (warna logam) DIBUANG untuk preset CEWEK/COWOK — diganti satu worklet PSOLA dengan formant shift via resampling internal; segmen tak bersuara tidak lagi digrid (anti dengung robot); pitch +7 st.
 - **v35** — simulasi suara pra-chat di beranda (tombol Coba suara: dengar hasil preset lewat headset sebelum masuk chat), video background beranda (bg.mp4, grayscale, opasitas rendah), simplifikasi beranda (hero & opsi lebih ringkas).
+- **v36** — video background diredupkan (brightness turun, opasitas .14, blur halus, scrim radial) agar teks beranda tetap terbaca jelas.
 
 ## Catatan
 
