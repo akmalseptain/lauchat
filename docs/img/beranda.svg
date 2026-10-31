@@ -19,19 +19,19 @@
 
   <!-- kartu -->
   <g transform="translate(40,138)">
-    <rect width="400" height="376" rx="12" fill="#0b0b0d" stroke="#27272a"/>
+    <rect width="400" height="376" rx="12" fill="none" stroke="#27272a"/>
     <g font-size="13">
-      <rect x="16" y="16" width="368" height="40" rx="10" fill="#000000" stroke="#27272a"/>
+      <rect x="16" y="16" width="368" height="40" rx="10" fill="none" stroke="#27272a"/>
       <text x="28" y="41" fill="#71717a">Nama (opsional)</text>
-      <rect x="16" y="64" width="368" height="40" rx="10" fill="#000000" stroke="#27272a"/>
+      <rect x="16" y="64" width="368" height="40" rx="10" fill="none" stroke="#27272a"/>
       <text x="28" y="89" fill="#71717a">Topik, mis. musik, game (opsional)</text>
-      <rect x="16" y="116" width="180" height="38" rx="10" fill="#000000" stroke="#27272a"/>
+      <rect x="16" y="116" width="180" height="38" rx="10" fill="none" stroke="#27272a"/>
       <text x="28" y="139" fill="#fafafa">Saya: cowok</text>
-      <rect x="204" y="116" width="180" height="38" rx="10" fill="#000000" stroke="#27272a"/>
+      <rect x="204" y="116" width="180" height="38" rx="10" fill="none" stroke="#27272a"/>
       <text x="216" y="139" fill="#fafafa">Cari: cewek</text>
-      <rect x="16" y="160" width="180" height="38" rx="10" fill="#000000" stroke="#27272a"/>
+      <rect x="16" y="160" width="180" height="38" rx="10" fill="none" stroke="#27272a"/>
       <text x="28" y="183" fill="#fafafa">Fasih: Indonesia</text>
-      <rect x="204" y="160" width="180" height="38" rx="10" fill="#000000" stroke="#27272a"/>
+      <rect x="204" y="160" width="180" height="38" rx="10" fill="none" stroke="#27272a"/>
       <text x="216" y="183" fill="#fafafa">Belajar: English</text>
       <rect x="16" y="210" width="15" height="15" rx="4" fill="none" stroke="#a1a1aa" stroke-width="1.5"/>
       <text x="39" y="222" fill="#a1a1aa">Deteksi AI lawan: baca wajah, auto-skip bila tak sesuai</text>
@@ -45,7 +45,7 @@
     <text x="256" y="271" fill="#fafafa" font-size="14" font-weight="500">Chat video</text>
 
     <line x1="16" y1="306" x2="384" y2="306" stroke="#27272a"/>
-    <rect x="16" y="322" width="204" height="40" rx="10" fill="#000000" stroke="#27272a"/>
+    <rect x="16" y="322" width="204" height="40" rx="10" fill="none" stroke="#27272a"/>
     <text x="118" y="347" fill="#71717a" font-size="12" font-family="Geist Mono, ui-monospace, monospace" text-anchor="middle" letter-spacing="3">KODE ROOM</text>
     <rect x="232" y="326" width="70" height="32" rx="8" fill="none" stroke="#27272a"/>
     <text x="267" y="346" fill="#fafafa" font-size="13" text-anchor="middle">Masuk</text>
