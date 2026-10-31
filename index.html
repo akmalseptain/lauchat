@@ -9,6 +9,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -196,6 +197,7 @@ kbd{
 #watch-row input{flex:1;min-width:0}
 #voice-panel{margin:0 0 12px}
 #voice-list .vd{flex:1;color:var(--muted);font-size:14px;font-family:var(--pix);text-align:right}
+#voice-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--pix);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
 #game-body .st{color:var(--muted);font-family:var(--pix);font-size:15px;margin:6px 0 0}
@@ -2192,7 +2194,148 @@ const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcess
 }
 registerProcessor('pitch-shift', PitchShiftProcessor)`
 
+const PSOLA_WORKLET_SRC = `class PsolaProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() { return [{ name: 'st', defaultValue: 0, minValue: -12, maxValue: 12 }] }
+  constructor() {
+    super()
+    this.mask = 32767
+    this.inBuf = new Float32Array(32768)
+    this.outBuf = new Float32Array(32768)
+    this.tIn = 0
+    this.tOut = 0
+    this.L = 2560
+    this.T = Math.round(sampleRate / 140)
+    this.Ts = this.T
+    this.lastQ = -1
+    this.nextC = this.L
+    this.dMask = 8191
+    this.dec = new Float32Array(8192)
+    this.dW = 0
+    this.dAcc = 0
+    this.dCnt = 0
+    this.hp = 0
+    this.estTimer = 0
+    this.hist = [this.T, this.T, this.T]
+    this.lags = new Float32Array(256)
+  }
+
+  decimate(x) {
+    this.hp = this.hp + 0.031 * (x - this.hp)
+    const v = x - this.hp
+    this.dAcc += v
+    this.dCnt++
+    if (this.dCnt >= 4) {
+      this.dec[this.dW & this.dMask] = this.dAcc * 0.25
+      this.dW++
+      this.dAcc = 0
+      this.dCnt = 0
+    }
+  }
+
+  estimate() {
+    const d = this.dec
+    const W = 480
+    const minLag = Math.max(24, Math.round(sampleRate / 400 / 4))
+    const maxLag = Math.min(210, Math.round(sampleRate / 65 / 4))
+    if (this.dW < W + maxLag + 4) return
+    let e0 = 0
+    for (let i = 0; i < W; i++) { const v = d[(this.dW - W + i) & this.dMask]; e0 += v * v }
+    if (e0 < 1e-6) return
+    const inv = 1 / (e0 + 1e-12)
+    let best = -1
+    let bestV = 0
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let s = 0
+      for (let i = 0; i < W; i++) {
+        s += d[(this.dW - W + i) & this.dMask] * d[(this.dW - W + i + lag) & this.dMask]
+      }
+      const v = s * inv
+      this.lags[lag] = v
+      if (best < 0 || v > bestV + 0.04) { bestV = v; best = lag }
+    }
+    if (best < 0 || bestV < 0.32) return
+    let lagF = best
+    const lm = best > minLag ? this.lags[best - 1] : 0
+    const lp = best < maxLag ? this.lags[best + 1] : 0
+    const den = lm - 2 * bestV + lp
+    if (Math.abs(den) > 1e-9) {
+      const delta = 0.5 * (lm - lp) / den
+      if (delta > -1 && delta < 1) lagF = best + delta
+    }
+    let T = Math.max(110, Math.min(736, lagF * 4))
+    this.hist.push(Math.round(T))
+    this.hist.shift()
+    const sorted = this.hist.slice().sort(function (a, b) { return a - b })
+    this.T = sorted[1]
+  }
+
+  process(inputs, outputs, params) {
+    const inp = inputs[0]
+    const out = outputs[0]
+    if (!out || !out.length) return true
+    const n = inp && inp[0] ? inp[0].length : (out[0] ? out[0].length : 0)
+    if (!n) return true
+    const st = params.st[0]
+    const y = out[0]
+    if (Math.abs(st) < 0.01) {
+      const x = (inp && inp[0]) || new Float32Array(n)
+      for (let i = 0; i < n; i++) {
+        this.inBuf[this.tIn & this.mask] = x[i]
+        y[i] = x[i]
+        this.tIn++
+        this.tOut++
+      }
+      this.lastQ = -1
+      this.nextC = this.tOut + this.L
+      for (let c = 1; c < out.length; c++) out[c].set(y)
+      return true
+    }
+    const ratio = Math.pow(2, st / 12)
+    const x = (inp && inp[0]) || new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      this.inBuf[this.tIn & this.mask] = x[i]
+      this.tIn++
+      this.decimate(x[i])
+      this.estTimer++
+      if (this.estTimer >= 256) { this.estTimer = 0; this.estimate() }
+    }
+    let guard = 0
+    for (;;) {
+      if (guard++ > 128) break
+      if (this.nextC > this.tIn + this.L - this.T * 0.5 - this.Ts) break
+      const srcPos = this.nextC - this.L
+      let q
+      if (this.lastQ < 0) q = Math.round(srcPos / this.T) * this.T
+      else q = this.lastQ + Math.round((srcPos - this.lastQ) / this.T) * this.T
+      this.Ts = this.T / ratio
+      const c = Math.round(this.nextC)
+      const half = Math.max(4, Math.round(this.Ts))
+      if (c - half >= this.tOut && q + half < this.tIn) {
+        for (let i = -half; i < half; i++) {
+          const p = (i + half) / (2 * half)
+          const s = Math.sin(Math.PI * p)
+          this.outBuf[(c + i) & this.mask] += this.inBuf[(q + i) & this.mask] * s * s
+        }
+      }
+      this.lastQ = q
+      this.nextC += this.Ts
+    }
+    for (let i = 0; i < n; i++) {
+      const pos = this.tOut & this.mask
+      const v = this.outBuf[pos]
+      this.outBuf[pos] = 0
+      y[i] = v
+      this.tOut++
+    }
+    for (let c = 1; c < out.length; c++) out[c].set(y)
+    return true
+  }
+}
+registerProcessor('psola-shift', PsolaProcessor)`
+
 const VOICE_PRESETS = [
+  { name: 'CEWEK', desc: 'suara perempuan natural', st: 2.5, psola: 3.5, eq: [{ t: 'peaking', f: 3100, g: 3, q: 1 }, { t: 'highpass', f: 85, q: 0.7 }] },
+  { name: 'COWOK', desc: 'suara laki-laki natural', st: -2.5, psola: -3.5, eq: [{ t: 'lowshelf', f: 240, g: 3 }] },
   { name: 'PIDATO', desc: 'pidato partai — dalam, gema gedung', st: -4, rev: .42, low: 1 },
   { name: 'CERAMAH', desc: 'ceramah kiai — dalam, gema langgar', st: -3, rev: .35, low: 1 },
   { name: 'ALAM LIAR', desc: 'narator dokumenter — tenang megah', st: -3, rev: .22, low: 1 },
@@ -2211,6 +2354,9 @@ async function ensureVoiceFx() {
     const url = URL.createObjectURL(new Blob([PITCH_WORKLET_SRC], { type: 'application/javascript' }))
     await ctx.audioWorklet.addModule(url)
     URL.revokeObjectURL(url)
+    const url2 = URL.createObjectURL(new Blob([PSOLA_WORKLET_SRC], { type: 'application/javascript' }))
+    await ctx.audioWorklet.addModule(url2)
+    URL.revokeObjectURL(url2)
     state.vc = { ctx, srcNode: null, oscs: [], nodes: [] }
   }
   if (state.vc.ctx.state === 'suspended') await state.vc.ctx.resume()
@@ -2271,6 +2417,25 @@ async function voiceOn(preset) {
     vc.srcNode = srcNode
     vc.nodes.push(pitch)
     let node = pitch
+    if (preset.psola) {
+      const ps = new AudioWorkletNode(ctx, 'psola-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
+      ps.parameters.get('st').value = preset.psola
+      node.connect(ps)
+      node = ps
+      vc.nodes.push(ps)
+    }
+    if (preset.eq) {
+      for (const e of preset.eq) {
+        const f = ctx.createBiquadFilter()
+        f.type = e.t
+        f.frequency.value = e.f
+        f.Q.value = e.q || 0.8
+        if (e.g) f.gain.value = e.g
+        node.connect(f)
+        node = f
+        vc.nodes.push(f)
+      }
+    }
     if (preset.vib) {
       const delay = ctx.createDelay(0.05)
       delay.delayTime.value = 0.014
@@ -2954,7 +3119,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v32' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v33' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
