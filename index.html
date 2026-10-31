@@ -145,7 +145,7 @@ kbd{
 #pip video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
 #pip .off{position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#8b8b90;background:#000}
 #video-wrap.stack{flex-direction:column}
-#video-wrap.stack #remote-cell{flex:2.4}
+#video-wrap.stack #remote-cell{flex:1}
 #video-wrap.stack #pip{flex:1}
 #video-wrap.pip-mode{display:block}
 #video-wrap.pip-mode #remote-cell{width:100%;height:100%}
@@ -2213,7 +2213,7 @@ $('btn-mic').addEventListener('click', toggleMic)
 const LAYOUT_KEY = 'lauchat-camlayout'
 const LAYOUT_ORDER = ['stack', 'split', 'pip']
 const LAYOUT_ICONS = {
-  stack: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 15h18"/></svg>',
+  stack: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/></svg>',
   split: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>',
   pip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h5"/><rect x="12" y="12" width="9" height="9" rx="1"/></svg>'
 }
@@ -2283,7 +2283,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v21' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v22' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
