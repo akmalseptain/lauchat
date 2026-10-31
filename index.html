@@ -3,6 +3,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -181,6 +182,13 @@ kbd{
 #room-input{flex:1;max-height:110px;font-size:14px}
 #game-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 #game-panel,#game-panel-chat{border:none;border-radius:0;background:transparent;padding:14px 0;margin-bottom:12px}
+#watch-panel{margin:0 0 12px}
+#watch-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#watch-cta{margin-top:8px}
+#watch-player{aspect-ratio:16/9;width:100%;margin-top:8px;background:#000}
+#watch-player iframe{width:100%;height:100%;display:block;border:0}
+#watch-row{display:flex;gap:8px;margin-top:8px}
+#watch-row input{flex:1;min-width:0}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--pix);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
 #game-body .st{color:var(--muted);font-family:var(--pix);font-size:15px;margin:6px 0 0}
@@ -411,6 +419,19 @@ footer b{color:var(--fg);font-weight:600}
     <div id="game-log-chat"></div>
   </div>
 
+  <div id="watch-panel" class="hidden">
+    <div id="watch-head">
+      <span class="st">NONTON BARENG</span>
+      <button id="btn-watch-close" class="tr-btn" type="button">tutup</button>
+    </div>
+    <div id="watch-cta" class="hidden"><button id="btn-watch-join" class="btn primary sm" type="button">klik untuk ikut nonton</button></div>
+    <div id="watch-player"></div>
+    <div id="watch-row">
+      <input id="watch-url" placeholder="Tempel link YouTube" autocomplete="off" spellcheck="false" aria-label="Link YouTube">
+      <button id="btn-watch-play" class="btn ghost sm" type="button">Putar</button>
+    </div>
+  </div>
+
   <div id="messages"></div>
   <div id="typing-indicator"></div>
 
@@ -443,6 +464,9 @@ footer b{color:var(--fg);font-weight:600}
     </button>
     <button id="btn-suit-chat" class="btn ghost" type="button" title="Suit batu-gunting-kertas bareng lawan">
       <span>Suit</span>
+    </button>
+    <button id="btn-watch" class="btn ghost" type="button" title="Nonton bareng YouTube">
+      <span>Tonton</span>
     </button>
     <button id="btn-block" class="btn ghost" type="button" title="Blokir lawan — tidak akan dipasangkan lagi">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
@@ -1146,6 +1170,7 @@ function startPair(peerId, code, nick) {
   state.imgAct = room.makeAction('img')
   state.scrAct = room.makeAction('scr')
   state.gameAct = room.makeAction('game')
+  state.watchAct = room.makeAction('watch')
   state.partnerLoc = null
   $('loc-map').classList.add('hidden')
   $('loc-iframe').removeAttribute('src')
@@ -1173,6 +1198,9 @@ function startPair(peerId, code, nick) {
   }
   state.scrAct.onMessage = (d, {peerId: pid}) => {
     if (pid === peerId && d && d.on === false && !d.cam) attachRemoteStream(null)
+  }
+  state.watchAct.onMessage = (data, {peerId: pid}) => {
+    if (pid === peerId) onWatchMsg(data || {}, pid)
   }
   state.gameAct.onMessage = (data, {peerId: pid}) => {
     if (pid === peerId) onRoomGame(data || {}, pid)
@@ -1246,6 +1274,8 @@ function cleanupPair(stopStream) {
   state.locAct = null
   state.imgAct = null
   state.scrAct = null
+  state.watchAct = null
+  watchClose(false)
   state.gameAct = null
   state.partnerLoc = null
   state.partnerId = null
@@ -1912,6 +1942,161 @@ function renderSuit() {
   body.appendChild(opts)
 }
 
+
+// ---------- nonton bareng YouTube ----------
+const watchState = { yt: null, vid: null, active: false, joined: false, applying: 0, hbTimer: null, ready: null }
+
+function loadYTApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve()
+  if (!watchState.ready) {
+    watchState.ready = new Promise(res => {
+      window.onYouTubeIframeAPIReady = () => res()
+      const s = document.createElement('script')
+      s.src = 'https://www.youtube.com/iframe_api'
+      document.head.appendChild(s)
+    })
+  }
+  return watchState.ready
+}
+
+function ytId(url) {
+  const s = String(url || '').trim()
+  try {
+    const u = new URL(s)
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null
+    if (u.hostname === 'youtube.com' || u.hostname === 'www.youtube.com' || u.hostname === 'm.youtube.com' || u.hostname === 'music.youtube.com') {
+      if (u.pathname === '/watch') return u.searchParams.get('v')
+      const m = u.pathname.match(/\/(embed|shorts|v|live)\/([^\/?#]+)/)
+      if (m) return m[2]
+    }
+  } catch (e) {}
+  return /^[\w-]{11}$/.test(s) ? s : null
+}
+
+function watchSend(obj) {
+  try { if (state.watchAct && state.partnerId) state.watchAct.send(obj, {target: state.partnerId}) } catch (e) {}
+}
+
+function openWatchPanel(cta) {
+  $('watch-panel').classList.remove('hidden')
+  $('watch-cta').classList.toggle('hidden', !cta)
+}
+
+function watchNewLocal(url) {
+  const vid = ytId(url)
+  if (!vid) { toast('Link YouTube tidak dikenali.', true); return }
+  watchStart(vid, 0, true)
+  watchSend({t: 'w-invite', v: vid})
+  sysMsg('kamu mulai nonton — undangan dikirim ke lawan')
+}
+
+function watchStart(vid, pos, playing) {
+  const s = watchState
+  loadYTApi().then(() => {
+    watchDestroyPlayer()
+    s.vid = vid
+    s.active = true
+    s.joined = true
+    $('watch-player').classList.remove('hidden')
+    $('watch-cta').classList.add('hidden')
+    const holder = document.createElement('div')
+    holder.id = 'yt-holder'
+    $('watch-player').appendChild(holder)
+    s.yt = new YT.Player('yt-holder', {
+      videoId: vid,
+      playerVars: {autoplay: 1, playsinline: 1, rel: 0, start: Math.floor(pos || 0)},
+      events: {
+        onReady: e => {
+          if (playing === false) e.target.pauseVideo()
+          watchHbStart()
+        },
+        onStateChange: e => {
+          if (s.applying > Date.now()) return
+          if (e.data === 1) watchSend({t: 'w-play', pos: e.target.getCurrentTime()})
+          else if (e.data === 2) watchSend({t: 'w-pause', pos: e.target.getCurrentTime()})
+        },
+        onError: () => toast('Video tidak bisa diputar (mungkin dibatasi pemiliknya).', true)
+      }
+    })
+  }).catch(() => toast('Tidak bisa memuat player YouTube.', true))
+}
+
+function watchDestroyPlayer() {
+  const s = watchState
+  watchHbStop()
+  if (s.yt) { try { s.yt.destroy() } catch (e) {} s.yt = null }
+  $('watch-player').innerHTML = ''
+  s.vid = null
+  s.active = false
+  s.joined = false
+  s.applying = 0
+}
+
+function watchClose(local) {
+  const s = watchState
+  if (!s.active && local === false && $('watch-panel').classList.contains('hidden')) return
+  watchDestroyPlayer()
+  $('watch-panel').classList.add('hidden')
+  $('watch-cta').classList.add('hidden')
+  if (local) { watchSend({t: 'w-close'}); sysMsg('kamu berhenti nonton') }
+}
+
+function watchApply(msg) {
+  const s = watchState
+  if (msg.t === 'w-play' || msg.t === 'w-pause') {
+    if (!s.yt || !s.vid) return
+    s.applying = Date.now() + 900
+    try {
+      s.yt.seekTo(msg.pos || 0, true)
+      if (msg.t === 'w-play') s.yt.playVideo(); else s.yt.pauseVideo()
+    } catch (e) {}
+  } else if (msg.t === 'w-state') {
+    if (msg.v !== s.vid) return
+    if (!s.yt) {
+      if (s.joined) watchStart(msg.v, msg.pos || 0, msg.playing !== false)
+      return
+    }
+    let drift = 99
+    try { drift = Math.abs(s.yt.getCurrentTime() - (msg.pos || 0)) } catch (e) {}
+    if (drift > 3) {
+      s.applying = Date.now() + 900
+      try { s.yt.seekTo(msg.pos, true); if (msg.playing) s.yt.playVideo() } catch (e) {}
+    }
+  }
+}
+
+function watchHbStart() {
+  watchHbStop()
+  watchState.hbTimer = setInterval(() => {
+    const s = watchState
+    if (!s.yt || !s.vid) return
+    let pos = 0, st = -1
+    try { pos = s.yt.getCurrentTime() || 0; st = s.yt.getPlayerState() } catch (e) { return }
+    watchSend({t: 'w-state', v: s.vid, pos, playing: st === 1})
+  }, 10000)
+}
+function watchHbStop() { clearInterval(watchState.hbTimer); watchState.hbTimer = null }
+
+function onWatchMsg(data, pid) {
+  if (pid !== state.partnerId || !data) return
+  const s = watchState
+  if (data.t === 'w-invite') {
+    s.vid = data.v
+    s.joined = false
+    openWatchPanel(true)
+    $('btn-watch-join').textContent = s.active ? 'lawan ganti video — klik untuk ikut' : 'klik untuk ikut nonton'
+    sysMsg('lawan mengajak nonton bareng YouTube')
+  } else if (data.t === 'w-need-sync') {
+    let pos = 0, playing = false
+    if (s.yt && s.vid) { try { pos = s.yt.getCurrentTime() || 0; playing = s.yt.getPlayerState() === 1 } catch (e) {} }
+    if (s.vid) watchSend({t: 'w-state', v: s.vid, pos, playing})
+  } else if (data.t === 'w-play' || data.t === 'w-pause' || data.t === 'w-state') {
+    watchApply(data)
+  } else if (data.t === 'w-close') {
+    if (s.active) { toast('lawan berhenti nonton.', false, 2500); watchClose(false) }
+  }
+}
+
 function quizNextQuestion() {
   const g = gameState, Q = g.quiz
   if (!Q || g.hostId !== selfId) return
@@ -2203,6 +2388,17 @@ $('btn-screen').addEventListener('click', togglePairScreen)
 $('btn-room-screen').addEventListener('click', toggleRoomScreen)
 $('btn-quiz-chat').addEventListener('click', () => startQuizGame())
 $('btn-suit-chat').addEventListener('click', () => startSuitGame())
+$('btn-watch').addEventListener('click', () => { openWatchPanel(false); try { $('watch-url').focus() } catch (e) {} })
+$('btn-watch-play').addEventListener('click', () => watchNewLocal($('watch-url').value))
+$('btn-watch-close').addEventListener('click', () => watchClose(true))
+$('btn-watch-join').addEventListener('click', () => {
+  const s = watchState
+  if (!s.vid) return
+  s.joined = true
+  $('watch-cta').classList.add('hidden')
+  watchSend({t: 'w-need-sync'})
+  setTimeout(() => { if (!s.yt && s.joined && s.vid) watchStart(s.vid, 0, true) }, 2000)
+})
 $('game-close-chat').addEventListener('click', hideGamePanel)
 const roomInputEl = $('room-input')
 roomInputEl.addEventListener('input', () => {
@@ -2491,7 +2687,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v26' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v27' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
