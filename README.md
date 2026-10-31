@@ -44,6 +44,8 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Ejak suara persona: pidato partai, trailer Hollywood, anchor berita, sinden, robot, balita — pitch shift + reverb + vibrato + ring mod.
 - Transparansi efek suara: lawan otomatis diberi tahu (pesan sistem + badge "SUARA EFEK") saat efek dinyalakan atau dimatikan.
 - 12 preset ejak suara: cewek/cowok natural (PSOLA murni + formant shift, tanpa artefak logam) + 10 gaya publik figur (pidato, ceramah, alam liar, siaran malam, trailer, anchor, stand-up, sinden, robot, balita) — dipilih lewat panel, bukan siklus.
+- Simulasi suara pra-chat di beranda — coba preset lewat headset sebelum masuk video chat.
+- Video background beranda (abu-abu, opasitas rendah, grayscale).
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
@@ -126,6 +128,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v32** — kontrol bawah di ponsel menjadi grid 5 kolom yang rapi — tidak ada lagi tumpang tindih.
 - **v33** — preset suara CEWEK & COWOK natural: pitch shift PSOLA (formant terjaga, bukan efek cempreng) + shift formant granular + EQ tipis; daftar preset bisa di-scroll.
 - **v34** — suara cewek/cowok jauh lebih natural: stage pitch-shift granular lama (warna logam) DIBUANG untuk preset CEWEK/COWOK — diganti satu worklet PSOLA dengan formant shift via resampling internal; segmen tak bersuara tidak lagi digrid (anti dengung robot); pitch +7 st.
+- **v35** — simulasi suara pra-chat di beranda (tombol Coba suara: dengar hasil preset lewat headset sebelum masuk chat), video background beranda (bg.mp4, grayscale, opasitas rendah), simplifikasi beranda (hero & opsi lebih ringkas).
 
 ## Catatan
 
