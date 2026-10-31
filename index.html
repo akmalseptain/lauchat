@@ -144,13 +144,17 @@ kbd{
 #video-wrap.pip-mode{display:block}
 #video-wrap.pip-mode #remote-cell{width:100%;height:100%}
 #video-wrap.pip-mode #pip{position:absolute;right:8px;bottom:8px;width:27%;max-width:160px;height:auto;aspect-ratio:3/4;border:1px solid rgba(255,255,255,.18);border-radius:8px;z-index:2}
-#layout-btn{position:absolute;top:8px;right:8px;z-index:3;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.55);color:#e6e6e6;cursor:pointer;padding:0}
-#layout-btn:hover{background:rgba(0,0,0,.8)}
-#layout-btn svg{display:block}
+#layout-btn,#room-layout-btn{position:absolute;top:8px;right:8px;z-index:3;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.55);color:#e6e6e6;cursor:pointer;padding:0}
+#layout-btn:hover,#room-layout-btn:hover{background:rgba(0,0,0,.8)}
+#layout-btn svg,#room-layout-btn svg{display:block}
 /* ---------- room privat & game ---------- */
 .room-row{display:flex;gap:8px;margin-top:10px}
 .room-row input{flex:1;min-width:0;text-transform:uppercase;font-family:'VT323',monospace;font-size:16px;letter-spacing:2px;text-align:center}
-#room-videos{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:3px;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border);margin-bottom:12px}
+#room-videos{position:relative;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:3px;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border);margin-bottom:12px}
+#room-videos.spot{display:flex;flex-wrap:wrap}
+#room-videos.spot .rcell.main{flex:1 1 100%;aspect-ratio:16/9}
+#room-videos.spot .rcell.main video{aspect-ratio:16/9}
+#room-videos.spot .rcell:not(.main){width:110px;flex:none}
 #room-videos .rcell{position:relative;background:#000}
 #room-videos video{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#000}
 #room-videos video.mirror{transform:scaleX(-1)}
@@ -420,7 +424,9 @@ footer b{color:var(--fg);font-weight:600}
     <span class="sep">·</span>
     <span class="st" id="room-status">1 orang</span>
   </div>
-  <div id="room-videos" class="hidden"></div>
+  <div id="room-videos" class="hidden">
+    <button id="room-layout-btn" aria-label="Ganti tata letak video" title="Ganti tata letak video"></button>
+  </div>
   <div class="room-members" id="room-members"></div>
   <div id="game-bar">
     <button id="btn-game-guess" class="btn ghost sm" type="button">Tebak Angka</button>
@@ -1259,7 +1265,7 @@ function gameReady() { return gameCtx.isRoom ? !!roomState.room : !!(state.pairR
 const roomState = {
   room: null, code: '', chat: null, meta: null, gameAct: null, imgAct: null,
   peers: new Map(), videos: new Map(), cam: false,
-  screen: false, screenStream: null,
+  screen: false, screenStream: null, layout: 'grid',
 }
 
 function pidTag(pid) {
@@ -1341,12 +1347,14 @@ function roomVideoEnsure(pid) {
     v = { cell, video, off, tag }
     roomState.videos.set(pid, v)
     $('room-videos').classList.remove('hidden')
+    syncRoomMain()
   }
   return v
 }
 function roomVideoRemove(pid) {
   const v = roomState.videos.get(pid)
   if (v) { v.cell.remove(); roomState.videos.delete(pid) }
+  syncRoomMain()
   if (roomState.videos.size === 0) $('room-videos').classList.add('hidden')
 }
 
@@ -1485,6 +1493,34 @@ function stopRoomScreen() {
   $('btn-room-screen').classList.remove('off')
 }
 
+// -- tata letak video room: grid ⇄ spotlight (1 besar + thumbnail, klik thumbnail untuk tukar) --
+const ROOM_LAYOUT_KEY = 'lauchat-roomlayout'
+const ROOM_LAYOUT_ICONS = {
+  grid: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  spot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>'
+}
+function syncRoomMain() {
+  $('room-videos').querySelectorAll('.rcell').forEach((c, i) => c.classList.toggle('main', i === 0))
+}
+function setRoomLayout(mode) {
+  roomState.layout = mode
+  $('room-videos').classList.toggle('spot', mode === 'spot')
+  $('room-layout-btn').innerHTML = (mode === 'spot') ? ROOM_LAYOUT_ICONS.grid : ROOM_LAYOUT_ICONS.spot
+  try { localStorage.setItem(ROOM_LAYOUT_KEY, mode) } catch (e) {}
+}
+setRoomLayout((() => { try { return localStorage.getItem(ROOM_LAYOUT_KEY) === 'spot' ? 'spot' : 'grid' } catch (e) { return 'grid' } })())
+$('room-layout-btn').addEventListener('click', () => setRoomLayout(roomState.layout === 'spot' ? 'grid' : 'spot'))
+$('room-videos').addEventListener('click', e => {
+  if (roomState.layout !== 'spot') return
+  const cell = e.target.closest('.rcell')
+  if (!cell) return
+  const wrap = $('room-videos')
+  const first = wrap.querySelector('.rcell')
+  if (cell === first) return
+  wrap.insertBefore(cell, first)
+  syncRoomMain()
+})
+
 function leaveRoom(showHome) {
   clearQuizTimers()
   gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
@@ -1517,8 +1553,11 @@ function hideGamePanel() {
 // -- tebak angka: host menyimpan angka rahasia 1-100, yang lain menebak --
 function startGuessGame() {
   if (!roomState.room) return
-  gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null }
-  try { sendGame({t: 'g-start'}) } catch (e) {}
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Selesaikan kuisnya dulu.', true, 2500); return }
+  if (gameState.type === 'guess') { toast('Tebak angka sedang jalan.', true, 2500); return }
+  clearQuizTimers()
+  gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null, quiz: null }
+  sendGame({t: 'g-start'})
   showGamePanel('TEBAK ANGKA')
   renderGuessBody()
   roomGameLog('kamu host — angka rahasia siap (1-100), temanmu menebak')
@@ -1560,8 +1599,11 @@ function tttWinner(b) {
 }
 function tttStart() {
   if (!roomState.room) return
-  gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
-  try { sendGame({t: 't-open'}) } catch (e) {}
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Selesaikan kuisnya dulu.', true, 2500); return }
+  if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Tic-tac-toe masih jalan.', true, 2500); return }
+  clearQuizTimers()
+  gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false }, quiz: null }
+  sendGame({t: 't-open'})
   showGamePanel('TIC-TAC-TOE')
   renderTtt()
   roomGameLog('menunggu pemain — klik IKUT MAIN (2 pemain)')
@@ -1667,7 +1709,10 @@ function quizWinner(sc) {
 }
 
 function startQuizGame() {
-  if (!gameReady()) return
+  if (!gameReady()) { toast(gameCtx.isRoom ? 'Masuk room dulu.' : 'Hubungkan dulu dengan lawan.', true, 2500); return }
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
+  if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
+  if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
   try { sendGame({t: 'q-open'}) } catch (e) {}
@@ -1689,7 +1734,7 @@ function quizNextQuestion() {
   gp('game-log').innerHTML = ''
   renderQuizBody()
   startQuizCountdown(Q)
-  Q.timer = setTimeout(quizRevealHost, 17000)
+  Q.timer = setTimeout(quizRevealHost, 16000)
 }
 
 function startQuizCountdown(Q) {
@@ -1706,6 +1751,7 @@ function quizRevealHost() {
   const g = gameState, Q = g.quiz
   if (!Q || g.type !== 'quiz' || g.hostId !== selfId || Q.revealed) return
   clearQuizTimers()
+  if (Q.lastQi == null) return
   const item = QUIZ_BANK[Q.lastQi]
   const picks = Object.assign({}, Q.answered)
   if (Q.selfPick != null) picks[selfId] = Q.selfPick
@@ -1717,6 +1763,7 @@ function quizRevealHost() {
   gp('game-log').innerHTML = ''
   renderQuizBody()
   roomGameLog('jawaban benar: ' + ['A', 'B', 'C', 'D'][item.c])
+  for (const pid in picks) roomGameLog(pidTag(pid) + ': ' + (picks[pid] === item.c ? 'benar' : 'salah'))
   Q.lastQi = null
   if (Q.no >= QUIZ_LEN) Q.endTimer = setTimeout(quizEnd, 4000)
   else Q.nextTimer = setTimeout(quizNextQuestion, 4000)
@@ -1801,21 +1848,20 @@ function onRoomGamePeerLeave(pid) {
     roomGameLog(pidTag(pid) + ' keluar — tic-tac-toe berakhir')
     g.ttt.over = true
     renderTtt()
-  } else if (g.type === 'quiz' && g.quiz && (g.hostId === pid || g.quiz.done === false && !g.quiz.sc)) {
-    if (g.hostId === pid) {
-      clearQuizTimers()
-      g.quiz.done = true
-      renderQuizBody()
-      roomGameLog('host keluar — kuis berakhir')
-    }
+  } else if (g.type === 'quiz' && g.quiz && !g.quiz.done && g.hostId === pid) {
+    clearQuizTimers()
+    g.quiz.done = true
+    renderQuizBody()
+    roomGameLog('host keluar — kuis berakhir')
   }
 }
 
 function onRoomGame(data, peerId) {
   const g = gameState
   if (data.t === 'g-start') {
-    if (g.type === 'quiz') return
-    if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'guess') return
     gameState = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
     renderGuessBody()
@@ -1841,9 +1887,9 @@ function onRoomGame(data, peerId) {
     gameState = { type: null, hostId: null, secret: 0, ttt: null }
     renderGuessBody()
   } else if (data.t === 't-open') {
-    if (g.type === 'quiz') return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
     if (g.type === 'guess') return
-    if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
     showGamePanel('TIC-TAC-TOE')
     renderTtt()
@@ -1863,7 +1909,9 @@ function onRoomGame(data, peerId) {
     if (w) { T.over = true; roomGameLog(w === 'draw' ? 'SERI' : w + ' MENANG') }
     renderTtt()
   } else if (data.t === 'q-open') {
-    if (g.type === 'guess' || (g.type === 'ttt' && g.ttt && g.ttt.players.length)) return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
+    if (g.type === 'guess') return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     clearQuizTimers()
     gameState = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
     showGamePanel('KUIS 1001')
@@ -1873,6 +1921,8 @@ function onRoomGame(data, peerId) {
     const Q = g.quiz
     clearQuizTimers()
     Q.no = data.n; Q.lastQi = data.qi; Q.selfPick = null; Q.revealed = false; Q.dlLeft = data.dl || 15
+    gp('game-panel').classList.remove('hidden')
+    gp('game-title').textContent = 'KUIS 1001'
     gp('game-log').innerHTML = ''
     renderQuizBody()
     startQuizCountdown(Q)
@@ -2222,7 +2272,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v12' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v13' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
