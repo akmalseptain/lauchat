@@ -363,6 +363,7 @@ const state = {
   incomingLock: false,
   pairFailTimer: null,
   incomingTimer: null,
+  locWaitTimer: null,
 }
 
 const lobbyPeers = new Map()   // peerId -> presence data
@@ -383,18 +384,24 @@ function setSearchStatus(t) { $('search-status').textContent = t }
 
 // ---------- lokasi (dibulatkan ±1 km, hanya dikirim ke lawan yang sudah match) ----------
 let myLoc = null
+let locDenied = false
 const round2 = n => Math.round(n * 100) / 100
 
 function requestMyLoc() {
-  if (myLoc || !navigator.geolocation) return
+  if (myLoc || locDenied || !navigator.geolocation) return
   navigator.geolocation.getCurrentPosition(
-    p => {
+    async p => {
       myLoc = {lat: round2(p.coords.latitude), lon: round2(p.coords.longitude)}
+      const name = await reverseGeocode(myLoc)
+      toast('Lokasi siap: ' + (name || myLoc.lat + ', ' + myLoc.lon) + ' · ±1 km')
       if (state.mode === 'chatting' && state.locAct && state.partnerId) {
         try { state.locAct.send(myLoc, {target: state.partnerId}) } catch (e) {}
       }
     },
-    () => {},
+    () => {
+      locDenied = true
+      toast('Izin lokasi ditolak. Ketuk ikon kunci/lokasi di address bar → Izin → Izinkan.', true, 6000)
+    },
     {maximumAge: 300000, timeout: 8000}
   )
 }
@@ -413,6 +420,7 @@ async function reverseGeocode(loc) {
 async function renderPartnerLoc() {
   const loc = state.partnerLoc
   if (!loc) return
+  clearTimeout(state.locWaitTimer)
   const name = await reverseGeocode(loc)
   $('loc-text').textContent = 'Dari ' + (name || loc.lat + ', ' + loc.lon) + ' · ±1 km'
   $('loc-line').classList.remove('hidden')
@@ -660,9 +668,14 @@ function startPair(peerId, code, nick) {
   state.typingAct = room.makeAction('typing')
   state.locAct = room.makeAction('loc')
   state.partnerLoc = null
-  $('loc-line').classList.add('hidden')
   $('loc-map').classList.add('hidden')
   $('loc-iframe').removeAttribute('src')
+  $('loc-text').textContent = 'menunggu lokasi…'
+  $('loc-line').classList.remove('hidden')
+  clearTimeout(state.locWaitTimer)
+  state.locWaitTimer = setTimeout(() => {
+    if (!state.partnerLoc) $('loc-text').textContent = 'Lokasi lawan dirahasiakan'
+  }, 8000)
 
   state.chatMsg.onMessage = (data, {peerId: pid}) => {
     if (pid === peerId && data?.t) addMsg('them', String(data.t).slice(0, MAX_MSG_LEN), data.ts)
@@ -725,6 +738,7 @@ function onPartnerLeft() {
 function cleanupPair(stopStream) {
   clearTimeout(state.pairFailTimer)
   clearTimeout(state.incomingTimer)
+  clearTimeout(state.locWaitTimer)
   state.incomingLock = false
   if (state.pairRoom) { try { state.pairRoom.leave() } catch (e) {} }
   state.pairRoom = null
