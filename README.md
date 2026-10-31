@@ -1,5 +1,7 @@
 # LAUCHAT
 
+Live: **https://akmalseptain.github.io/lauchat/**
+
 Chat teks & video acak dengan orang asing. Satu file `index.html`, tanpa backend — matchmaking & signaling WebRTC via [Trystero](https://github.com/dmotriv/trystero), media P2P terenkripsi.
 
 ## Deploy
