@@ -38,14 +38,14 @@ Gambar di bawah adalah mockup buatan (bukan screenshot runtime), dibuat sesuai t
 - Share layar: tampilkan layarmu ke lawan chat.
 - Kirim gambar lewat chat, langsung P2P tanpa server.
 - Terjemahan pesan sekali klik (MyMemory).
-- Chip lokasi lawan: nama kota + jarak ±1 km, dengan bendera negara pixel 5x6.
+- Chip lokasi lawan: nama kota + jarak ±1 km, dengan kode negara.
 - Typing indicator, tema gelap/terang, ikon lucide.
 
 ### Room privat
 
 - Buat room dengan kode 4–8 karakter, share kodenya ke teman.
 - Chat grup + video mesh: semua peserta saling terlihat.
-- Tata letak video bisa diatur: grid semua sama besar, atau spotlight satu video besar + thumbnail (klik thumbnail untuk tukar).
+- Tata letak video: default spotlight — satu video besar + thumbnail (klik thumbnail untuk tukar), bisa diganti ke mode grid.
 - Kamera tiap orang bisa on/off sendiri.
 
 ### Games
@@ -69,7 +69,7 @@ Main bareng lawan chat atau di room privat:
 - **WebRTC** untuk video/audio/share layar; **TURN via Cloudflare Worker** sebagai fallback kandidat.
 - Kirim gambar/gem state pakai chunk biner Trystero.
 - Single-file `index.html` (semua UI + logika), plus `sw.js` untuk service worker.
-- Ikon lucide, font Geist + Geist Mono, tema gelap default hitam pekat `#000000` (VT323 hanya di layar boot & bendera pixel).
+- Ikon lucide, font Geist + Geist Mono, tema gelap default hitam pekat `#000000` (VT323 hanya di layar boot). UI tanpa kotak: input garis bawah, panel transparan.
 
 ## Cara pakai
 
@@ -99,6 +99,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v14** — simplifikasi UI modern ala v0: Geist + Geist Mono di seluruh UI, input & kartu berbingkai radius, bubble pesan asimetris; tema inti zinc + hijau tetap, VT323 hanya boot & bendera pixel.
 - **v15** — background gelap jadi hitam pekat #000000 (tanpa tone abu), bubble lawan #1c1c1f.
 - **v16** — surface gelap transparan: kartu, panel game, area pesan, dan input nyatu ke background hitam, hanya border 1px; light theme tetap kartu putih.
+- **v17** — tanpa grid: input/kartu/panel borderless (garis bawah saja), tombol ghost jadi teks, video room default spotlight, bendera pixel diganti kode negara, opsi kuis pakai tint; papan tic-tac-toe tetap karena papan permainan.
 
 ## Catatan
 
