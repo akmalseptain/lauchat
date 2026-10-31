@@ -118,6 +118,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v26** — game suit batu-gunting-kertas 1-on-1 (skor berjalan).
 - **v27** — nonton bareng YouTube (sinkronisasi dua arah, koreksi drift otomatis).
 - **v28** — ejak suara persona (voice changer, AudioWorklet granular pitch shift).
+- **v29** — perbaikan: kontrol bawah wrap anti tumpang tindih + pitch shifter 4-tap Hann (suara tidak kresek) + label preset pendek.
 
 ## Catatan
 
