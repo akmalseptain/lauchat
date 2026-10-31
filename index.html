@@ -7,6 +7,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -192,6 +193,8 @@ kbd{
 #watch-player iframe{width:100%;height:100%;display:block;border:0}
 #watch-row{display:flex;gap:8px;margin-top:8px}
 #watch-row input{flex:1;min-width:0}
+#voice-panel{margin:0 0 12px}
+#voice-list .vd{flex:1;color:var(--muted);font-size:14px;font-family:var(--pix);text-align:right}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--pix);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
 #game-body .st{color:var(--muted);font-family:var(--pix);font-size:15px;margin:6px 0 0}
@@ -436,6 +439,14 @@ footer b{color:var(--fg);font-weight:600}
       <input id="watch-url" placeholder="Tempel link YouTube" autocomplete="off" spellcheck="false" aria-label="Link YouTube">
       <button id="btn-watch-play" class="btn ghost sm" type="button">Putar</button>
     </div>
+  </div>
+
+  <div id="voice-panel" class="hidden">
+    <div class="watch-head">
+      <span class="st">EJAK SUARA</span>
+      <button id="btn-voice-close" class="tr-btn" type="button">tutup</button>
+    </div>
+    <div id="voice-list" class="quiz-opts"></div>
   </div>
 
   <div id="messages"></div>
@@ -2182,8 +2193,12 @@ registerProcessor('pitch-shift', PitchShiftProcessor)`
 
 const VOICE_PRESETS = [
   { name: 'PIDATO', desc: 'pidato partai — dalam, gema gedung', st: -4, rev: .42, low: 1 },
+  { name: 'CERAMAH', desc: 'ceramah kiai — dalam, gema langgar', st: -3, rev: .35, low: 1 },
+  { name: 'ALAM LIAR', desc: 'narator dokumenter — tenang megah', st: -3, rev: .22, low: 1 },
+  { name: 'SIARAN MALAM', desc: 'penyiar radio galau — hangat', st: -2, rev: .3, low: 1 },
   { name: 'TRAILER', desc: 'trailer Hollywood — dalam dramatis', st: -6, rev: .5, low: 1 },
   { name: 'ANCHOR', desc: 'anchor berita — bersih studio', st: -1, rev: .16, low: 0 },
+  { name: 'STAND-UP', desc: 'stand-up komika — mic klub', st: 0, rev: .06, low: 0 },
   { name: 'SINDEN', desc: 'sinden dangdut — nada naik, getar', st: 3, rev: .3, vib: 1, vibRate: 5.5, low: 0 },
   { name: 'ROBOT', desc: 'robot agensi — frekuensi logam', st: 0, rev: .08, ring: 1, low: 0 },
   { name: 'BALITA', desc: 'balita bawel — cempreng', st: 6, rev: .1, low: 0 }
@@ -2237,6 +2252,7 @@ function voiceOff() {
   if (state.vc) { try { state.vc.ctx.close() } catch (e) {} state.vc = null }
   state.vcPreset = null
   $('voice-label').textContent = 'Suara'
+  try { $('voice-panel').classList.add('hidden') } catch (e) {}
 }
 
 async function voiceOn(preset) {
@@ -2321,12 +2337,31 @@ async function voiceOn(preset) {
   }
 }
 
-$('btn-voice').addEventListener('click', async () => {
-  const cur = state.vcPreset ? VOICE_PRESETS.indexOf(state.vcPreset) : -1
-  const next = cur + 1
-  if (next >= VOICE_PRESETS.length) { voiceOff(); toast('Suara kembali normal.') }
-  else await voiceOn(VOICE_PRESETS[next])
+function renderVoiceList() {
+  const list = $('voice-list')
+  list.innerHTML = ''
+  for (const p of VOICE_PRESETS) {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    if (state.vcPreset && state.vcPreset.name === p.name) btn.className = 'pick'
+    btn.innerHTML = '<b>' + p.name + '</b><span class="vd">' + p.desc + '</span>'
+    btn.addEventListener('click', async () => { await voiceOn(p); renderVoiceList() })
+    list.appendChild(btn)
+  }
+  const off = document.createElement('button')
+  off.type = 'button'
+  off.innerHTML = '<b>MATIKAN</b><span class="vd">suara asli</span>'
+  off.addEventListener('click', () => { voiceOff(); renderVoiceList() })
+  list.appendChild(off)
+}
+
+$('btn-voice').addEventListener('click', () => {
+  const p = $('voice-panel')
+  const show = p.classList.contains('hidden')
+  if (show) renderVoiceList()
+  p.classList.toggle('hidden', !show)
 })
+$('btn-voice-close').addEventListener('click', () => $('voice-panel').classList.add('hidden'))
 
 function quizNextQuestion() {
   const g = gameState, Q = g.quiz
@@ -2918,7 +2953,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v30' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v31' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
