@@ -147,6 +147,33 @@ kbd{
 #layout-btn{position:absolute;top:8px;right:8px;z-index:3;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.55);color:#e6e6e6;cursor:pointer;padding:0}
 #layout-btn:hover{background:rgba(0,0,0,.8)}
 #layout-btn svg{display:block}
+/* ---------- room privat & game ---------- */
+.room-row{display:flex;gap:8px;margin-top:10px}
+.room-row input{flex:1;min-width:0;text-transform:uppercase;font-family:'VT323',monospace;font-size:16px;letter-spacing:2px;text-align:center}
+#room-videos{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:3px;border-radius:var(--r-lg);overflow:hidden;background:#000;border:1px solid var(--border);margin-bottom:12px}
+#room-videos .rcell{position:relative;background:#000}
+#room-videos video{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#000}
+#room-videos video.mirror{transform:scaleX(-1)}
+#room-videos .off{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;color:#8b8b90}
+#room-videos .tag{position:absolute;left:4px;bottom:4px;font-family:'VT323',monospace;font-size:13px;line-height:1;color:#e6e6e6;background:rgba(0,0,0,.55);padding:2px 5px;border-radius:3px}
+.room-members{display:flex;flex-wrap:wrap;gap:6px;font-family:'VT323',monospace;font-size:15px;color:var(--muted);margin:0 0 12px}
+#room-messages{min-height:180px;max-height:38vh;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:8px}
+#room-messages .msg .who{display:block;font-family:'VT323',monospace;font-size:13px;color:var(--muted)}
+#room-form{display:flex;gap:8px;margin-top:10px}
+#room-input{flex:1;max-height:110px;font-size:14px}
+#game-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+#game-panel{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card);padding:12px;margin-bottom:12px}
+.game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.game-head .st{color:var(--accent);font-family:'VT323',monospace;font-size:16px}
+#game-body .st{color:var(--muted);font-family:'VT323',monospace;font-size:15px;margin:6px 0 0}
+#game-log{font-family:'VT323',monospace;font-size:15px;color:var(--muted);max-height:80px;overflow-y:auto;margin-top:8px}
+#game-log:empty{display:none}
+.guess-row{display:flex;gap:8px;max-width:320px}
+.guess-row input{flex:1;min-width:0;text-align:center;font-family:'VT323',monospace;font-size:16px}
+#ttt-grid{display:grid;grid-template-columns:repeat(3,64px);gap:4px;justify-content:center;margin-top:8px}
+#ttt-grid button{height:64px;font-family:'VT323',monospace;font-size:38px;line-height:1;background:#000;border:1px solid var(--border);border-radius:4px;color:var(--accent);cursor:pointer;padding:0}
+#ttt-grid button.o{color:var(--fg)}
+#ttt-grid button:not(:disabled):hover{border-color:var(--accent)}
 #messages{
   min-height:220px;max-height:44vh;overflow-y:auto;
   background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
@@ -273,6 +300,11 @@ footer b{color:var(--fg);font-weight:600}
         Chat video
       </button>
     </div>
+    <div class="room-row">
+      <input id="room-code-input" maxlength="8" placeholder="KODE ROOM" autocomplete="off" spellcheck="false" aria-label="Kode room privat">
+      <button id="btn-room-join" class="btn ghost sm" type="button">Masuk</button>
+      <button id="btn-room-new" class="btn ghost sm" type="button">Buat room</button>
+    </div>
   </div>
   <p class="foot-note">LAUCHAT <span id="app-build"></span> · 18+ · Tidak dimoderasi · <kbd>Esc</kbd> untuk pindah orang</p>
 </main>
@@ -345,6 +377,46 @@ footer b{color:var(--fg);font-weight:600}
     <button id="btn-stop" class="btn ghost">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
       <span>Stop</span>
+    </button>
+  </div>
+</main>
+
+<!-- ============ ROOM PRIVAT (GRUP + GAME) ============ -->
+<main id="view-room">
+  <div class="chat-line">
+    <span class="who" id="room-label">ROOM</span>
+    <span class="sep">·</span>
+    <span class="st" id="room-status">1 orang</span>
+  </div>
+  <div id="room-videos" class="hidden"></div>
+  <div class="room-members" id="room-members"></div>
+  <div id="game-bar">
+    <button id="btn-game-guess" class="btn ghost sm" type="button">Tebak Angka</button>
+    <button id="btn-game-ttt" class="btn ghost sm" type="button">Tic-tac-toe</button>
+  </div>
+  <div id="game-panel" class="hidden">
+    <div class="game-head">
+      <span class="st" id="game-title">GAME</span>
+      <button id="game-close" class="tr-btn" type="button">tutup</button>
+    </div>
+    <div id="game-body"></div>
+    <div id="game-log"></div>
+  </div>
+  <div id="room-messages"></div>
+  <form id="room-form">
+    <textarea id="room-input" rows="1" placeholder="Ketik pesan…"></textarea>
+    <button class="btn primary icon-only" type="submit" aria-label="Kirim">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+    </button>
+  </form>
+  <div class="controls">
+    <button id="btn-room-cam" class="btn ghost" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+      <span id="room-cam-label">Kamera</span>
+    </button>
+    <button id="btn-room-leave" class="btn ghost" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+      <span>Keluar</span>
     </button>
   </div>
 </main>
@@ -442,7 +514,7 @@ const blacklist = new Set()   // mantan pasangan yang di-skip (sesi ini saja)
 
 // ---------- helpers DOM ----------
 const $ = id => document.getElementById(id)
-const views = { home: $('view-home'), search: $('view-search'), chat: $('view-chat') }
+const views = { home: $('view-home'), search: $('view-search'), chat: $('view-chat'), room: $('view-room') }
 const msgsEl = $('messages')
 
 function showView(name) {
@@ -1015,6 +1087,401 @@ function cleanupPair(stopStream) {
   if (stopStream) stopSelfStream()
 }
 
+// ---------- room privat: grup chat + game (lewat kode, tanpa random pool) ----------
+const ROOM_PREFIX = 'priv-'
+const roomMsgsEl = $('room-messages')
+const roomState = {
+  room: null, code: '', chat: null, meta: null, gameAct: null,
+  peers: new Map(), videos: new Map(), cam: false,
+  game: { type: null, hostId: null, secret: 0, ttt: null },
+}
+
+function pidTag(pid) {
+  if (pid === selfId) return myNick() || 'aku'
+  const p = roomState.peers.get(pid)
+  return (p && p.n) || ('#' + String(pid).slice(0, 4))
+}
+
+function addRoomMsg(kind, who, text) {
+  const div = document.createElement('div')
+  div.className = 'msg ' + kind
+  if (kind === 'them' && who) {
+    const w = document.createElement('span')
+    w.className = 'who'
+    w.textContent = who
+    div.appendChild(w)
+  }
+  const body = document.createElement('span')
+  body.textContent = text
+  div.appendChild(body)
+  roomMsgsEl.appendChild(div)
+  roomMsgsEl.scrollTop = roomMsgsEl.scrollHeight
+}
+function roomSys(t) { addRoomMsg('sys', '', t) }
+function roomGameLog(t) {
+  const log = $('game-log')
+  const d = document.createElement('div')
+  d.textContent = t
+  log.appendChild(d)
+  log.scrollTop = log.scrollHeight
+}
+
+function updateRoomMembers() {
+  const names = [pidTag(selfId), ...[...roomState.peers.keys()].map(pidTag)]
+  $('room-status').textContent = names.length + ' orang'
+  $('room-members').textContent = names.join(' · ')
+}
+
+function roomVideoEnsure(pid) {
+  let v = roomState.videos.get(pid)
+  if (!v) {
+    const cell = document.createElement('div')
+    cell.className = 'rcell'
+    const video = document.createElement('video')
+    video.autoplay = true
+    video.playsInline = true
+    video.muted = pid === selfId
+    if (pid === selfId) video.classList.add('mirror')
+    const off = document.createElement('div')
+    off.className = 'off'
+    off.textContent = 'kamera mati'
+    const tag = document.createElement('span')
+    tag.className = 'tag'
+    tag.textContent = pidTag(pid)
+    cell.append(video, off, tag)
+    $('room-videos').appendChild(cell)
+    v = { cell, video, off, tag }
+    roomState.videos.set(pid, v)
+    $('room-videos').classList.remove('hidden')
+  }
+  return v
+}
+function roomVideoRemove(pid) {
+  const v = roomState.videos.get(pid)
+  if (v) { v.cell.remove(); roomState.videos.delete(pid) }
+  if (roomState.videos.size === 0) $('room-videos').classList.add('hidden')
+}
+
+function joinPrivateRoom(rawCode) {
+  if (!net) { toast('Engine P2P belum termuat. Unduh file ini lalu buka di peramban.', true, 5000); return }
+  const code = String(rawCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (!/^[A-Z0-9]{4,8}$/.test(code)) { toast('Kode room: 4-8 huruf/angka.', true, 3000); return }
+  leaveRoom(false)
+  requestMyLoc()
+  roomState.code = code
+  roomState.peers = new Map()
+  roomState.game = { type: null, hostId: null, secret: 0, ttt: null }
+  roomMsgsEl.innerHTML = ''
+  hideGamePanel()
+  $('room-videos').classList.add('hidden')
+
+  const room = joinRoom(ICE, ROOM_PREFIX + code.toLowerCase())
+  roomState.room = room
+  roomState.chat = room.makeAction('chat')
+  roomState.meta = room.makeAction('meta')
+  roomState.gameAct = room.makeAction('game')
+
+  roomState.chat.onMessage = (data, {peerId}) => {
+    if (data?.t) addRoomMsg('them', pidTag(peerId), String(data.t).slice(0, MAX_MSG_LEN))
+  }
+  roomState.meta.onMessage = (data, {peerId}) => {
+    const isNew = !roomState.peers.has(peerId)
+    const p = roomState.peers.get(peerId) || {}
+    p.n = (data && data.n) || p.n || null
+    p.cam = !!(data && data.c)
+    roomState.peers.set(peerId, p)
+    const v = roomState.videos.get(peerId)
+    if (v) { v.tag.textContent = pidTag(peerId); if (!p.cam) v.off.classList.remove('hidden') }
+    if (isNew) roomSys(pidTag(peerId) + ' masuk.')
+    updateRoomMembers()
+  }
+  room.onPeerStream = (stream, pid) => {
+    const v = roomVideoEnsure(pid)
+    v.video.srcObject = stream
+    v.off.classList.add('hidden')
+  }
+  room.onPeerJoin = pid => {
+    roomState.peers.set(pid, {n: null, cam: false})
+    try { roomState.meta.send({n: myNick(), c: roomState.cam}, {target: pid}) } catch (e) {}
+    if (roomState.cam && state.selfStream) { try { room.addStream(state.selfStream, {target: pid}) } catch (e) {} }
+    updateRoomMembers()
+  }
+  room.onPeerLeave = pid => {
+    const nm = pidTag(pid)
+    roomState.peers.delete(pid)
+    roomVideoRemove(pid)
+    roomSys(nm + ' keluar.')
+    onRoomGamePeerLeave(pid)
+    updateRoomMembers()
+  }
+  roomState.gameAct.onMessage = (data, {peerId}) => onRoomGame(data || {}, peerId)
+
+  showView('room')
+  $('room-label').textContent = 'ROOM ' + code
+  updateRoomMembers()
+  roomSys('Kamu masuk room privat ' + code + '. Bagikan kode ini ke temanmu.')
+}
+
+function sendRoomChat() {
+  const input = $('room-input')
+  const text = input.value.trim().slice(0, MAX_MSG_LEN)
+  if (!text || !roomState.room) return
+  try { roomState.chat.send({t: text}) } catch (e) {}
+  addRoomMsg('me', '', text)
+  input.value = ''
+  input.style.height = 'auto'
+}
+
+async function toggleRoomCam() {
+  if (!roomState.room) return
+  if (roomState.cam) {
+    roomState.cam = false
+    stopSelfStream()
+    roomVideoRemove(selfId)
+    try { roomState.meta.send({n: myNick(), c: false}) } catch (e) {}
+    roomSys('kameramu mati')
+  } else {
+    try { await ensureSelfStream(true) } catch (e) { toast('Kamera tidak tersedia / izin ditolak.', true, 4000); return }
+    roomState.cam = true
+    const v = roomVideoEnsure(selfId)
+    v.video.srcObject = state.selfStream
+    v.off.classList.add('hidden')
+    try { roomState.meta.send({n: myNick(), c: true}) } catch (e) {}
+    for (const pid in roomState.room.getPeers()) { try { roomState.room.addStream(state.selfStream, {target: pid}) } catch (e) {} }
+    roomSys('kameramu nyala')
+  }
+  $('room-cam-label').textContent = roomState.cam ? 'Kamera on' : 'Kamera off'
+  $('btn-room-cam').classList.toggle('off', !roomState.cam)
+}
+
+function leaveRoom(showHome) {
+  if (roomState.room) { try { roomState.room.leave() } catch (e) {} }
+  roomState.room = null; roomState.chat = null; roomState.meta = null; roomState.gameAct = null
+  roomState.code = ''
+  roomState.peers = new Map()
+  ;[...roomState.videos.keys()].forEach(roomVideoRemove)
+  if (roomState.cam) { roomState.cam = false; stopSelfStream() }
+  hideGamePanel()
+  $('room-cam-label').textContent = 'Kamera'
+  $('btn-room-cam').classList.remove('off')
+  if (showHome) showView('home')
+}
+
+// -- panel game bersama --
+function showGamePanel(title) {
+  $('game-panel').classList.remove('hidden')
+  $('game-title').textContent = title
+  $('game-log').innerHTML = ''
+}
+function hideGamePanel() {
+  $('game-panel').classList.add('hidden')
+  $('game-body').innerHTML = ''
+  $('game-log').innerHTML = ''
+}
+
+// -- tebak angka: host menyimpan angka rahasia 1-100, yang lain menebak --
+function startGuessGame() {
+  if (!roomState.room) return
+  roomState.game = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null }
+  try { roomState.gameAct.send({t: 'g-start'}) } catch (e) {}
+  showGamePanel('TEBAK ANGKA')
+  renderGuessBody()
+  roomGameLog('kamu host — angka rahasia siap (1-100), temanmu menebak')
+}
+function renderGuessBody() {
+  const g = roomState.game
+  const body = $('game-body')
+  body.innerHTML = ''
+  if (g.type !== 'guess') return
+  if (g.hostId === selfId) {
+    const p = document.createElement('p')
+    p.className = 'st'
+    p.textContent = 'kamu host — tunggu tebakan masuk'
+    body.appendChild(p)
+  } else if (g.hostId) {
+    const row = document.createElement('div')
+    row.className = 'guess-row'
+    const inp = document.createElement('input')
+    inp.type = 'number'; inp.min = 1; inp.max = 100; inp.placeholder = '1-100'
+    const btn = document.createElement('button')
+    btn.className = 'btn primary sm'; btn.type = 'button'; btn.textContent = 'Tebak'
+    btn.addEventListener('click', () => {
+      const n = parseInt(inp.value, 10)
+      if (!Number.isInteger(n) || n < 1 || n > 100) { toast('Masukkan angka 1-100.', true, 2000); return }
+      try { roomState.gameAct.send({t: 'g-guess', v: n}) } catch (e) {}
+      inp.value = ''
+    })
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); btn.click() } })
+    row.append(inp, btn)
+    body.appendChild(row)
+  }
+}
+
+// -- tic-tac-toe: 2 pemain pertama main, sisanya nonton; X = peerId terkecil --
+const TTT_WIN = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+function tttWinner(b) {
+  for (const [a, c, d] of TTT_WIN) if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a]
+  return b.every(x => x) ? 'draw' : null
+}
+function tttStart() {
+  if (!roomState.room) return
+  roomState.game = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
+  try { roomState.gameAct.send({t: 't-open'}) } catch (e) {}
+  showGamePanel('TIC-TAC-TOE')
+  renderTtt()
+  roomGameLog('menunggu pemain — klik IKUT MAIN (2 pemain)')
+}
+function tttJoinLocal() {
+  const T = roomState.game.ttt
+  if (!T || T.players.length >= 2 || T.players.includes(selfId)) return
+  try { roomState.gameAct.send({t: 't-join'}) } catch (e) {}
+  tttAddPlayer(selfId)
+}
+function tttAddPlayer(pid) {
+  const T = roomState.game && roomState.game.ttt
+  if (!T || T.players.length >= 2 || T.players.includes(pid)) return
+  T.players.push(pid)
+  T.players.sort()
+  roomGameLog(pidTag(pid) + ' ikut main' + (T.players.length === 2 ? ' — X: ' + pidTag(T.players[0]) + ' / O: ' + pidTag(T.players[1]) : ''))
+  renderTtt()
+}
+function renderTtt() {
+  const g = roomState.game
+  const body = $('game-body')
+  body.innerHTML = ''
+  if (g.type !== 'ttt' || !g.ttt) return
+  const T = g.ttt
+  if (T.players.length < 2) {
+    const btn = document.createElement('button')
+    btn.className = 'btn primary sm'; btn.type = 'button'
+    btn.textContent = T.players.includes(selfId) ? 'menunggu pemain...' : 'IKUT MAIN'
+    btn.disabled = T.players.includes(selfId)
+    btn.addEventListener('click', tttJoinLocal)
+    body.appendChild(btn)
+  }
+  const grid = document.createElement('div')
+  grid.id = 'ttt-grid'
+  const mySym = T.players[0] === selfId ? 'X' : (T.players[1] === selfId ? 'O' : null)
+  for (let i = 0; i < 9; i++) {
+    const c = document.createElement('button')
+    c.type = 'button'
+    c.textContent = T.board[i] || ''
+    if (T.board[i] === 'O') c.classList.add('o')
+    const canPlay = !T.over && mySym && mySym === T.turn && !T.board[i]
+    c.disabled = !canPlay
+    c.addEventListener('click', () => {
+      if (!canPlay) return
+      T.board[i] = mySym
+      T.turn = mySym === 'X' ? 'O' : 'X'
+      const w = tttWinner(T.board)
+      if (w) { T.over = true; roomGameLog(w === 'draw' ? 'SERI' : w + ' MENANG') }
+      try { roomState.gameAct.send({t: 't-move', i}) } catch (e) {}
+      renderTtt()
+    })
+    grid.appendChild(c)
+  }
+  body.appendChild(grid)
+  const st = document.createElement('p')
+  st.className = 'st'
+  if (T.over) st.textContent = 'game selesai — mulai lagi lewat tombol Tic-tac-toe'
+  else if (mySym) st.textContent = 'kamu ' + mySym + ' — ' + (mySym === T.turn ? 'GILIRANMU' : 'menunggu lawan')
+  else if (T.players.length === 2) st.textContent = 'kamu penonton'
+  else st.textContent = 'giliran: ' + T.turn
+  body.appendChild(st)
+}
+
+function onRoomGamePeerLeave(pid) {
+  const g = roomState.game
+  if (g.type === 'guess' && g.hostId === pid) {
+    roomGameLog('host keluar — tebak angka berakhir')
+    g.type = null; g.hostId = null
+    renderGuessBody()
+  } else if (g.type === 'ttt' && g.ttt && g.ttt.players.includes(pid)) {
+    roomGameLog(pidTag(pid) + ' keluar — tic-tac-toe berakhir')
+    g.ttt.over = true
+    renderTtt()
+  }
+}
+
+function onRoomGame(data, peerId) {
+  const g = roomState.game
+  if (data.t === 'g-start') {
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
+    roomState.game = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
+    showGamePanel('TEBAK ANGKA')
+    renderGuessBody()
+    roomGameLog(pidTag(peerId) + ' mulai tebak angka (1-100) — tebak angkanya!')
+  } else if (data.t === 'g-guess' && g.type === 'guess' && g.hostId === selfId) {
+    const n = Number(data.v)
+    if (!Number.isInteger(n) || n < 1 || n > 100) return
+    if (n === g.secret) {
+      try { roomState.gameAct.send({t: 'g-end', win: pidTag(peerId), v: n}) } catch (e) {}
+      roomGameLog(n + ' BENAR — ' + pidTag(peerId) + ' menang')
+      g.type = null; g.hostId = null
+      renderGuessBody()
+    } else {
+      const r = n < g.secret ? 'up' : 'down'
+      try { roomState.gameAct.send({t: 'g-hint', v: n, r, by: pidTag(peerId)}) } catch (e) {}
+      roomGameLog(pidTag(peerId) + ': ' + n + ' → ' + (r === 'up' ? 'kecil, naik' : 'besar, turun'))
+    }
+  } else if (data.t === 'g-hint') {
+    if (data.r === 'hit') return
+    roomGameLog((data.by || '?') + ': ' + data.v + ' → ' + (data.r === 'up' ? 'kecil, naik' : 'besar, turun'))
+  } else if (data.t === 'g-end') {
+    roomGameLog((data.v || '?') + ' BENAR — ' + (data.win || '?') + ' menang')
+    roomState.game = { type: null, hostId: null, secret: 0, ttt: null }
+    renderGuessBody()
+  } else if (data.t === 't-open') {
+    if (g.type === 'guess') return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
+    roomState.game = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
+    showGamePanel('TIC-TAC-TOE')
+    renderTtt()
+    roomGameLog('menunggu pemain — klik IKUT MAIN (2 pemain)')
+  } else if (data.t === 't-join') {
+    tttAddPlayer(peerId)
+  } else if (data.t === 't-move') {
+    const T = g.ttt
+    if (g.type !== 'ttt' || !T || T.over) return
+    const sym = T.players[0] === peerId ? 'X' : (T.players[1] === peerId ? 'O' : null)
+    if (!sym || sym !== T.turn) return
+    const i = Number(data.i)
+    if (!Number.isInteger(i) || i < 0 || i > 8 || T.board[i]) return
+    T.board[i] = sym
+    T.turn = sym === 'X' ? 'O' : 'X'
+    const w = tttWinner(T.board)
+    if (w) { T.over = true; roomGameLog(w === 'draw' ? 'SERI' : w + ' MENANG') }
+    renderTtt()
+  }
+}
+
+// wiring room privat
+$('btn-room-join').addEventListener('click', () => joinPrivateRoom($('room-code-input').value))
+$('btn-room-new').addEventListener('click', () => {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 6; i++) code += abc[Math.floor(Math.random() * abc.length)]
+  $('room-code-input').value = code
+  joinPrivateRoom(code)
+})
+$('room-code-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); joinPrivateRoom(e.target.value) }
+})
+$('room-form').addEventListener('submit', e => { e.preventDefault(); sendRoomChat() })
+$('btn-room-cam').addEventListener('click', toggleRoomCam)
+$('btn-room-leave').addEventListener('click', () => leaveRoom(true))
+$('game-close').addEventListener('click', hideGamePanel)
+$('btn-game-guess').addEventListener('click', () => { if (roomState.room) startGuessGame() })
+$('btn-game-ttt').addEventListener('click', () => { if (roomState.room) tttStart() })
+const roomInputEl = $('room-input')
+roomInputEl.addEventListener('input', () => {
+  roomInputEl.style.height = 'auto'
+  roomInputEl.style.height = Math.min(roomInputEl.scrollHeight, 110) + 'px'
+})
+roomInputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendRoomChat() }
+})
+
 // ---------- alur utama ----------
 async function startLooking(video) {
   if (!net) {
@@ -1287,7 +1754,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v9' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v10' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
