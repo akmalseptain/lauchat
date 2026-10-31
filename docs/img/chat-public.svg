@@ -21,10 +21,10 @@
 
   <!-- video atas-bawah (default, tanpa bingkai) -->
   <g transform="translate(40,96)">
-    <rect width="400" height="158" rx="12" fill="#0a0a0a"/>
-    <text x="200" y="80" text-anchor="middle" fill="#8b8b90" font-size="13">menunggu video…</text>
-    <rect y="162" width="400" height="67" rx="12" fill="#0f0f12"/>
-    <text x="200" y="198" text-anchor="middle" fill="#8b8b90" font-size="13">kamera kamu</text>
+    <rect width="400" height="112" rx="12" fill="#0a0a0a"/>
+    <text x="200" y="64" text-anchor="middle" fill="#8b8b90" font-size="13">menunggu video…</text>
+    <rect y="116" width="400" height="113" rx="12" fill="#0f0f12"/>
+    <text x="200" y="180" text-anchor="middle" fill="#8b8b90" font-size="13">kamera kamu</text>
     <rect x="348" y="8" width="26" height="26" rx="8" fill="rgba(0,0,0,.55)" stroke="rgba(255,255,255,.18)"/>
     <path d="M354 16 h16 v10 M370 16 v10 h-16" fill="none" stroke="#e6e6e6" stroke-width="1.5"/>
   </g>
