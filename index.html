@@ -1216,6 +1216,11 @@ window.addEventListener('beforeunload', () => {
 setInterval(updateOnline, 4000)
 if (net) { ensureLobby(); updateOnline() }
 updateDeviceButtons()
+
+// ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('./sw.js').catch(() => {})
+}
 </script>
 </body>
 </html>
