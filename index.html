@@ -122,7 +122,7 @@ kbd{
 .loc-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .loc-chip:hover{color:var(--fg)}
 .loc-chip svg{flex:none;opacity:.8}
-.loc-flag{flex:none;font-family:'VT323',monospace;font-size:14px;line-height:.68;letter-spacing:0;border-radius:2px;overflow:hidden}
+.loc-flag{flex:none;font-family:'VT323',monospace;font-size:16px;line-height:.68;letter-spacing:0;border-radius:2px;overflow:hidden}
 #loc-map{margin-top:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 #loc-iframe{width:100%;height:180px;border:0;display:block;background:var(--card)}
 #search-sub{color:var(--muted);font-size:13px;max-width:340px}
@@ -483,9 +483,9 @@ async function reverseGeocode(loc) {
   } catch (e) { return null }
 }
 
-// flag pixel ala terminal: gambar flag region via flagcdn → canvas 8x4 → karakter blok berwarna (pas dengan VT323)
+// flag pixel ala terminal: gambar flag region via flagcdn → canvas 5x6 → karakter blok berwarna (pas dengan VT323, rasio kotak)
 const flagCache = new Map()
-function flagArt(cc, w = 8, h = 4) {
+function flagArt(cc, w = 5, h = 6) {
   if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return Promise.resolve(null)
   const key = cc.toUpperCase()
   if (flagCache.has(key)) return flagCache.get(key)
@@ -1265,7 +1265,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v7' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v8' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
