@@ -4,6 +4,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -467,6 +468,9 @@ footer b{color:var(--fg);font-weight:600}
     </button>
     <button id="btn-watch" class="btn ghost" type="button" title="Nonton bareng YouTube">
       <span>Tonton</span>
+    </button>
+    <button id="btn-voice" class="btn ghost" type="button" title="Ejak suara persona">
+      <span id="voice-label">Suara: off</span>
     </button>
     <button id="btn-block" class="btn ghost" type="button" title="Blokir lawan — tidak akan dipasangkan lagi">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
@@ -1276,6 +1280,7 @@ function cleanupPair(stopStream) {
   state.scrAct = null
   state.watchAct = null
   watchClose(false)
+  voiceOff()
   state.gameAct = null
   state.partnerLoc = null
   state.partnerId = null
@@ -2097,6 +2102,197 @@ function onWatchMsg(data, pid) {
   }
 }
 
+
+// ---------- ejak suara (voice changer persona) ----------
+const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() { return [{ name: 'st', defaultValue: 0, minValue: -12, maxValue: 12 }] }
+  constructor() {
+    super()
+    this.size = 8192
+    this.win = 1024
+    this.buffers = []
+    this.idx = 0
+    this.ph = [0, 0.5]
+  }
+  process(inputs, outputs, params) {
+    const inp = inputs[0], out = outputs[0]
+    if (!inp || !inp.length || !out || !out.length) return true
+    const n = inp[0] ? inp[0].length : (out[0] ? out[0].length : 0)
+    if (!n) return true
+    const stArr = params.st
+    for (let ch = 0; ch < out.length; ch++) {
+      const x = inp[ch] || new Float32Array(n)
+      const y = out[ch]
+      if (!this.buffers[ch]) this.buffers[ch] = new Float32Array(this.size)
+      const buf = this.buffers[ch]
+      const st = stArr[0]
+      const ratio = Math.pow(2, st / 12)
+      const inc = (1 - ratio) / this.win
+      for (let i = 0; i < n; i++) {
+        buf[this.idx] = x[i]
+        let s = 0
+        for (let t = 0; t < 2; t++) {
+          let p = this.ph[t] + inc
+          if (p >= 1) p -= 1
+          if (p < 0) p += 1
+          this.ph[t] = p
+          const dpos = (this.idx - p * this.win + this.size) % this.size
+          const i0 = Math.floor(dpos)
+          const i1 = (i0 + 1) % this.size
+          const f2 = dpos - i0
+          const wet = buf[i0] * (1 - f2) + buf[i1] * f2
+          s += wet * Math.sin(Math.PI * p)
+        }
+        y[i] = s * 0.65
+      }
+    }
+    this.idx = (this.idx + n) % this.size
+    return true
+  }
+}
+registerProcessor('pitch-shift', PitchShiftProcessor)`
+
+const VOICE_PRESETS = [
+  { name: 'PIDATO PARTAI', st: -4, rev: .42, low: 1 },
+  { name: 'TRAILER HOLLYWOOD', st: -6, rev: .5, low: 1 },
+  { name: 'ANCHOR BERITA', st: -1, rev: .16, low: 0 },
+  { name: 'SINDEN DANGDUT', st: 3, rev: .3, vib: 1, vibRate: 5.5, low: 0 },
+  { name: 'ROBOT AGENSI', st: 0, rev: .08, ring: 1, low: 0 },
+  { name: 'BALITA BAWEL', st: 6, rev: .1, low: 0 }
+]
+
+async function ensureVoiceFx() {
+  if (!state.vc) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const url = URL.createObjectURL(new Blob([PITCH_WORKLET_SRC], { type: 'application/javascript' }))
+    await ctx.audioWorklet.addModule(url)
+    URL.revokeObjectURL(url)
+    state.vc = { ctx, srcNode: null, oscs: [], nodes: [] }
+  }
+  if (state.vc.ctx.state === 'suspended') await state.vc.ctx.resume()
+  return state.vc.ctx
+}
+
+function voiceSenders() {
+  const out = []
+  try {
+    const peers = state.pairRoom ? state.pairRoom.getPeers() : {}
+    for (const pid in peers) {
+      const pc = peers[pid]
+      if (pc && typeof pc.getSenders === 'function') {
+        for (const s of pc.getSenders()) if (s.track && s.track.kind === 'audio') out.push(s)
+      }
+    }
+  } catch (e) {}
+  return out
+}
+
+function voiceChainDestroy() {
+  const vc = state.vc
+  if (!vc) return
+  for (const o of vc.oscs) { try { o.stop() } catch (e) {} }
+  vc.oscs = []
+  try { if (vc.srcNode) vc.srcNode.disconnect() } catch (e) {}
+  for (const n of vc.nodes) { try { n.disconnect() } catch (e) {} }
+  vc.nodes = []
+  vc.srcNode = null
+}
+
+function voiceOff() {
+  voiceChainDestroy()
+  const micTrack = state.selfStream && state.selfStream.getAudioTracks()[0]
+  if (micTrack) for (const s of voiceSenders()) { try { s.replaceTrack(micTrack) } catch (e) {} }
+  if (state.vc) { try { state.vc.ctx.close() } catch (e) {} state.vc = null }
+  state.vcPreset = null
+  $('voice-label').textContent = 'Suara: off'
+}
+
+async function voiceOn(preset) {
+  if (!state.selfStream || !state.selfStream.getAudioTracks().length) { toast('Nyalakan mikrofon dulu.', true, 2500); return }
+  if (!state.pairRoom || !state.partnerConnected) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
+  try {
+    const ctx = await ensureVoiceFx()
+    voiceChainDestroy()
+    const micTrack = state.selfStream.getAudioTracks()[0]
+    const vc = state.vc
+    const srcNode = ctx.createMediaStreamSource(new MediaStream([micTrack]))
+    const pitch = new AudioWorkletNode(ctx, 'pitch-shift', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] })
+    pitch.parameters.get('st').value = preset.st || 0
+    srcNode.connect(pitch)
+    vc.srcNode = srcNode
+    vc.nodes.push(pitch)
+    let node = pitch
+    if (preset.vib) {
+      const delay = ctx.createDelay(0.05)
+      delay.delayTime.value = 0.014
+      const lfo = ctx.createOscillator()
+      lfo.frequency.value = preset.vibRate || 5
+      const lg = ctx.createGain()
+      lg.gain.value = 0.006 * preset.vib
+      lfo.connect(lg); lg.connect(delay.delayTime)
+      lfo.start()
+      vc.oscs.push(lfo)
+      node.connect(delay); node = delay
+      vc.nodes.push(delay)
+    }
+    if (preset.ring) {
+      const ringG = ctx.createGain()
+      ringG.gain.value = 0
+      const osc = ctx.createOscillator()
+      osc.type = 'square'
+      osc.frequency.value = 55
+      const og = ctx.createGain()
+      og.gain.value = 0.85
+      osc.connect(og); og.connect(ringG.gain)
+      osc.start()
+      vc.oscs.push(osc)
+      node.connect(ringG); node = ringG
+      vc.nodes.push(ringG)
+    }
+    if (preset.rev) {
+      const dry = ctx.createGain(); dry.gain.value = 1 - preset.rev * 0.4
+      const wet = ctx.createGain(); wet.gain.value = preset.rev
+      const dl = ctx.createDelay(1); dl.delayTime.value = 0.085
+      const dl2 = ctx.createDelay(1); dl2.delayTime.value = 0.13
+      const fb = ctx.createGain(); fb.gain.value = 0.38
+      const mix = ctx.createGain()
+      node.connect(dry)
+      node.connect(dl); dl.connect(fb); fb.connect(dl2); dl2.connect(fb); dl.connect(wet); dl2.connect(wet)
+      dry.connect(mix); wet.connect(mix)
+      node = mix
+      vc.nodes.push(mix)
+    }
+    if (preset.low) {
+      const lp = ctx.createBiquadFilter()
+      lp.type = 'lowpass'; lp.frequency.value = 3400; lp.Q.value = 0.4
+      node.connect(lp); node = lp
+      vc.nodes.push(lp)
+    }
+    const comp = ctx.createDynamicsCompressor()
+    comp.threshold.value = -22; comp.ratio.value = 6
+    node.connect(comp)
+    const dest = ctx.createMediaStreamDestination()
+    comp.connect(dest)
+    vc.nodes.push(comp, dest)
+    const outTrack = dest.stream.getAudioTracks()[0]
+    let replaced = 0
+    for (const s of voiceSenders()) { try { s.replaceTrack(outTrack); replaced++ } catch (e) {} }
+    state.vcPreset = preset
+    $('voice-label').textContent = 'Suara: ' + preset.name
+    if (!replaced) toast('Ejak aktif, tapi audio belum sampai ke lawan.', false, 3000)
+  } catch (e) {
+    toast('Ejak suara gagal diaktifkan.', true)
+    voiceOff()
+  }
+}
+
+$('btn-voice').addEventListener('click', async () => {
+  const cur = state.vcPreset ? VOICE_PRESETS.indexOf(state.vcPreset) : -1
+  const next = cur + 1
+  if (next >= VOICE_PRESETS.length) { voiceOff(); toast('Suara kembali normal.') }
+  else await voiceOn(VOICE_PRESETS[next])
+})
+
 function quizNextQuestion() {
   const g = gameState, Q = g.quiz
   if (!Q || g.hostId !== selfId) return
@@ -2687,7 +2883,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v27' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v28' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
