@@ -1,63 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 1020" font-family="Geist, ui-sans-serif, system-ui, sans-serif">
-  <rect width="480" height="1020" fill="#000000"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 960" font-family="Geist, ui-sans-serif, system-ui, sans-serif">
+  <rect width="480" height="960" fill="#000000"/>
 
   <text x="40" y="42" fill="#fafafa" font-size="13" font-weight="600">ROOM AB12CD</text>
   <text x="150" y="42" fill="#a1a1aa" font-size="12" font-family="Geist Mono, ui-monospace, monospace">· 2 orang</text>
 
   <!-- game bar -->
   <g transform="translate(40,58)" font-size="13" text-anchor="middle">
-    <rect x="0" y="0" width="120" height="32" rx="8" fill="none" stroke="#27272a"/>
     <text x="60" y="21" fill="#fafafa">Tebak Angka</text>
-    <rect x="130" y="0" width="120" height="32" rx="8" fill="none" stroke="#27272a"/>
     <text x="190" y="21" fill="#fafafa">Tic-tac-toe</text>
-    <rect x="260" y="0" width="110" height="32" rx="8" fill="#16a34a"/>
-    <text x="315" y="21" fill="#ffffff" font-weight="500">Kuis 1001</text>
+    <text x="315" y="21" fill="#16a34a" font-weight="500">Kuis 1001</text>
   </g>
 
-  <!-- panel tic-tac-toe -->
+  <!-- panel tic-tac-toe (papan game tetap) -->
   <g transform="translate(40,106)">
-    <rect width="400" height="350" rx="12" fill="none" stroke="#27272a"/>
-    <text x="14" y="26" fill="#16a34a" font-size="12" letter-spacing="1" font-family="Geist Mono, ui-monospace, monospace">TIC-TAC-TOE</text>
-    <text x="386" y="26" fill="#a1a1aa" font-size="12" text-anchor="end" text-decoration="underline">tutup</text>
-    <text x="14" y="54" fill="#fafafa" font-size="13">kamu X — giliranmu</text>
+    <text x="0" y="26" fill="#16a34a" font-size="12" letter-spacing="1" font-family="Geist Mono, ui-monospace, monospace">TIC-TAC-TOE</text>
+    <text x="400" y="26" fill="#a1a1aa" font-size="12" text-anchor="end" text-decoration="underline">tutup</text>
+    <text x="0" y="54" fill="#fafafa" font-size="13">kamu X — giliranmu</text>
 
-    <g transform="translate(72,68)">
-      <g font-family="Geist Mono, ui-monospace, monospace" font-size="24" font-weight="600" text-anchor="middle">
-        <rect x="0" y="0" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-        <text x="36" y="47" fill="#16a34a">X</text>
-        <rect x="84" y="0" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-        <text x="120" y="47" fill="#fafafa">O</text>
-        <rect x="168" y="0" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-        <rect x="0" y="84" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-        <rect x="84" y="84" width="72" height="72" rx="8" fill="none" stroke="#16a34a"/>
-        <rect x="168" y="84" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-        <text x="240" y="131" fill="#fafafa">O</text>
-        <rect x="0" y="168" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-        <text x="36" y="215" fill="#16a34a">X</text>
-        <rect x="168" y="168" width="72" height="72" rx="8" fill="none" stroke="#27272a"/>
-      </g>
+    <g transform="translate(92,68)" font-family="Geist Mono, ui-monospace, monospace" font-size="24" font-weight="600" text-anchor="middle">
+      <rect x="0" y="0" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
+      <text x="36" y="47" fill="#16a34a">X</text>
+      <rect x="84" y="0" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
+      <text x="120" y="47" fill="#fafafa">O</text>
+      <rect x="168" y="0" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
+      <rect x="0" y="84" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
+      <rect x="84" y="84" width="72" height="72" rx="8" fill="#000000" stroke="#16a34a"/>
+      <rect x="168" y="84" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
+      <text x="240" y="131" fill="#fafafa">O</text>
+      <rect x="0" y="168" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
+      <text x="36" y="215" fill="#16a34a">X</text>
+      <rect x="168" y="168" width="72" height="72" rx="8" fill="#000000" stroke="#26262a"/>
     </g>
 
-    <g transform="translate(14,272)" font-size="11" font-family="Geist Mono, ui-monospace, monospace">
+    <g transform="translate(0,348)" font-size="11" font-family="Geist Mono, ui-monospace, monospace">
       <text x="0" y="0" fill="#a1a1aa">dina bergabung ke tic-tac-toe</text>
       <text x="0" y="18" fill="#a1a1aa">aku: X di kiri-atas</text>
       <text x="0" y="36" fill="#a1a1aa">dina: O di tengah-atas</text>
     </g>
   </g>
 
-  <!-- panel tebak angka -->
-  <g transform="translate(40,476)">
-    <rect width="400" height="320" rx="12" fill="none" stroke="#27272a"/>
-    <text x="14" y="26" fill="#16a34a" font-size="12" letter-spacing="1" font-family="Geist Mono, ui-monospace, monospace">TEBAK ANGKA</text>
-    <text x="386" y="26" fill="#a1a1aa" font-size="12" text-anchor="end" text-decoration="underline">tutup</text>
-    <text x="14" y="54" fill="#fafafa" font-size="13">aku memikirkan angka 1–100…</text>
+  <!-- panel tebak angka: input underline -->
+  <g transform="translate(40,520)">
+    <text x="0" y="26" fill="#16a34a" font-size="12" letter-spacing="1" font-family="Geist Mono, ui-monospace, monospace">TEBAK ANGKA</text>
+    <text x="400" y="26" fill="#a1a1aa" font-size="12" text-anchor="end" text-decoration="underline">tutup</text>
+    <text x="0" y="54" fill="#fafafa" font-size="13">aku memikirkan angka 1–100…</text>
 
-    <rect x="14" y="70" width="300" height="40" rx="10" fill="none" stroke="#27272a"/>
-    <text x="164" y="95" fill="#71717a" font-size="13" text-anchor="middle">1–100</text>
-    <rect x="322" y="74" width="64" height="32" rx="8" fill="#16a34a"/>
-    <text x="354" y="95" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="500">Kirim</text>
+    <text x="0" y="82" fill="#71717a" font-size="13" text-anchor="middle" transform="translate(150,0)">1–100</text>
+    <line x1="0" y1="92" x2="300" y2="92" stroke="#26262a"/>
+    <rect x="322" y="62" width="78" height="32" rx="8" fill="#16a34a"/>
+    <text x="361" y="83" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="500">Kirim</text>
 
-    <g transform="translate(14,132)" font-size="12" font-family="Geist Mono, ui-monospace, monospace">
+    <g transform="translate(0,116)" font-size="12" font-family="Geist Mono, ui-monospace, monospace">
       <text x="0" y="0" fill="#fafafa">aku: 50 <tspan fill="#a1a1aa" font-family="Geist, sans-serif">→ besar, turun</tspan></text>
       <text x="0" y="22" fill="#fafafa">aku: 25 <tspan fill="#a1a1aa" font-family="Geist, sans-serif">→ besar, turun</tspan></text>
       <text x="0" y="44" fill="#fafafa">aku: 12 <tspan fill="#a1a1aa" font-family="Geist, sans-serif">→ kecil, naik</tspan></text>
@@ -65,8 +58,8 @@
       <text x="0" y="88" fill="#a1a1aa">tebakan lawan: 80 → kecil, naik</text>
     </g>
 
-    <text x="14" y="296" fill="#71717a" font-size="12">makin dekat ke angka rahasia, makin cepat menang</text>
+    <text x="0" y="296" fill="#71717a" font-size="12">makin dekat ke angka rahasia, makin cepat menang</text>
   </g>
 
-  <text x="240" y="996" text-anchor="middle" fill="#3f3f46" font-size="11" font-family="Geist Mono, ui-monospace, monospace">pratinjau UI — panel game di room privat (tic-tac-toe &amp; tebak angka)</text>
+  <text x="240" y="936" text-anchor="middle" fill="#3f3f46" font-size="11" font-family="Geist Mono, ui-monospace, monospace">pratinjau UI — panel game di room privat (tic-tac-toe &amp; tebak angka)</text>
 </svg>
