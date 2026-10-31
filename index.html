@@ -38,6 +38,8 @@
 
 
 
+
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -236,6 +238,7 @@ body.on-home.scrolled header{background:color-mix(in srgb, var(--bg) 94%, transp
 #prev-panel{margin-top:12px}
 .prev-note{margin:0 0 10px;color:var(--muted);font-size:14px;font-family:var(--pix)}
 #prev-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
+#btn-prev-rec.rec-on{color:#dc2626}
 .prefs.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .game-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .game-head .st{color:var(--accent);font-family:var(--pix);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
@@ -410,6 +413,12 @@ footer b{color:var(--fg);font-weight:600}
     <div id="prev-panel" class="hidden">
       <p class="prev-note">Simulasi sebelum masuk chat — pakai headset biar tidak nyangkut ke mic.</p>
       <div id="prev-list" class="quiz-opts"></div>
+      <div class="try-row">
+        <button id="btn-prev-rec" class="btn ghost sm" type="button">
+          <svg id="prev-rec-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5" fill="#dc2626" stroke="none"/></svg>
+          <span id="prev-rec-lb">Rekam</span>
+        </button>
+      </div>
     </div>
     <div class="room-row">
       <input id="room-code-input" maxlength="8" placeholder="KODE ROOM" autocomplete="off" spellcheck="false" aria-label="Kode room privat">
@@ -3104,7 +3113,8 @@ $('btn-voice').addEventListener('click', () => {
 $('btn-voice-close').addEventListener('click', () => $('voice-panel').classList.add('hidden'))
 
 // ---------- simulasi suara (preview sebelum masuk chat) ----------
-const prevFx = { ctx: null, store: null, mic: null, preset: null }
+const prevFx = { ctx: null, store: null, mic: null, preset: null, dest: null }
+const prevRec = { rec: null, chunks: [], t0: 0, timer: null, ext: 'webm', name: 'suara' }
 
 async function previewOn(preset) {
   try {
@@ -3126,8 +3136,10 @@ async function previewOn(preset) {
     comp.threshold.value = -22; comp.ratio.value = 6
     node.connect(comp)
     comp.connect(ctx.destination)
-    store.nodes.push(comp)
-    prevFx.ctx = ctx; prevFx.store = store; prevFx.mic = mic; prevFx.preset = preset
+    const recDest = ctx.createMediaStreamDestination()
+    comp.connect(recDest)
+    store.nodes.push(comp, recDest)
+    prevFx.ctx = ctx; prevFx.store = store; prevFx.mic = mic; prevFx.preset = preset; prevFx.dest = recDest
     toast('Simulasi ' + preset.name + ' nyala — engine: ' + (store.engine || '?') + ' — bicara sekarang.', false, 3000)
   } catch (e) {
     toast('Gagal membuka mikrofon.', true, 2500)
@@ -3136,14 +3148,76 @@ async function previewOn(preset) {
 }
 
 function previewOff() {
+  const wasRec = !!(prevRec.rec && prevRec.rec.state === 'recording')
+  prevRecStop()
   if (prevFx.ctx) {
     for (const o of prevFx.store.oscs) { try { o.stop() } catch (e) {} }
     for (const n of prevFx.store.nodes) { try { n.disconnect() } catch (e) {} }
-    try { prevFx.ctx.close() } catch (e) {}
+    if (wasRec) { const c = prevFx.ctx; setTimeout(function () { try { c.close() } catch (e) {} }, 400) }
+    else { try { prevFx.ctx.close() } catch (e) {} }
     if (prevFx.mic) for (const t of prevFx.mic.getAudioTracks()) t.stop()
   }
-  prevFx.ctx = null; prevFx.store = null; prevFx.mic = null; prevFx.preset = null
+  prevFx.ctx = null; prevFx.store = null; prevFx.mic = null; prevFx.preset = null; prevFx.dest = null
 }
+
+// ---------- perekam simulasi (output internal, bukan mic) ----------
+function prevRecMime() {
+  if (!window.MediaRecorder) return null
+  const cands = [['audio/webm;codecs=opus', 'webm'], ['audio/webm', 'webm'], ['audio/mp4', 'm4a'], ['audio/ogg;codecs=opus', 'ogg']]
+  for (const c of cands) { try { if (MediaRecorder.isTypeSupported(c[0])) return { m: c[0], ext: c[1] } } catch (e) {} }
+  return null
+}
+
+function prevRecUi(on) {
+  const b = $('btn-prev-rec'), lb = $('prev-rec-lb'), ic = $('prev-rec-ic')
+  if (!b) return
+  b.classList.toggle('rec-on', !!on)
+  lb.textContent = on ? 'Stop · 0:00' : 'Rekam'
+  ic.innerHTML = on
+    ? '<rect x="7" y="7" width="10" height="10" rx="1.5" fill="#dc2626" stroke="none"/>'
+    : '<circle cx="12" cy="12" r="5" fill="#dc2626" stroke="none"/>'
+}
+
+function prevRecStop() {
+  if (prevRec.timer) { clearInterval(prevRec.timer); prevRec.timer = null }
+  if (prevRec.rec && prevRec.rec.state !== 'inactive') { try { prevRec.rec.stop() } catch (e) {} }
+  prevRecUi(false)
+}
+
+function prevRecToggle() {
+  if (!prevFx.ctx || !prevFx.dest) { toast('Nyalakan salah satu suara dulu, baru rekam.', true, 2500); return }
+  if (prevRec.rec && prevRec.rec.state === 'recording') { prevRecStop(); return }
+  const mm = prevRecMime()
+  if (!mm) { toast('Browser ini tidak mendukung perekaman audio.', true, 2500); return }
+  const rec = new MediaRecorder(prevFx.dest.stream, mm.m ? { mimeType: mm.m } : undefined)
+  prevRec.rec = rec; prevRec.chunks = []; prevRec.ext = mm.ext
+  prevRec.name = ((prevFx.preset && prevFx.preset.name) || 'suara').toLowerCase()
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) prevRec.chunks.push(e.data) }
+  rec.onstop = () => {
+    const blob = new Blob(prevRec.chunks, { type: mm.m })
+    prevRec.chunks = []
+    const dur = prevRec.t0 ? Math.round((Date.now() - prevRec.t0) / 100) / 10 : 0
+    prevRec.t0 = 0
+    if (!blob.size) { toast('Rekaman kosong — coba lagi.', true, 2500); return }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'lauchat-' + prevRec.name + '-' + Math.floor(Date.now() / 1000) + '.' + prevRec.ext
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 4000)
+    toast('Rekaman ' + dur + ' dtk tersimpan — cek folder Download.', false, 3200)
+  }
+  prevRec.t0 = Date.now()
+  rec.start(250)
+  prevRecUi(true)
+  prevRec.timer = setInterval(() => {
+    const s = Math.floor((Date.now() - prevRec.t0) / 1000)
+    const lb = $('prev-rec-lb')
+    if (lb) lb.textContent = 'Stop · ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+  }, 500)
+  toast('Merekam suara hasil simulasi — bicara sekarang.', false, 2200)
+}
+$('btn-prev-rec').addEventListener('click', prevRecToggle)
 
 function renderPrevList() {
   const list = $('prev-list')
@@ -3760,7 +3834,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v47' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v48' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
