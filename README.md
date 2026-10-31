@@ -69,7 +69,7 @@ Main bareng lawan chat atau di room privat:
 - **WebRTC** untuk video/audio/share layar; **TURN via Cloudflare Worker** sebagai fallback kandidat.
 - Kirim gambar/gem state pakai chunk biner Trystero.
 - Single-file `index.html` (semua UI + logika), plus `sw.js` untuk service worker.
-- Ikon lucide, font Geist + Geist Mono, tema gelap default hitam pekat `#000000` (VT323 hanya di layar boot). UI tanpa kotak: input garis bawah, panel transparan.
+- Ikon lucide, font Geist + Geist Mono, tema gelap default hitam pekat `#000000` (VT323 di layar boot & bendera pixel). UI tanpa kotak: input garis bawah, panel transparan.
 
 ## Cara pakai
 
@@ -99,7 +99,8 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v14** — simplifikasi UI modern ala v0: Geist + Geist Mono di seluruh UI, input & kartu berbingkai radius, bubble pesan asimetris; tema inti zinc + hijau tetap, VT323 hanya boot & bendera pixel.
 - **v15** — background gelap jadi hitam pekat #000000 (tanpa tone abu), bubble lawan #1c1c1f.
 - **v16** — surface gelap transparan: kartu, panel game, area pesan, dan input nyatu ke background hitam, hanya border 1px; light theme tetap kartu putih.
-- **v17** — tanpa grid: input/kartu/panel borderless (garis bawah saja), tombol ghost jadi teks, video room default spotlight, bendera pixel diganti kode negara, opsi kuis pakai tint; papan tic-tac-toe tetap karena papan permainan.
+- **v17** — tanpa grid: input/kartu/panel borderless (garis bawah saja), tombol ghost jadi teks, video room default spotlight, opsi kuis pakai tint; papan tic-tac-toe tetap karena papan permainan.
+- **v18** — bendera pixel 5x6 dikembalikan di chip lokasi.
 
 ## Catatan
 
