@@ -268,7 +268,7 @@ footer b{color:var(--fg);font-weight:600}
       </button>
     </div>
   </div>
-  <p class="foot-note">18+ · Tidak dimoderasi · <kbd>Esc</kbd> untuk pindah orang</p>
+  <p class="foot-note">LAUCHAT <span id="app-build"></span> · 18+ · Tidak dimoderasi · <kbd>Esc</kbd> untuk pindah orang</p>
 </main>
 
 <!-- ============ MENCARI ============ -->
@@ -1265,6 +1265,8 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
+const APP_BUILD = 'v7' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
 }
