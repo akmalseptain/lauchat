@@ -137,6 +137,7 @@ docs/img/    — mockup UI untuk dokumentasi
 - **v41** — video background full viewport di desktop (position:fixed — sebelumnya terjebak di kolom 560px) + header transparan di beranda (video terlihat sampai ke atas, blur header nonaktif di home saja).
 - **v42** — fix header transparan saat pertama kali buka (class on-home kini hardcoded di body; sebelumnya baru aktif setelah pindah view).
 - **v43** — header dinamis di beranda: transparan saat halaman di puncak, berubah jadi frosted blur saat di-scroll ke bawah agar konten yang lewat tidak ketimpa teks header.
+- **v44** — suara CEWEK/COWOK diganti ke Signalsmith Stretch (library pitch/formant shifter open source MIT kelas industri, WASM ter-vendored utuh di file): pitch ±7 semitone dengan geser formant ±2.5 semitone terkompensasi + tonality preservation, block 40ms (latency 40ms), jauh lebih halus dari PSOLA lama; preset lama tetap jadi fallback otomatis kalau WASM gagal dimuat.
 
 ## Catatan
 
