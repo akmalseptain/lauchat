@@ -363,6 +363,15 @@ footer b{color:var(--fg);font-weight:600}
     </div>
   </div>
 
+  <div id="game-panel-chat" class="hidden">
+    <div class="game-head">
+      <span class="st" id="game-title-chat">GAME</span>
+      <button id="game-close-chat" class="tr-btn" type="button">tutup</button>
+    </div>
+    <div id="game-body-chat"></div>
+    <div id="game-log-chat"></div>
+  </div>
+
   <div id="messages"></div>
   <div id="typing-indicator"></div>
 
@@ -389,6 +398,9 @@ footer b{color:var(--fg);font-weight:600}
     <button id="btn-screen" class="btn ghost" type="button" title="Bagikan layar">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M12 16v3"/><path d="M8 19h8"/><path d="m8 8 4-4 4 4"/><path d="M12 4v5"/></svg>
       <span id="screen-label">Layar</span>
+    </button>
+    <button id="btn-quiz-chat" class="btn ghost" type="button" title="Main kuis bareng lawan">
+      <span>Kuis</span>
     </button>
     <button id="btn-skip" class="btn primary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
@@ -531,6 +543,7 @@ const state = {
   displayStream: null,
   imgAct: null,
   scrAct: null,
+  gameAct: null,
   camOn: false,
   micOn: false,
   streamSent: false,
@@ -1028,6 +1041,7 @@ function startPair(peerId, code, nick) {
   state.locAct = room.makeAction('loc')
   state.imgAct = room.makeAction('img')
   state.scrAct = room.makeAction('scr')
+  state.gameAct = room.makeAction('game')
   state.partnerLoc = null
   $('loc-map').classList.add('hidden')
   $('loc-iframe').removeAttribute('src')
@@ -1056,6 +1070,13 @@ function startPair(peerId, code, nick) {
   state.scrAct.onMessage = (d, {peerId: pid}) => {
     if (pid === peerId && d && d.on === false && !d.cam) attachRemoteStream(null)
   }
+  state.gameAct.onMessage = (data, {peerId: pid}) => {
+    if (pid === peerId) onRoomGame(data || {}, pid)
+  }
+  gameCtx.isRoom = false
+  clearQuizTimers()
+  gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
+  hideGamePanel()
   room.onPeerStream = (stream, pid) => {
     if (pid === peerId) attachRemoteStream(stream)
   }
@@ -1109,6 +1130,9 @@ function cleanupPair(stopStream) {
   clearTimeout(state.locWaitTimer)
   stopAiDetect()
   stopPairScreen()
+  clearQuizTimers()
+  gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
+  hideGamePanel()
   state.incomingLock = false
   if (state.pairRoom) { try { state.pairRoom.leave() } catch (e) {} }
   state.pairRoom = null
@@ -1117,6 +1141,7 @@ function cleanupPair(stopStream) {
   state.locAct = null
   state.imgAct = null
   state.scrAct = null
+  state.gameAct = null
   state.partnerLoc = null
   state.partnerId = null
   state.partnerNick = null
@@ -1212,17 +1237,38 @@ function stopPairScreen() {
 // ---------- room privat: grup chat + game (lewat kode, tanpa random pool) ----------
 const ROOM_PREFIX = 'priv-'
 const roomMsgsEl = $('room-messages')
+
+// context game: quiz jalan di room privat ATAU chat public 1-on-1
+let gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
+const gameCtx = { isRoom: false }
+function gp(base) { return $(base + (gameCtx.isRoom ? '' : '-chat')) }
+function sendGame(payload) {
+  try {
+    if (gameCtx.isRoom) { if (roomState.gameAct) roomState.gameAct.send(payload) }
+    else if (state.gameAct && state.partnerId) state.gameAct.send(payload, {target: state.partnerId})
+  } catch (e) {}
+}
+function gamePeers() {
+  try {
+    if (gameCtx.isRoom) return Object.keys(roomState.room ? roomState.room.getPeers() : {})
+    return state.partnerId ? [state.partnerId] : []
+  } catch (e) { return [] }
+}
+function gameReady() { return gameCtx.isRoom ? !!roomState.room : !!(state.pairRoom && state.partnerConnected) }
+
 const roomState = {
   room: null, code: '', chat: null, meta: null, gameAct: null, imgAct: null,
   peers: new Map(), videos: new Map(), cam: false,
   screen: false, screenStream: null,
-  game: { type: null, hostId: null, secret: 0, ttt: null, quiz: null },
 }
 
 function pidTag(pid) {
   if (pid === selfId) return myNick() || 'aku'
-  const p = roomState.peers.get(pid)
-  return (p && p.n) || ('#' + String(pid).slice(0, 4))
+  if (gameCtx.isRoom) {
+    const p = roomState.peers.get(pid)
+    return (p && p.n) || ('#' + String(pid).slice(0, 4))
+  }
+  return state.partnerNick || ('#' + String(pid).slice(0, 4))
 }
 
 function addRoomMsg(kind, who, text) {
@@ -1242,7 +1288,7 @@ function addRoomMsg(kind, who, text) {
 }
 function roomSys(t) { addRoomMsg('sys', '', t) }
 function roomGameLog(t) {
-  const log = $('game-log')
+  const log = gp('game-log')
   const d = document.createElement('div')
   d.textContent = t
   log.appendChild(d)
@@ -1313,11 +1359,12 @@ function joinPrivateRoom(rawCode) {
   roomState.code = code
   roomState.peers = new Map()
   clearQuizTimers()
-  roomState.game = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
+  gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
   roomMsgsEl.innerHTML = ''
   hideGamePanel()
   $('room-videos').classList.add('hidden')
 
+  gameCtx.isRoom = true
   const room = joinRoom(ICE, ROOM_PREFIX + code.toLowerCase())
   roomState.room = room
   roomState.chat = room.makeAction('chat')
@@ -1440,6 +1487,7 @@ function stopRoomScreen() {
 
 function leaveRoom(showHome) {
   clearQuizTimers()
+  gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
   if (roomState.room) { try { roomState.room.leave() } catch (e) {} }
   if (roomState.screenStream) { roomState.screenStream.getTracks().forEach(t => t.stop()); roomState.screenStream = null }
   roomState.screen = false
@@ -1456,28 +1504,28 @@ function leaveRoom(showHome) {
 
 // -- panel game bersama --
 function showGamePanel(title) {
-  $('game-panel').classList.remove('hidden')
-  $('game-title').textContent = title
-  $('game-log').innerHTML = ''
+  gp('game-panel').classList.remove('hidden')
+  gp('game-title').textContent = title
+  gp('game-log').innerHTML = ''
 }
 function hideGamePanel() {
-  $('game-panel').classList.add('hidden')
-  $('game-body').innerHTML = ''
-  $('game-log').innerHTML = ''
+  gp('game-panel').classList.add('hidden')
+  gp('game-body').innerHTML = ''
+  gp('game-log').innerHTML = ''
 }
 
 // -- tebak angka: host menyimpan angka rahasia 1-100, yang lain menebak --
 function startGuessGame() {
   if (!roomState.room) return
-  roomState.game = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null }
-  try { roomState.gameAct.send({t: 'g-start'}) } catch (e) {}
+  gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null }
+  try { sendGame({t: 'g-start'}) } catch (e) {}
   showGamePanel('TEBAK ANGKA')
   renderGuessBody()
   roomGameLog('kamu host — angka rahasia siap (1-100), temanmu menebak')
 }
 function renderGuessBody() {
-  const g = roomState.game
-  const body = $('game-body')
+  const g = gameState
+  const body = gp('game-body')
   body.innerHTML = ''
   if (g.type !== 'guess') return
   if (g.hostId === selfId) {
@@ -1495,7 +1543,7 @@ function renderGuessBody() {
     btn.addEventListener('click', () => {
       const n = parseInt(inp.value, 10)
       if (!Number.isInteger(n) || n < 1 || n > 100) { toast('Masukkan angka 1-100.', true, 2000); return }
-      try { roomState.gameAct.send({t: 'g-guess', v: n}) } catch (e) {}
+      try { sendGame({t: 'g-guess', v: n}) } catch (e) {}
       inp.value = ''
     })
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); btn.click() } })
@@ -1512,20 +1560,20 @@ function tttWinner(b) {
 }
 function tttStart() {
   if (!roomState.room) return
-  roomState.game = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
-  try { roomState.gameAct.send({t: 't-open'}) } catch (e) {}
+  gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
+  try { sendGame({t: 't-open'}) } catch (e) {}
   showGamePanel('TIC-TAC-TOE')
   renderTtt()
   roomGameLog('menunggu pemain — klik IKUT MAIN (2 pemain)')
 }
 function tttJoinLocal() {
-  const T = roomState.game.ttt
+  const T = gameState.ttt
   if (!T || T.players.length >= 2 || T.players.includes(selfId)) return
-  try { roomState.gameAct.send({t: 't-join'}) } catch (e) {}
+  try { sendGame({t: 't-join'}) } catch (e) {}
   tttAddPlayer(selfId)
 }
 function tttAddPlayer(pid) {
-  const T = roomState.game && roomState.game.ttt
+  const T = gameState && gameState.ttt
   if (!T || T.players.length >= 2 || T.players.includes(pid)) return
   T.players.push(pid)
   T.players.sort()
@@ -1533,8 +1581,8 @@ function tttAddPlayer(pid) {
   renderTtt()
 }
 function renderTtt() {
-  const g = roomState.game
-  const body = $('game-body')
+  const g = gameState
+  const body = gp('game-body')
   body.innerHTML = ''
   if (g.type !== 'ttt' || !g.ttt) return
   const T = g.ttt
@@ -1562,7 +1610,7 @@ function renderTtt() {
       T.turn = mySym === 'X' ? 'O' : 'X'
       const w = tttWinner(T.board)
       if (w) { T.over = true; roomGameLog(w === 'draw' ? 'SERI' : w + ' MENANG') }
-      try { roomState.gameAct.send({t: 't-move', i}) } catch (e) {}
+      try { sendGame({t: 't-move', i}) } catch (e) {}
       renderTtt()
     })
     grid.appendChild(c)
@@ -1606,7 +1654,7 @@ function newQuizState() {
   return {no: 0, lastQi: null, asked: [], answered: {}, selfPick: null, revealed: false, done: false, sc: {}, dlLeft: 0, timer: null, cd: null, nextTimer: null, endTimer: null}
 }
 function clearQuizTimers() {
-  const Q = roomState.game && roomState.game.quiz
+  const Q = gameState && gameState.quiz
   if (Q) {
     clearTimeout(Q.timer); clearTimeout(Q.nextTimer); clearTimeout(Q.endTimer); clearInterval(Q.cd)
     Q.timer = Q.cd = Q.nextTimer = Q.endTimer = null
@@ -1619,17 +1667,17 @@ function quizWinner(sc) {
 }
 
 function startQuizGame() {
-  if (!roomState.room) return
+  if (!gameReady()) return
   clearQuizTimers()
-  roomState.game = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
-  try { roomState.gameAct.send({t: 'q-open'}) } catch (e) {}
+  gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
+  try { sendGame({t: 'q-open'}) } catch (e) {}
   showGamePanel('KUIS 1001')
   roomGameLog('kuis dimulai — ' + QUIZ_LEN + ' soal, jawaban benar +10 poin')
   quizNextQuestion()
 }
 
 function quizNextQuestion() {
-  const g = roomState.game, Q = g.quiz
+  const g = gameState, Q = g.quiz
   if (!Q || g.hostId !== selfId) return
   clearQuizTimers()
   Q.no++
@@ -1637,8 +1685,8 @@ function quizNextQuestion() {
   do { qi = Math.floor(Math.random() * QUIZ_BANK.length) } while (Q.asked.includes(qi))
   Q.asked.push(qi)
   Q.lastQi = qi; Q.selfPick = null; Q.revealed = false; Q.answered = {}; Q.dlLeft = 15
-  try { roomState.gameAct.send({t: 'q-ques', n: Q.no, qi, dl: 15}) } catch (e) {}
-  $('game-log').innerHTML = ''
+  try { sendGame({t: 'q-ques', n: Q.no, qi, dl: 15}) } catch (e) {}
+  gp('game-log').innerHTML = ''
   renderQuizBody()
   startQuizCountdown(Q)
   Q.timer = setTimeout(quizRevealHost, 17000)
@@ -1648,25 +1696,25 @@ function startQuizCountdown(Q) {
   clearInterval(Q.cd)
   Q.cd = setInterval(() => {
     Q.dlLeft = Math.max(0, Q.dlLeft - 1)
-    const el = $('quiz-dl')
+    const el = gp('game-body').querySelector('#quiz-dl')
     if (el) el.textContent = Q.dlLeft + ' detik'
     if (Q.dlLeft <= 0) clearInterval(Q.cd)
   }, 1000)
 }
 
 function quizRevealHost() {
-  const g = roomState.game, Q = g.quiz
+  const g = gameState, Q = g.quiz
   if (!Q || g.type !== 'quiz' || g.hostId !== selfId || Q.revealed) return
   clearQuizTimers()
   const item = QUIZ_BANK[Q.lastQi]
   const picks = Object.assign({}, Q.answered)
   if (Q.selfPick != null) picks[selfId] = Q.selfPick
-  const all = Object.keys((roomState.room && roomState.room.getPeers()) || {}).concat(selfId)
+  const all = gamePeers().concat(selfId)
   for (const pid of all) if (Q.sc[pid] == null) Q.sc[pid] = 0
   for (const pid in picks) if (picks[pid] === item.c) Q.sc[pid] = (Q.sc[pid] || 0) + 10
   Q.revealed = true
-  try { roomState.gameAct.send({t: 'q-reveal', c: item.c, sc: Q.sc, picks}) } catch (e) {}
-  $('game-log').innerHTML = ''
+  try { sendGame({t: 'q-reveal', c: item.c, sc: Q.sc, picks}) } catch (e) {}
+  gp('game-log').innerHTML = ''
   renderQuizBody()
   roomGameLog('jawaban benar: ' + ['A', 'B', 'C', 'D'][item.c])
   Q.lastQi = null
@@ -1675,10 +1723,10 @@ function quizRevealHost() {
 }
 
 function quizEnd() {
-  const g = roomState.game, Q = g.quiz
+  const g = gameState, Q = g.quiz
   if (!Q) return
   clearQuizTimers()
-  try { roomState.gameAct.send({t: 'q-end', sc: Q.sc}) } catch (e) {}
+  try { sendGame({t: 'q-end', sc: Q.sc}) } catch (e) {}
   Q.done = true
   renderQuizBody()
   const win = quizWinner(Q.sc)
@@ -1686,8 +1734,8 @@ function quizEnd() {
 }
 
 function renderQuizBody() {
-  const g = roomState.game
-  const body = $('game-body')
+  const g = gameState
+  const body = gp('game-body')
   body.innerHTML = ''
   if (g.type !== 'quiz' || !g.quiz) return
   const Q = g.quiz
@@ -1722,7 +1770,7 @@ function renderQuizBody() {
       b.addEventListener('click', () => {
         if (Q.selfPick != null || Q.revealed) return
         Q.selfPick = i
-        if (g.hostId !== selfId) { try { roomState.gameAct.send({t: 'q-ans', n: Q.no, p: i}) } catch (e) {} }
+        if (g.hostId !== selfId) { try { sendGame({t: 'q-ans', n: Q.no, p: i}) } catch (e) {} }
         roomGameLog('kamu pilih ' + letters[i])
         renderQuizBody()
       })
@@ -1744,7 +1792,7 @@ function renderQuizBody() {
 }
 
 function onRoomGamePeerLeave(pid) {
-  const g = roomState.game
+  const g = gameState
   if (g.type === 'guess' && g.hostId === pid) {
     roomGameLog('host keluar — tebak angka berakhir')
     g.type = null; g.hostId = null
@@ -1764,11 +1812,11 @@ function onRoomGamePeerLeave(pid) {
 }
 
 function onRoomGame(data, peerId) {
-  const g = roomState.game
+  const g = gameState
   if (data.t === 'g-start') {
     if (g.type === 'quiz') return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
-    roomState.game = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
+    gameState = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
     renderGuessBody()
     roomGameLog(pidTag(peerId) + ' mulai tebak angka (1-100) — tebak angkanya!')
@@ -1776,13 +1824,13 @@ function onRoomGame(data, peerId) {
     const n = Number(data.v)
     if (!Number.isInteger(n) || n < 1 || n > 100) return
     if (n === g.secret) {
-      try { roomState.gameAct.send({t: 'g-end', win: pidTag(peerId), v: n}) } catch (e) {}
+      try { sendGame({t: 'g-end', win: pidTag(peerId), v: n}) } catch (e) {}
       roomGameLog(n + ' BENAR — ' + pidTag(peerId) + ' menang')
       g.type = null; g.hostId = null
       renderGuessBody()
     } else {
       const r = n < g.secret ? 'up' : 'down'
-      try { roomState.gameAct.send({t: 'g-hint', v: n, r, by: pidTag(peerId)}) } catch (e) {}
+      try { sendGame({t: 'g-hint', v: n, r, by: pidTag(peerId)}) } catch (e) {}
       roomGameLog(pidTag(peerId) + ': ' + n + ' → ' + (r === 'up' ? 'kecil, naik' : 'besar, turun'))
     }
   } else if (data.t === 'g-hint') {
@@ -1790,13 +1838,13 @@ function onRoomGame(data, peerId) {
     roomGameLog((data.by || '?') + ': ' + data.v + ' → ' + (data.r === 'up' ? 'kecil, naik' : 'besar, turun'))
   } else if (data.t === 'g-end') {
     roomGameLog((data.v || '?') + ' BENAR — ' + (data.win || '?') + ' menang')
-    roomState.game = { type: null, hostId: null, secret: 0, ttt: null }
+    gameState = { type: null, hostId: null, secret: 0, ttt: null }
     renderGuessBody()
   } else if (data.t === 't-open') {
     if (g.type === 'quiz') return
     if (g.type === 'guess') return
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length) return
-    roomState.game = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
+    gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
     showGamePanel('TIC-TAC-TOE')
     renderTtt()
     roomGameLog('menunggu pemain — klik IKUT MAIN (2 pemain)')
@@ -1817,7 +1865,7 @@ function onRoomGame(data, peerId) {
   } else if (data.t === 'q-open') {
     if (g.type === 'guess' || (g.type === 'ttt' && g.ttt && g.ttt.players.length)) return
     clearQuizTimers()
-    roomState.game = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
+    gameState = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
     showGamePanel('KUIS 1001')
     roomGameLog(pidTag(peerId) + ' mulai kuis 1001')
   } else if (data.t === 'q-ques') {
@@ -1825,7 +1873,7 @@ function onRoomGame(data, peerId) {
     const Q = g.quiz
     clearQuizTimers()
     Q.no = data.n; Q.lastQi = data.qi; Q.selfPick = null; Q.revealed = false; Q.dlLeft = data.dl || 15
-    $('game-log').innerHTML = ''
+    gp('game-log').innerHTML = ''
     renderQuizBody()
     startQuizCountdown(Q)
   } else if (data.t === 'q-ans') {
@@ -1834,7 +1882,7 @@ function onRoomGame(data, peerId) {
     if (Q.answered[peerId] == null) {
       Q.answered[peerId] = data.p
       roomGameLog(pidTag(peerId) + ' sudah menjawab')
-      const peers = Object.keys(roomState.room.getPeers())
+      const peers = gamePeers()
       if (peers.length && peers.every(p => Q.answered[p] != null)) {
         clearTimeout(Q.timer)
         Q.timer = setTimeout(quizRevealHost, 400)
@@ -1846,7 +1894,7 @@ function onRoomGame(data, peerId) {
     clearQuizTimers()
     Q.revealed = true
     Q.sc = data.sc || Q.sc
-    $('game-log').innerHTML = ''
+    gp('game-log').innerHTML = ''
     renderQuizBody()
     const item = QUIZ_BANK[Q.lastQi]
     if (item) {
@@ -1881,7 +1929,7 @@ $('room-code-input').addEventListener('keydown', e => {
 $('room-form').addEventListener('submit', e => { e.preventDefault(); sendRoomChat() })
 $('btn-room-cam').addEventListener('click', toggleRoomCam)
 $('btn-room-leave').addEventListener('click', () => leaveRoom(true))
-$('game-close').addEventListener('click', hideGamePanel)
+gp('game-close').addEventListener('click', hideGamePanel)
 $('btn-game-guess').addEventListener('click', () => { if (roomState.room) startGuessGame() })
 $('btn-game-ttt').addEventListener('click', () => { if (roomState.room) tttStart() })
 $('btn-game-quiz').addEventListener('click', () => { if (roomState.room) startQuizGame() })
@@ -1891,6 +1939,8 @@ $('btn-room-attach').addEventListener('click', () => $('room-file-input').click(
 $('room-file-input').addEventListener('change', () => pickAndSendImage('room'))
 $('btn-screen').addEventListener('click', togglePairScreen)
 $('btn-room-screen').addEventListener('click', toggleRoomScreen)
+$('btn-quiz-chat').addEventListener('click', () => startQuizGame())
+$('game-close-chat').addEventListener('click', hideGamePanel)
 const roomInputEl = $('room-input')
 roomInputEl.addEventListener('input', () => {
   roomInputEl.style.height = 'auto'
@@ -2172,7 +2222,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v11' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v12' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
