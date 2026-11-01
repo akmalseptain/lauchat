@@ -54,6 +54,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -266,6 +267,7 @@ kbd{
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
 .pk-hint{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center;margin:2px 0}
+.bt-cv{display:block;width:100%;max-width:480px;margin:0 auto;background:#0f291c;border:1px solid #3f3f46;border-radius:10px;touch-action:manipulation}
 #game-body{position:relative}
 .pk-deal{animation:pk-deal .4s cubic-bezier(.2,1.4,.4,1) backwards}
 .pk-play{animation:pk-play .42s cubic-bezier(.2,1.6,.4,1) backwards}
@@ -3361,57 +3363,133 @@ function btClose(send) {
 }
 
 // --- render DOM terminal ---
-function btCardFace(c, extra) {
-  const d = document.createElement('div')
-  d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (extra || '')
-  const r = document.createElement('div')
-  r.className = 'pk-r'; r.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]
-  const s = document.createElement('div')
-  s.className = 'pk-s'; s.textContent = PK_SUITS[(c / 13) | 0]
-  d.appendChild(r); d.appendChild(s)
-  return d
+const BT_VIEW = { g: null, cv: null, cx: null, raf: 0, last: 0, cards: [], parts: [], shake: 0, flash: null, btn: null, ac: null, freshSpawn: false }
+function btRRect(q, x, y, w, h, r) {
+  q.beginPath()
+  q.moveTo(x + r, y)
+  q.lineTo(x + w - r, y); q.quadraticCurveTo(x + w, y, x + w, y + r)
+  q.lineTo(x + w, y + h - r); q.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  q.lineTo(x + r, y + h); q.quadraticCurveTo(x, y + h, x, y + h - r)
+  q.lineTo(x, y + r); q.quadraticCurveTo(x, y, x + r, y)
+  q.closePath()
 }
-function btCardEl(g, c, i, selectable) {
-  const P = g.poker
-  const d = btCardFace(c, (selectable ? ' can' : '') + (selectable && P.sel[i] ? ' sel' : ''))
-  if (selectable) {
-    d.addEventListener('click', () => {
-      const Q = g.poker
-      if (!Q || Q.over || !Q.myTurn) return
-      if (Q.sel[i]) delete Q.sel[i]; else Q.sel[i] = true
-      btRender(g)
-    })
-  }
-  return d
+function btDrawFace(q, c, x, y, w, h) {
+  btRRect(q, x, y, w, h, 6)
+  const gr = q.createLinearGradient(x, y, x, y + h)
+  gr.addColorStop(0, '#fafafa'); gr.addColorStop(1, '#d4d4d8')
+  q.fillStyle = gr; q.fill()
+  q.lineWidth = 1; q.strokeStyle = '#71717a'; q.stroke()
+  const red = c >= 13 && c < 39
+  q.fillStyle = red ? '#dc2626' : '#18181b'
+  q.font = '13px VT323, monospace'; q.textAlign = 'left'; q.textBaseline = 'top'
+  q.fillText(PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0], x + 3, y + 2)
+  q.font = Math.floor(h * .4) + 'px VT323, monospace'
+  q.textAlign = 'center'; q.textBaseline = 'alphabetic'
+  q.fillText(PK_SUITS[(c / 13) | 0], x + w / 2 + 1, y + h - 5)
 }
-
-function btFlash(body, txt) {
-  try { body.querySelectorAll('.pk-flash').forEach(el => el.remove()) } catch (e) {}
-  const d = document.createElement('div')
-  d.className = 'pk-flash'; d.textContent = txt
-  body.appendChild(d)
-  setTimeout(() => { try { d.remove() } catch (e) {} }, 1300)
+function btDrawBack(q, x, y, w, h) {
+  btRRect(q, x, y, w, h, 6)
+  q.fillStyle = '#18181b'; q.fill()
+  q.save(); q.clip()
+  q.strokeStyle = '#3f3f46'; q.lineWidth = 3
+  for (let i = -h; i < w + h; i += 9) { q.beginPath(); q.moveTo(x + i, y + h); q.lineTo(x + i + h, y); q.stroke() }
+  q.restore()
+  q.lineWidth = 1; q.strokeStyle = '#52525b'; q.stroke()
 }
-function btParts(body, n) {
-  const cols = ['#16a34a', '#dc2626', '#eab308', '#fafafa']
+function btSfx(kind) {
+  try {
+    const V = BT_VIEW
+    if (!V.ac) V.ac = new (window.AudioContext || window.webkitAudioContext)()
+    const ac = V.ac
+    if (ac.state === 'suspended') ac.resume()
+    const t = ac.currentTime
+    const one = (type, f0, f1, dur, vol, at) => {
+      const o = ac.createOscillator(); const gn = ac.createGain()
+      o.connect(gn); gn.connect(ac.destination)
+      o.type = type
+      o.frequency.setValueAtTime(f0, t + at)
+      if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + at + dur)
+      gn.gain.setValueAtTime(vol, t + at)
+      gn.gain.exponentialRampToValueAtTime(.001, t + at + dur)
+      o.start(t + at); o.stop(t + at + dur + .02)
+    }
+    if (kind === 'sel') one('triangle', 660, 0, .07, .06, 0)
+    else if (kind === 'play') one('square', 480, 90, .08, .09, 0)
+    else if (kind === 'pass') one('sine', 220, 110, .13, .08, 0)
+    else if (kind === 'big') { one('square', 300, 60, .2, .12, 0); one('sawtooth', 160, 50, .25, .08, .05) }
+    else if (kind === 'win') { one('triangle', 523, 0, .14, .1, 0); one('triangle', 659, 0, .14, .1, .12); one('triangle', 784, 0, .2, .1, .24) }
+  } catch (e) {}
+}
+function btBoom(n, x, y) {
+  const cols = ['#16a34a', '#dc2626', '#eab308', '#fafafa', '#38bdf8']
   for (let i = 0; i < n; i++) {
-    const d = document.createElement('div')
-    d.className = 'pk-part'
-    d.style.left = (40 + Math.random() * 260) + 'px'
-    d.style.top = (60 + Math.random() * 80) + 'px'
-    try {
-      d.style.setProperty('--px', (Math.random() * 160 - 80) + 'px')
-      d.style.setProperty('--py', (-60 - Math.random() * 120) + 'px')
-      d.style.setProperty('--pc', cols[(Math.random() * cols.length) | 0])
-    } catch (e) {}
-    body.appendChild(d)
-    setTimeout(() => { try { d.remove() } catch (e) {} }, 1000)
+    const a = Math.random() * Math.PI * 2
+    const v = 1.5 + Math.random() * 3.5
+    BT_VIEW.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, life: .7 + Math.random() * .6, max: 1.3, col: cols[(Math.random() * cols.length) | 0], s: 2 + Math.random() * 4 })
   }
 }
-function btRender(g) {
+function btDims(kind) { return kind === 'hand' ? [46, 64, 30] : kind === 'table' ? [44, 62, 30] : [30, 42, 18] }
+function btLastMine(P) {
+  if (!P.last) return false
+  if (P.last.me !== undefined) return P.last.me
+  return P.host ? P.last.who === 'A' : P.last.who === 'B'
+}
+function btRebuild(g) {
   const P = g.poker
-  const body = gp('game-body')
-  if (!P || !body) return
+  const V = BT_VIEW
+  const old = {}
+  for (const o of V.cards) if (o.c >= 0 && !(o.c in old)) old[o.c] = { x: o.x, y: o.y }
+  const want = []
+  const nOpp = P.reveal ? P.reveal.length : P.oppN
+  for (let i = 0; i < nOpp; i++) {
+    if (P.reveal) want.push({ key: 'oppF:' + P.reveal[i], kind: 'oppF', c: P.reveal[i], i })
+    else want.push({ key: 'opp:' + i, kind: 'opp', c: -1, i })
+  }
+  if (P.last) for (let i = 0; i < P.last.c.length; i++) want.push({ key: 'tbl:' + P.last.c[i], kind: 'table', c: P.last.c[i], i })
+  const sorted = btSort(P.my)
+  for (let i = 0; i < sorted.length; i++) want.push({ key: 'hand:' + sorted[i], kind: 'hand', c: sorted[i], i })
+  const fresh = V.freshSpawn
+  V.freshSpawn = false
+  const cards = []
+  let created = 0
+  for (const w of want) {
+    const prev = V.cards.find(o => o.key === w.key)
+    if (prev) { prev.kind = w.kind; prev.i = w.i; cards.push(prev); continue }
+    const o = { key: w.key, kind: w.kind, c: w.c, i: w.i, x: 0, y: 0, sel: false, delay: 0 }
+    const sp = (w.c >= 0 && old[w.c]) ? old[w.c] : null
+    if (sp) { o.x = sp.x; o.y = sp.y }
+    else if (fresh) { o.x = 240; o.y = -50; o.delay = 150 + created * 26 }
+    else if (w.kind === 'opp') { o.x = 240; o.y = -40 }
+    else if (w.kind === 'table') { o.x = 240; o.y = 40 }
+    else { o.x = 240; o.y = 420 }
+    created++
+    cards.push(o)
+  }
+  V.cards = cards
+}
+function btSelSync(g) {
+  const P = g.poker
+  for (const o of BT_VIEW.cards) if (o.kind === 'hand') o.sel = !!P.sel[P.my.indexOf(o.c)]
+}
+function btTargets(g) {
+  const V = BT_VIEW
+  const groups = { opp: [], oppF: [], table: [], hand: [] }
+  for (const o of V.cards) if (groups[o.kind]) groups[o.kind].push(o)
+  for (const k in groups) {
+    const arr = groups[k].sort((a, b) => a.i - b.i)
+    const [w, h, dx] = btDims(k === 'oppF' ? 'opp' : k)
+    const total = arr.length ? w + (arr.length - 1) * dx : 0
+    const x0 = (480 - total) / 2
+    const y = k === 'hand' ? 282 : k === 'table' ? 96 : 24
+    for (let i = 0; i < arr.length; i++) {
+      arr[i].tx = x0 + i * dx
+      arr[i].ty = y - (k === 'hand' && arr[i].sel ? 14 : 0)
+    }
+  }
+}
+function btUpdate(g) {
+  const P = g.poker
+  const V = BT_VIEW
   P.fx = P.fx || { d: -1, l: '', w: false }
   const lastKey = P.last ? P.last.who + ':' + P.last.c.join(',') : ''
   const newDeal = P.fx.d !== P.deal
@@ -3419,76 +3497,199 @@ function btRender(g) {
   const newPass = !newDeal && !lastKey && !!P.fx.l && !P.over
   const newWin = !P.fx.w && P.over
   P.fx.d = P.deal; P.fx.l = lastKey; P.fx.w = P.over
-  body.innerHTML = ''
-  const shake = () => {
-    try {
-      body.classList.add('pk-anim-shake')
-      setTimeout(() => { try { body.classList.remove('pk-anim-shake') } catch (e) {} }, 420)
-    } catch (e) {}
-  }
-  const mk = (cls, txt) => { const d = document.createElement('div'); d.className = cls; if (txt != null) d.textContent = txt; return d }
-  // zona lawan (punggung kartu overlap)
-  const oRow = mk('pk-row pk-opps')
-  oRow.appendChild(mk('pk-lab', 'LAWAN · ' + (P.reveal ? P.reveal.length : P.oppN) + ' kartu'))
-  if (P.reveal) P.reveal.forEach((c, i) => { const d = btCardFace(c, newWin ? ' pk-rev' : ''); if (newWin) d.style.animationDelay = (i * 60) + 'ms'; oRow.appendChild(d) })
-  else for (let i = 0; i < P.oppN; i++) { const d = document.createElement('div'); d.className = 'pk-card pk-back'; oRow.appendChild(d) }
-  body.appendChild(oRow)
-  // meja: kombinasi terakhir
-  if (P.last) {
-    const tbl = mk('pk-table')
-    P.last.c.forEach((c, i) => { const d = btCardFace(c, newPlay ? ' pk-play' : ''); if (newPlay) d.style.animationDelay = (i * 70) + 'ms'; tbl.appendChild(d) })
-    if (P.last.k) tbl.appendChild(mk('pk-cname', btName(P.last.k)))
-    body.appendChild(tbl)
-  } else {
-    body.appendChild(mk('pk-table pk-empty', P.over ? '' : 'meja kosong — bebas main apa saja'))
+  if (newDeal) { V.cards = []; V.parts = []; V.flash = null; V.freshSpawn = true }
+  btRebuild(g)
+  btSelSync(g)
+  btTargets(g)
+  if (V.btn) {
+    V.btn.play.style.display = (P.myTurn && !P.over) ? '' : 'none'
+    V.btn.pass.style.display = (P.myTurn && !P.over) ? '' : 'none'
+    V.btn.again.style.display = P.over ? '' : 'none'
   }
   if (newPlay && !newWin) {
-    const big = P.last.k && (P.last.k[0] >= 5 || P.last.k[0] === 7)
-    if (big) { btFlash(body, btName(P.last.k)); btParts(body, 26); shake() }
+    btSfx('play')
+    const k = P.last.k
+    if (k && (k[0] >= 5 || k[0] === 7)) { V.flash = { txt: btName(k), t: 0 }; btBoom(26, 240, 128); V.shake = 8; btSfx('big') }
   }
-  if (newPass) { btFlash(body, 'LEWAT'); shake() }
+  if (newPass) { V.flash = { txt: 'LEWAT', t: 0 }; V.shake = 5; btSfx('pass') }
   if (newWin) {
-    btFlash(body, (P.win === (P.host ? 'A' : 'B')) ? 'KAMU MENANG!' : 'LAWAN MENANG!')
-    btParts(body, 40); shake()
+    V.flash = { txt: (P.win === (P.host ? 'A' : 'B')) ? 'KAMU MENANG!' : 'LAWAN MENANG!', t: 0 }
+    btBoom(60, 240, 170); V.shake = 10; btSfx('win')
   }
-  // status
-  const turnRow = mk('pk-row')
-  let turnTxt, turnCls
-  if (P.over) { turnTxt = (P.win === (P.host ? 'A' : 'B')) ? 'KAMU MENANG' : 'LAWAN MENANG'; turnCls = 'pk-turn ' + (P.win === (P.host ? 'A' : 'B') ? 'go' : 'wait') }
-  else { turnTxt = P.myTurn ? 'GILIRANMU' : 'menunggu lawan...'; turnCls = P.myTurn ? 'pk-turn go' : 'pk-turn wait' }
-  turnRow.appendChild(mk(turnCls, turnTxt))
-  body.appendChild(turnRow)
-  body.appendChild(mk('pk-msg', P.msg || ''))
-  body.appendChild(mk('pk-info', 'kartu kamu ' + P.my.length + ' · lawan ' + (P.reveal ? P.reveal.length : P.oppN) + (P.over ? '  [SELESAI]' : '')))
-  body.appendChild(mk('pk-hint', '5 kartu: dua pasang < straight < flush < full house < empat sekawanan < straight flush (royal flush tertinggi)'))
-  // tangan sendiri (kipas overlap, bisa scroll)
-  const mRow = mk('pk-row pk-hand')
-  const sorted = btSort(P.my)
-  for (let i = 0; i < sorted.length; i++) {
-    const el = btCardEl(g, sorted[i], P.my.indexOf(sorted[i]), P.myTurn && !P.over)
-    if (newDeal) { el.classList.add('pk-deal'); el.style.animationDelay = (i * 45) + 'ms' }
-    mRow.appendChild(el)
+}
+function btDraw(g) {
+  const P = g.poker
+  const V = BT_VIEW
+  const q = V.cx
+  const W = 480, H = 360
+  q.clearRect(0, 0, W, H)
+  const bg = q.createLinearGradient(0, 0, 0, H)
+  bg.addColorStop(0, '#1b3a2a'); bg.addColorStop(1, '#0f291c')
+  q.fillStyle = bg; q.fillRect(0, 0, W, H)
+  q.strokeStyle = 'rgba(255,255,255,.07)'; q.lineWidth = 2
+  btRRect(q, 10, 66, W - 20, 176, 14); q.stroke()
+  const t = performance.now() / 1000
+  q.save()
+  if (V.shake > .3) q.translate((Math.random() - .5) * V.shake, (Math.random() - .5) * V.shake)
+  q.font = '15px VT323, monospace'; q.textBaseline = 'top'
+  q.fillStyle = '#a1a1aa'; q.textAlign = 'left'
+  q.fillText('LAWAN \u00b7 ' + (P.reveal ? P.reveal.length : P.oppN) + ' kartu', 12, 8)
+  q.textAlign = 'right'
+  q.fillText('kamu ' + P.my.length + ' kartu', W - 12, 8)
+  q.textAlign = 'center'
+  const mine = P.win === (P.host ? 'A' : 'B')
+  if (P.over) {
+    q.fillStyle = mine ? '#4ade80' : '#f87171'
+    q.fillText(mine ? 'KAMU MENANG' : 'LAWAN MENANG', W / 2, 8)
+  } else if (P.myTurn) {
+    q.fillStyle = 'rgba(74,222,128,' + (.55 + Math.sin(t * 5) * .25).toFixed(2) + ')'
+    q.fillText(P.myTurn ? 'GILIRANMU \u2014 pilih kartu lalu MAINKAN' : 'menunggu lawan...', W / 2, 8)
+  } else {
+    q.fillStyle = '#71717a'
+    q.fillText('menunggu lawan...', W / 2, 8)
   }
-  body.appendChild(mRow)
-  // tombol
-  const bar = document.createElement('div'); bar.className = 'pk-bar'
-  const mkBtn = (label, fn, extra) => {
-    const b = document.createElement('button')
-    b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = label
-    if (extra) b.style.minWidth = extra
-    b.addEventListener('click', fn)
-    bar.appendChild(b)
+  for (const kind of ['opp', 'oppF', 'table', 'hand']) {
+    for (const o of V.cards) {
+      if (o.kind !== kind || o.delay > 0) continue
+      const [w, h] = btDims(o.kind === 'oppF' ? 'opp' : o.kind)
+      if (o.kind === 'opp') btDrawBack(q, o.x, o.y, w, h)
+      else {
+        if (o.kind === 'hand' && o.sel) {
+          q.save()
+          q.shadowColor = '#16a34a'; q.shadowBlur = 12
+          btRRect(q, o.x, o.y, w, h, 6); q.fillStyle = '#16a34a'; q.fill()
+          q.restore()
+        }
+        btDrawFace(q, o.c, o.x, o.y, w, h)
+      }
+    }
+  }
+  if (P.last && P.last.k) {
+    q.font = '18px VT323, monospace'
+    q.fillStyle = '#eab308'; q.textBaseline = 'top'
+    q.fillText(btName(P.last.k) + ' \u2014 ' + (btLastMine(P) ? 'KAMU' : 'LAWAN'), W / 2, 162)
+  } else if (!P.over) {
+    q.font = '15px VT323, monospace'
+    q.fillStyle = '#71717a'; q.textBaseline = 'top'
+    q.fillText('meja kosong \u2014 bebas main apa saja', W / 2, 162)
+  }
+  if (P.msg) {
+    q.font = '15px VT323, monospace'; q.fillStyle = '#fde047'; q.textBaseline = 'top'
+    q.fillText(P.msg, W / 2, 184)
   }
   if (P.myTurn && !P.over) {
-    mkBtn('MAINKAN', () => btDoPlay(g), '96px')
-    mkBtn('LEWAT', () => btDoPass(g), '72px')
-  } else if (P.over) {
-    mkBtn('MAIN LAGI', () => { if (P.host) btDeal(g); else { try { sendGame({ t: 'pk-next' }) } catch (e) {} } }, '96px')
+    const selCards = []
+    for (const o of V.cards) if (o.kind === 'hand' && o.sel) selCards.push(o.c)
+    if (selCards.length) {
+      const k = btKey(selCards)
+      let txt, col
+      if (!k) { txt = selCards.length + ' kartu \u2014 kombinasi tidak valid'; col = '#f87171' }
+      else if (!P.last || btBeats(P.last.k, k)) { txt = btName(k) + ' \u2014 siap dimainkan'; col = '#4ade80' }
+      else { txt = btName(k) + ' \u2014 harus lebih tinggi dari ' + btName(P.last.k); col = '#f87171' }
+      q.font = '17px VT323, monospace'; q.fillStyle = col; q.textBaseline = 'top'
+      q.fillText(txt, W / 2, 252)
+    }
   }
-  mkBtn('TUTUP', () => btClose(true))
-  body.appendChild(bar)
+  for (const p of V.parts) {
+    q.globalAlpha = Math.max(0, p.life / p.max)
+    q.fillStyle = p.col
+    q.fillRect(p.x, p.y, p.s, p.s)
+  }
+  q.globalAlpha = 1
+  if (V.flash) {
+    const ft = V.flash.t
+    const sc = ft < .18 ? ft / .18 : 1
+    const al = ft < 1 ? 1 : Math.max(0, 1 - (ft - 1) / .35)
+    q.save()
+    q.translate(W / 2, 216); q.scale(sc, sc); q.globalAlpha = al
+    q.font = '34px VT323, monospace'; q.textAlign = 'center'; q.textBaseline = 'middle'
+    q.fillStyle = '#000'; q.fillText(V.flash.txt, 2, 2)
+    q.fillStyle = '#fafafa'; q.fillText(V.flash.txt, 0, 0)
+    q.restore(); q.globalAlpha = 1
+    if (ft > 1.35) V.flash = null
+  }
+  q.restore()
 }
-
+function btLoop(ts) {
+  const V = BT_VIEW
+  const g = V.g
+  if (!g || !g.poker || !V.cv) { V.raf = 0; return }
+  const panel = gp('game-panel')
+  if (!panel || gameState !== g || panel.classList.contains('hidden')) { V.raf = 0; return }
+  const dt = V.last ? Math.min(0.05, (ts - V.last) / 1000) : 0.016
+  V.last = ts
+  const P = g.poker
+  for (const o of V.cards) {
+    if (o.delay > 0) { o.delay -= dt * 1000; continue }
+    const k = Math.min(1, dt * 11)
+    o.x += (o.tx - o.x) * k
+    o.y += (o.ty - o.y) * k
+  }
+  for (let i = V.parts.length - 1; i >= 0; i--) {
+    const p = V.parts[i]
+    p.x += p.vx; p.y += p.vy; p.vy += 9.8 * dt * 1.4; p.life -= dt
+    if (p.life <= 0) V.parts.splice(i, 1)
+  }
+  V.shake *= Math.pow(0.0025, dt)
+  if (V.flash) V.flash.t += dt
+  btSelSync(g)
+  btTargets(g)
+  btDraw(g)
+  V.raf = requestAnimationFrame(btLoop)
+}
+function btRender(g) {
+  const P = g.poker
+  const body = gp('game-body')
+  if (!P || !body) return
+  const V = BT_VIEW
+  if (V.cv && V.g === g && body.contains(V.cv)) {
+    btUpdate(g)
+    if (!V.raf) { V.last = 0; V.raf = requestAnimationFrame(btLoop) }
+    return
+  }
+  V.g = g; V.cards = []; V.parts = []; V.flash = null; V.shake = 0; V.ac = null
+  body.innerHTML = ''
+  const cv = document.createElement('canvas')
+  cv.width = 480; cv.height = 360
+  cv.className = 'bt-cv'
+  body.appendChild(cv)
+  V.cv = cv; V.cx = cv.getContext('2d')
+  cv.addEventListener('pointerdown', (e) => {
+    const G = V.g
+    if (!G || !G.poker) return
+    const Q = G.poker
+    if (Q.over || !Q.myTurn) return
+    const rect = cv.getBoundingClientRect()
+    const x = (e.clientX - rect.left) * (480 / rect.width)
+    const y = (e.clientY - rect.top) * (360 / rect.height)
+    const hands = V.cards.filter(o => o.kind === 'hand')
+    for (let i = hands.length - 1; i >= 0; i--) {
+      const o = hands[i]
+      if (x >= o.x && x <= o.x + 46 && y >= o.y && y <= o.y + 64) {
+        const idx = Q.my.indexOf(o.c)
+        if (idx >= 0) { if (Q.sel[idx]) delete Q.sel[idx]; else Q.sel[idx] = true; btSfx('sel'); btUpdate(G) }
+        return
+      }
+    }
+  })
+  const bar = document.createElement('div')
+  bar.className = 'pk-bar'
+  const mkBtn = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = label; b.addEventListener('click', fn); bar.appendChild(b); return b }
+  V.btn = {
+    play: mkBtn('MAINKAN', () => btDoPlay(g)),
+    pass: mkBtn('LEWAT', () => btDoPass(g)),
+    again: mkBtn('MAIN LAGI', () => { if (g.poker && g.poker.host) btDeal(g); else { try { sendGame({ t: 'pk-next' }) } catch (e) {} } }),
+    close: mkBtn('TUTUP', () => btClose(true))
+  }
+  body.appendChild(bar)
+  const hint = document.createElement('div')
+  hint.className = 'pk-hint'
+  hint.textContent = '1/2/3/5 kartu \u00b7 5 kartu: dua pasang < straight < flush < full house < empat sekawanan < straight flush (royal flush)'
+  body.appendChild(hint)
+  btUpdate(g)
+  V.last = 0
+  if (!V.raf) V.raf = requestAnimationFrame(btLoop)
+}
 function btDoPlay(g) {
   const P = g.poker
   if (!P || P.over || !P.myTurn) return
@@ -5631,7 +5832,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v62' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v63' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
