@@ -171,6 +171,10 @@ kbd{
 .tr-btn:hover{color:var(--fg)}
 .tr-line{display:block;margin-top:3px;font-size:12px;color:var(--muted);font-style:italic;word-break:break-word}
 #lang-badge{color:var(--muted);text-transform:uppercase;font-family:var(--pix);font-size:15px}
+.sig{display:inline-flex;align-items:flex-end;gap:1px;height:13px;margin-right:5px;vertical-align:-2px}
+.sig b{width:3px;border-radius:1px;background:currentColor}
+.sig b:nth-child(1){height:4px}.sig b:nth-child(2){height:7px}.sig b:nth-child(3){height:10px}.sig b:nth-child(4){height:13px}
+.sig b.off{background:var(--border)}
 .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
 .share-row{display:flex;justify-content:center;margin-top:12px}
 #age-gate{position:fixed;inset:0;z-index:120;background:#000;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center}
@@ -572,6 +576,7 @@ main{padding:16px 14px 32px}
     <span class="sep" id="lang-sep" style="display:none">·</span>
     <span class="st" id="lang-badge"></span>
     <span class="st" id="fx-badge" style="display:none"></span>
+    <span class="st" id="net-badge" style="display:none"></span>
   </div>
 
   <div id="loc-line" class="hidden">
@@ -695,6 +700,7 @@ main{padding:16px 14px 32px}
     <span class="who" id="room-label">ROOM</span>
     <span class="sep">·</span>
     <span class="st" id="room-status">1 orang</span>
+    <span class="st" id="room-net-badge" style="display:none"></span>
   </div>
   <div id="room-videos" class="hidden">
     <button id="room-layout-btn" aria-label="Ganti tata letak video" title="Ganti tata letak video"></button>
@@ -1728,6 +1734,95 @@ function netTune(room) {
   } catch (e) {}
 }
 
+// -- indikator koneksi (v74): ping RTT asli via getStats + status ICE, bar sinyal ala terminal --
+const netInfo = { timer: null, scopes: new Set(), last: { pair: '', room: '' } }
+
+function netLevel(ms) {
+  if (ms == null || ms < 0 || ms > 10000) return -1
+  if (ms <= 120) return 3
+  if (ms <= 250) return 2
+  if (ms <= 450) return 1
+  return 0
+}
+
+function netPickPair(report) {
+  let sel = null, suc = null
+  try {
+    report.forEach(function (r) {
+      if (!r || r.type !== 'candidate-pair') return
+      if (r.selected === true) sel = r
+      else if (r.state === 'succeeded' && r.nominated) suc = r
+    })
+  } catch (e) { return null }
+  const r = sel || suc
+  if (!r || !r.currentRoundTripTime) return null
+  return r.currentRoundTripTime * 1000
+}
+
+function netAgg(list) {
+  let rtt = null, bad = false
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i]
+    if (o.cs === 'disconnected' || o.cs === 'failed') bad = true
+    if (o.rtt != null && (rtt == null || o.rtt > rtt)) rtt = o.rtt
+  }
+  return { rtt: rtt, bad: bad }
+}
+
+function netHtml(rtt, bad) {
+  if (bad) return '<span class="sig" style="color:#dc2626"><b></b><b></b><b></b><b></b></span><span style="color:#dc2626">putus</span>'
+  const lv = netLevel(rtt)
+  if (lv < 0) return ''
+  const col = lv >= 2 ? 'var(--accent)' : lv === 1 ? '#d97706' : '#dc2626'
+  let bars = ''
+  for (let i = 0; i < 4; i++) bars += '<b' + (i <= lv ? '' : ' class="off"') + '></b>'
+  return '<span class="sig" style="color:' + col + '">' + bars + '</span>' + Math.round(rtt) + 'ms'
+}
+
+function netPaint(el, list, sc) {
+  const a = netAgg(list)
+  const html = list.length ? netHtml(a.rtt, a.bad) : ''
+  if (html === netInfo.last[sc]) return
+  netInfo.last[sc] = html
+  el.innerHTML = html
+  el.style.display = html ? '' : 'none'
+}
+
+async function netPoll() {
+  for (const sc of ['pair', 'room']) {
+    if (!netInfo.scopes.has(sc)) continue
+    const room = sc === 'pair' ? state.pairRoom : roomState.room
+    const el = $(sc === 'pair' ? 'net-badge' : 'room-net-badge')
+    if (!el) continue
+    const peers = room && room.getPeers ? room.getPeers() : {}
+    const pids = Object.keys(peers)
+    if (!pids.length) { netPaint(el, [], sc); continue }
+    const res = await Promise.allSettled(pids.map(function (pid) {
+      const pc = peers[pid]
+      if (!pc || !pc.getStats) return Promise.resolve(null)
+      return pc.getStats().then(function (rep) {
+        return { rtt: netPickPair(rep), cs: pc.connectionState || pc.iceConnectionState }
+      }).catch(function () { return null })
+    }))
+    const list = []
+    for (const r of res) if (r.status === 'fulfilled' && r.value) list.push(r.value)
+    netPaint(el, list, sc)
+  }
+}
+
+function netScope(scope, on) {
+  const id = scope === 'pair' ? 'net-badge' : 'room-net-badge'
+  if (on) netInfo.scopes.add(scope)
+  else {
+    netInfo.scopes.delete(scope)
+    netInfo.last[scope] = ''
+    const el = $(id)
+    if (el) { el.innerHTML = ''; el.style.display = 'none' }
+  }
+  if (netInfo.scopes.size && !netInfo.timer) { netInfo.timer = setInterval(netPoll, 4000); netPoll() }
+  if (!netInfo.scopes.size && netInfo.timer) { clearInterval(netInfo.timer); netInfo.timer = null }
+}
+
 function attachRemoteStream(stream) {
   const rv = $('remote-video'), ph = $('remote-placeholder')
   if (!stream) {
@@ -2023,6 +2118,7 @@ function onPartnerJoined() {
   setStatus('terhubung, katakan hai')
   playDing()
   sysMsg('Kamu sekarang ngobrol dengan orang asing.')
+  netScope('pair', true)
   updatePartnerLabel()
   if (myLoc && state.locAct) {
     try { state.locAct.send(myLoc, {target: state.partnerId}) } catch (e) {}
@@ -2079,6 +2175,7 @@ function cleanupPair(stopStream) {
   state.streamSent = false
   clearAllPending()
   attachRemoteStream(null)
+  netScope('pair', false)
   $('typing-indicator').textContent = ''
   if (stopStream) stopSelfStream()
 }
@@ -2263,6 +2360,7 @@ function joinPrivateRoom(rawCode) {
   roomState.gameAct = room.makeAction('game')
   roomState.imgAct = room.makeAction('img')
   roomState.musicAct = room.makeAction('music')
+  netScope('room', true)
 
   roomState.chat.onMessage = (data, {peerId}) => {
     if (data?.t) addRoomMsg('them', pidTag(peerId), String(data.t).slice(0, MAX_MSG_LEN))
@@ -2425,6 +2523,7 @@ function leaveRoom(showHome) {
   roomState.peers = new Map()
   ;[...roomState.videos.keys()].forEach(roomVideoRemove)
   if (roomState.cam) { roomState.cam = false; stopSelfStream() }
+  netScope('room', false)
   hideGamePanel()
   $('room-cam-label').textContent = 'Kamera'
   $('btn-room-cam').classList.remove('off')
@@ -6788,7 +6887,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v73' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v74' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
