@@ -55,6 +55,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -3469,7 +3470,7 @@ function btRebuild(g) {
 }
 function btSelSync(g) {
   const P = g.poker
-  for (const o of BT_VIEW.cards) if (o.kind === 'hand') o.sel = !!P.sel[P.my.indexOf(o.c)]
+  for (const o of BT_VIEW.cards) if (o.kind === 'hand') o.sel = !!P.sel[o.c]
 }
 function btTargets(g) {
   const V = BT_VIEW
@@ -3650,10 +3651,12 @@ function btRender(g) {
   V.g = g; V.cards = []; V.parts = []; V.flash = null; V.shake = 0; V.ac = null
   body.innerHTML = ''
   const cv = document.createElement('canvas')
-  cv.width = 480; cv.height = 360
+  const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1)
+  cv.width = Math.round(480 * dpr); cv.height = Math.round(360 * dpr)
   cv.className = 'bt-cv'
   body.appendChild(cv)
   V.cv = cv; V.cx = cv.getContext('2d')
+  try { V.cx.setTransform(dpr, 0, 0, dpr, 0, 0) } catch (e) {}
   cv.addEventListener('pointerdown', (e) => {
     const G = V.g
     if (!G || !G.poker) return
@@ -3666,8 +3669,8 @@ function btRender(g) {
     for (let i = hands.length - 1; i >= 0; i--) {
       const o = hands[i]
       if (x >= o.x && x <= o.x + 46 && y >= o.y && y <= o.y + 64) {
-        const idx = Q.my.indexOf(o.c)
-        if (idx >= 0) { if (Q.sel[idx]) delete Q.sel[idx]; else Q.sel[idx] = true; btSfx('sel'); btUpdate(G) }
+        if (Q.sel[o.c]) delete Q.sel[o.c]; else Q.sel[o.c] = true
+        btSfx('sel'); btUpdate(G)
         return
       }
     }
@@ -3693,7 +3696,7 @@ function btRender(g) {
 function btDoPlay(g) {
   const P = g.poker
   if (!P || P.over || !P.myTurn) return
-  const cards = Object.keys(P.sel).map(Number)
+  const cards = Object.keys(P.sel).map(Number).filter(c => P.my.indexOf(c) >= 0)
   if (!cards.length) return
   P.sel = {}
   if (P.host) btPlayHost(g, 'A', cards)
@@ -5832,7 +5835,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v63' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v64' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
