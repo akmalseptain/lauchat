@@ -268,6 +268,12 @@ kbd{
 .pk-turn.go{color:#16a34a;border:1px solid #16a34a;animation:pk-glow 1.3s infinite}
 .pk-turn.wait{color:#a1a1aa;border:1px solid #52525b}
 .pk-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pk-combos{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:480px;margin:10px auto 0;padding:0 2px}
+.pk-combo{font-family:'VT323',monospace;font-size:16px;line-height:1;padding:5px 11px;border-radius:999px;border:1px solid #3f6f4c;background:#14351f;color:#cde8d4;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pk-combo:hover{border-color:#16a34a;color:#fff}
+.pk-combo.pick{background:#16a34a;border-color:#16a34a;color:#fff}
+.pk-combo.off{opacity:.38;cursor:default}
+.pk-combo.off:hover{border-color:#3f6f4c;color:#cde8d4}
 .pk-clues{margin:8px 0}
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
@@ -3241,6 +3247,100 @@ const PK_SUITS = ['\u2660', '\u2665', '\u2666', '\u2663']
 const BT_NAMES = ['SATU KARTU', 'PASANG', 'TRIPLE', 'STRAIGHT', 'FLUSH', 'FULL HOUSE', 'EMPAT SEKAWAN', 'STRAIGHT FLUSH', 'DUA PASANG']
 function btName(k) { return k && k[0] === 7 && k[1] === 11 ? 'ROYAL FLUSH' : BT_NAMES[k[0]] }
 
+const BT_RCH = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
+const BT_SCH = ['C', 'D', 'H', 'S']
+
+// deteksi semua kombo yang tersedia di tangan (urut: pasang, triple, dua pasang, empat, full house, straight, flush, straight flush)
+function btCombos(cards) {
+  const byR = {}
+  for (const c of cards) { const r = btBtr(c); (byR[r] = byR[r] || []).push(c) }
+  for (const r in byR) byR[r].sort((a, b) => btSp(b) - btSp(a))
+  const ranks = Object.keys(byR).map(Number).sort((a, b) => b - a)
+  const rest = (excl) => cards.filter(c => !excl.has(c)).sort((a, b) => btBtr(b) - btBtr(a) || btSp(b) - btSp(a))
+  const out = [], seen = {}
+  const push = (k, cs, label) => {
+    const kk = btKey(cs) || k   // normalisasi: straight yang kebetulan 1 suit = straight flush
+    const id = kk.join(',')
+    if (seen[id]) return        // dedupe chip dengan kekuatan sama
+    seen[id] = true
+    out.push({ k: kk, cs, label })
+  }
+  const prs = ranks.filter(r => byR[r].length >= 2)
+  let np = 0
+  for (const r of ranks) {
+    if (byR[r].length >= 2 && np < 4) { push([1, r, btSp(byR[r][0])], byR[r].slice(0, 2), 'PASANG ' + BT_RCH[r]); np++ }
+    if (byR[r].length >= 3) push([2, r], byR[r].slice(0, 3), 'TRIPLE ' + BT_RCH[r])
+  }
+  if (prs.length >= 2) {
+    const [p1, p2] = prs
+    const used = new Set([byR[p1][0], byR[p1][1], byR[p2][0], byR[p2][1]])
+    const kick = rest(used)[0]
+    if (kick !== undefined) push([8, p1, p2, btBtr(kick)], [byR[p1][0], byR[p1][1], byR[p2][0], byR[p2][1], kick], 'DUA PASANG ' + BT_RCH[p1] + '-' + BT_RCH[p2])
+  }
+  for (const r of ranks) if (byR[r].length >= 4) {
+    const kick = rest(new Set(byR[r]))[0]
+    if (kick !== undefined) push([6, r], byR[r].slice(0, 4).concat([kick]), 'EMPAT ' + BT_RCH[r])
+  }
+  for (const tr of ranks.filter(r => byR[r].length >= 3).slice(0, 2)) {
+    const pr = prs.find(r => r !== tr)
+    if (pr !== undefined) push([5, tr], byR[tr].slice(0, 3).concat(byR[pr].slice(0, 2)), 'FULL HOUSE ' + BT_RCH[tr] + '+' + BT_RCH[pr])
+  }
+  const byS = {}
+  for (const c of cards) { const su = btSp(c); (byS[su] = byS[su] || []).push(c) }
+  for (const su in byS) if (byS[su].length >= 5) {
+    const top = byS[su].slice().sort((a, b) => btBtr(b) - btBtr(a)).slice(0, 5)
+    push([4, +su].concat(top.map(btBtr)), top, 'FLUSH ' + BT_SCH[+su])
+  }
+  for (const su in byS) {
+    const sh = {}
+    for (const c of byS[su]) sh[btBtr(c)] = c
+    for (let hi = 11; hi >= 4; hi--) {
+      let ok = true
+      const cs = []
+      for (let r = hi - 4; r <= hi; r++) { if (!(r in sh)) { ok = false; break } cs.push(sh[r]) }
+      if (ok) push([7, hi, +su], cs, (hi === 11 ? 'ROYAL FLUSH ' : 'STRAIGHT FLUSH ') + BT_SCH[+su])
+    }
+  }
+  const has = {}
+  for (const c of cards) has[btBtr(c)] = true
+  let ns = 0
+  for (let hi = 11; hi >= 4 && ns < 3; hi--) {
+    let ok = true
+    for (let r = hi - 4; r <= hi; r++) if (!has[r]) { ok = false; break }
+    if (!ok) continue
+    const cs = []
+    for (let r = hi - 4; r <= hi; r++) cs.push(byR[r][0])
+    push([3, hi], cs, 'STRAIGHT ' + BT_RCH[hi - 4] + '-' + BT_RCH[hi]); ns++
+  }
+  return out
+}
+
+// strip chip kombo: tekan = pilih kartu kombo itu (disabled kalau tidak mengalahkan meja)
+function btCombosRender(g) {
+  const V = BT_VIEW, P = g.poker
+  if (!V.combos) return
+  V.combos.innerHTML = ''
+  if (!P || P.over || !P.my || !P.my.length) return
+  const cur = Object.keys(P.sel).map(Number).sort((a, b) => a - b).join(',')
+  for (const o of btCombos(P.my)) {
+    const can = P.myTurn && btBeats(P.last ? P.last.k : null, o.k)
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'pk-combo' + (can ? '' : ' off')
+    if (cur && o.cs.slice().sort((a, b) => a - b).join(',') === cur) b.classList.add('pick')
+    b.textContent = o.label
+    b.addEventListener('click', () => {
+      const Q = g.poker
+      if (!Q || Q.over || !Q.myTurn || !btBeats(Q.last ? Q.last.k : null, o.k)) return
+      const same = o.cs.slice().sort((a, b) => a - b).join(',') === Object.keys(Q.sel).map(Number).sort((a, b) => a - b).join(',')
+      Q.sel = {}
+      if (!same) { for (const c of o.cs) Q.sel[c] = true; btSfx('sel') }
+      btUpdate(g)
+    })
+    V.combos.appendChild(b)
+  }
+}
+
 function btBtr(c) { return (c % 13 + 12) % 13 }
 function btSp(c) { return 3 - ((c / 13) | 0) }
 function btSort(cs) { return cs.slice().sort((a, b) => btBtr(a) - btBtr(b) || btSp(a) - btSp(b)) }
@@ -3507,6 +3607,7 @@ function btUpdate(g) {
   btRebuild(g)
   btSelSync(g)
   btTargets(g)
+  btCombosRender(g)
   if (V.btn) {
     V.btn.play.style.display = (P.myTurn && !P.over) ? '' : 'none'
     V.btn.pass.style.display = (P.myTurn && !P.over) ? '' : 'none'
@@ -3653,7 +3754,7 @@ function btRender(g) {
     if (!V.raf) { V.last = 0; V.raf = requestAnimationFrame(btLoop) }
     return
   }
-  V.g = g; V.cards = []; V.parts = []; V.flash = null; V.shake = 0; V.ac = null
+  V.g = g; V.cards = []; V.parts = []; V.flash = null; V.shake = 0; V.ac = null; V.combos = null
   body.innerHTML = ''
   const cv = document.createElement('canvas')
   const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1)
@@ -3680,6 +3781,10 @@ function btRender(g) {
       }
     }
   })
+  const combos = document.createElement('div')
+  combos.className = 'pk-combos'
+  body.appendChild(combos)
+  V.combos = combos
   const bar = document.createElement('div')
   bar.className = 'pk-bar'
   const mkBtn = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = label; b.addEventListener('click', fn); bar.appendChild(b); return b }
@@ -5840,7 +5945,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v65' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v66' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
