@@ -329,6 +329,10 @@ kbd{
 .music-q b{font-weight:400;color:var(--fg)}
 .music-q button{margin-left:auto}
 #music-dj{font-family:var(--pix);font-size:15px;color:var(--muted);margin-top:6px}
+#music-lyr{max-height:220px;overflow-y:auto;white-space:pre-line;margin-top:8px;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-family:var(--pix);font-size:16px;line-height:1.5}
+#music-lyr .lyr-l{color:var(--muted)}
+#music-lyr .lyr-l.on{color:var(--accent)}
+#music-lyr .lyr-msg{color:var(--muted);font-size:15px}
 #voice-panel{margin:0 0 12px}
 #voice-list .vd{flex:1;color:var(--muted);font-size:14px;font-family:var(--pix);text-align:right}
 #voice-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
@@ -733,11 +737,13 @@ footer b{color:var(--fg);font-weight:600}
   <div id="music-panel" class="hidden">
     <div class="game-head">
       <span class="st">MUSIK BARENG</span>
+      <button id="btn-music-stop" class="tr-btn" type="button">stop</button>
       <button id="btn-music-close" class="tr-btn" type="button">tutup</button>
     </div>
     <div id="music-cta" class="hidden"><button id="btn-music-join" class="btn primary sm" type="button">klik untuk ikut dengar</button></div>
     <div id="music-now"></div>
     <audio id="music-audio" controls preload="none"></audio>
+    <div id="music-lyr" class="hidden"></div>
     <div id="music-row">
       <input id="music-url" placeholder="Cari lagu atau artis…" autocomplete="off" spellcheck="false" aria-label="Cari lagu">
       <button id="btn-music-add" class="btn ghost sm" type="button">Cari</button>
@@ -4595,7 +4601,7 @@ function onWatchMsg(data, pid) {
 
 // ---------- musik bareng (room privat, lagu pilihan via Audius — open source, tanpa API key) ----------
 const AUDIUS = 'https://api.audius.co'
-const musicState = { aud: null, id: null, track: null, dj: null, queue: [], hb: null, joined: false, lastSync: null }
+const musicState = { aud: null, id: null, track: null, dj: null, queue: [], hb: null, joined: false, lastSync: null, lyr: { lines: [], els: [], plain: '', msg: '', cur: -1, tk: 0 } }
 
 function musicSend(obj) {
   try { if (roomState.musicAct) roomState.musicAct.send(obj) } catch (e) {}
@@ -4697,9 +4703,9 @@ async function musicSearch(kind, q) {
     const r = await fetch(url)
     if (!r.ok) throw 0
     const d = await r.json()
-    const items = (Array.isArray(d.data) ? d.data : []).slice(0, 10).map(t => ({
+    const items = (Array.isArray(d.data) ? d.data : []).filter(t => t && t.id && t.is_streamable !== false).slice(0, 20).map(t => ({
       id: String(t.id || ''), title: String(t.title || 'tanpa judul'), artist: String((t.user && t.user.name) || '?'), dur: Number(t.duration) || 0
-    })).filter(t => t.id)
+    }))
     musicRenderList(items, false)
     if (!items.length) return
   } catch (e) {
@@ -4716,6 +4722,7 @@ function musicLoad(track, pos, playing) {
   M.joined = true
   M.lastSync = null
   musicRenderNow()
+  musicLyrFetch(track)
   if (M.dj === selfId) musicHbStart()
   aud.src = AUDIUS + '/v1/tracks/' + encodeURIComponent(track.id) + '/stream?app_name=lauchat'
   const onMeta = () => { aud.removeEventListener('loadedmetadata', onMeta); try { aud.currentTime = pos || 0 } catch (e) {} }
@@ -4728,7 +4735,7 @@ function musicStop(send) {
   musicHbStop()
   try { const aud = $('music-audio'); aud.pause(); aud.removeAttribute('src') } catch (e) {}
   M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; M.lastSync = null
-  try { $('music-panel').classList.add('hidden') } catch (e) {}
+  musicLyrReset()
   if (send) { musicSend({t: 'm-close'}); roomSys('musik dihentikan') }
   musicRenderDj(); musicRenderQueue(); musicRenderNow()
 }
@@ -4744,8 +4751,10 @@ function musicNextFromQueue() {
     roomSys('lagu berikutnya: ' + next.title)
   } else {
     musicSend({t: 'm-end'})
+    musicHbStop()
     try { const aud = $('music-audio'); aud.pause(); aud.removeAttribute('src') } catch (e) {}
     M.id = null; M.track = null; M.joined = false
+    musicLyrReset()
     musicRenderNow()
     roomSys('antrean habis — musik selesai')
   }
@@ -4755,7 +4764,7 @@ function musicNextFromQueue() {
 function musicPick(track, toQueue) {
   const M = musicState
   if (!track || !track.id) return
-  if (toQueue || (M.id && M.dj)) {
+  if (toQueue || (M.id && M.dj && M.dj !== selfId)) {
     M.queue.push(track)
     musicSend({t: 'm-queue', q: M.queue})
     musicRenderQueue()
@@ -4782,6 +4791,7 @@ function musicApply(msg, pid) {
     M.queue = []
     M.joined = false
     M.lastSync = null
+    musicLyrReset()
     try { $('music-panel').classList.remove('hidden') } catch (e) {}
     try { $('music-cta').classList.remove('hidden') } catch (e) {}
     try { $('btn-music-join').textContent = M.joined ? 'lagu berjalan' : 'klik untuk ikut dengar' } catch (e) {}
@@ -4802,9 +4812,9 @@ function musicApply(msg, pid) {
     M.queue = (Array.isArray(msg.q) ? msg.q : []).filter(x => x && typeof x.id === 'string' && typeof x.title === 'string' && typeof x.artist === 'string').slice(0, 20)
     musicRenderQueue()
   } else if (msg.t === 'm-end') {
-    if (M.joined || M.id) { try { aud.pause(); aud.removeAttribute('src') } catch (e) {}; M.id = null; M.track = null; M.joined = false; musicRenderNow(); roomSys('antrean habis — musik selesai') }
+    if (M.joined || M.id) { try { aud.pause(); aud.removeAttribute('src') } catch (e) {}; M.id = null; M.track = null; M.joined = false; musicHbStop(); musicLyrReset(); musicRenderNow(); roomSys('antrean habis — musik selesai') }
   } else if (msg.t === 'm-close') {
-    if (M.joined || M.id) { try { aud.pause(); aud.removeAttribute('src') } catch (e) {}; M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; musicRenderNow(); roomSys(pidTag(pid) + ' menghentikan musik') }
+    if (M.joined || M.id) { try { aud.pause(); aud.removeAttribute('src') } catch (e) {}; M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; musicHbStop(); musicLyrReset(); musicRenderNow(); roomSys(pidTag(pid) + ' menghentikan musik') }
   }
 }
 
@@ -4818,6 +4828,87 @@ function musicHbStart() {
 }
 function musicHbStop() { clearInterval(musicState.hb); musicState.hb = null }
 
+// ---------- lirik (LRCLIB — open source, tanpa API key, CORS bebas) ----------
+const LRCLIB = 'https://lrclib.net/api/get'
+
+function musicLyrReset() {
+  const L = musicState.lyr
+  L.lines = []; L.els = []; L.plain = ''; L.msg = ''; L.cur = -1
+  L.tk = (L.tk || 0) + 1
+  try { const el = $('music-lyr'); el.innerHTML = ''; el.classList.add('hidden') } catch (e) {}
+}
+
+function musicLyrParse(txt) {
+  const out = []
+  for (const ln of String(txt || '').split('\n')) {
+    const m = ln.match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/)
+    if (m && m[3]) out.push({ t: (+m[1]) * 60 + (+m[2]), txt: m[3] })
+  }
+  return out
+}
+
+function musicLyrRenderAll() {
+  const L = musicState.lyr, el = $('music-lyr')
+  el.innerHTML = ''
+  el.classList.remove('hidden')
+  L.els = []; L.cur = -1
+  if (L.plain) { el.textContent = L.plain; return }
+  if (!L.lines.length) {
+    const m = document.createElement('div')
+    m.className = 'lyr-msg'
+    m.textContent = L.msg || 'mencari lirik…'
+    el.appendChild(m)
+    return
+  }
+  for (const ln of L.lines) {
+    const d = document.createElement('div')
+    d.className = 'lyr-l'
+    d.textContent = ln.txt
+    el.appendChild(d)
+    L.els.push(d)
+  }
+}
+
+async function musicLyrFetch(track) {
+  musicLyrReset()
+  if (!track || !track.id) return
+  const L = musicState.lyr, tk = ++L.tk
+  L.msg = 'mencari lirik…'
+  musicLyrRenderAll()
+  const qs = (o) => Object.keys(o).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(o[k])).join('&')
+  const tries = [
+    { artist_name: track.artist || '', track_name: track.title || '', duration: track.dur || 0 },
+    { track_name: track.title || '', duration: track.dur || 0 }
+  ]
+  for (const p of tries) {
+    try {
+      const r = await fetch(LRCLIB + '?' + qs(p))
+      if (!r.ok) continue
+      const d = await r.json()
+      if (tk !== L.tk) return
+      const lines = musicLyrParse(d.syncedLyrics)
+      if (lines.length) { L.lines = lines; musicLyrRenderAll(); return }
+      if (d.plainLyrics) { L.plain = String(d.plainLyrics); musicLyrRenderAll(); return }
+    } catch (e) {}
+  }
+  if (tk !== L.tk) return
+  L.msg = 'lirik tidak tersedia untuk lagu ini.'
+  musicLyrRenderAll()
+}
+
+function musicLyrTick() {
+  const L = musicState.lyr
+  if (!L.lines.length) return
+  const aud = musicState.aud || $('music-audio')
+  const t = aud.currentTime || 0
+  let i = -1
+  for (let k = 0; k < L.lines.length; k++) { if (L.lines[k].t <= t) i = k; else break }
+  if (i === L.cur) return
+  L.cur = i
+  L.els.forEach((e, k) => { if (k === i) e.classList.add('on'); else e.classList.remove('on') })
+  if (i >= 0) { try { $('music-lyr').scrollTop = L.els[i].offsetTop - (L.els[0] ? L.els[0].offsetTop : 0) - 34 } catch (e) {} }
+}
+
 // event player lokal: hanya DJ yang broadcast (member pasif → bebas gema)
 function musicBindAudio() {
   const aud = $('music-audio')
@@ -4825,6 +4916,7 @@ function musicBindAudio() {
   aud.addEventListener('play', () => { if (musicState.dj === selfId) musicSend({t: 'm-play', pos: aud.currentTime || 0}) })
   aud.addEventListener('pause', () => { if (musicState.dj === selfId && !aud.ended) musicSend({t: 'm-pause', pos: aud.currentTime || 0}) })
   aud.addEventListener('ended', () => { if (musicState.dj === selfId) musicNextFromQueue() })
+  aud.addEventListener('timeupdate', musicLyrTick)
 }
 
 function onMusicMsg(data, pid) {
@@ -6243,6 +6335,7 @@ $('btn-room-music').addEventListener('click', () => {
   if (!p.classList.contains('hidden') && !$('music-list').children.length) musicSearch('trending')
 })
 $('btn-music-close').addEventListener('click', () => { $('music-panel').classList.add('hidden') })
+$('btn-music-stop').addEventListener('click', () => musicStop(true))
 $('btn-music-add').addEventListener('click', () => { musicSearch('q', $('music-url').value) })
 $('btn-music-tr').addEventListener('click', () => { musicSearch('trending') })
 $('music-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); musicSearch('q', $('music-url').value) } })
@@ -6551,7 +6644,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v69' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v70' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
