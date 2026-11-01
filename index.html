@@ -50,6 +50,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -242,6 +243,8 @@ kbd{
 .pk-clues{margin:8px 0}
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
+.sh-img{display:block;margin:8px auto;max-width:170px;max-height:190px;border:1px solid #52525b}
+.sh-credit{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center}
 .doodle-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .doodle-sw{width:30px;height:30px;padding:0;border-radius:6px;border:1px solid var(--border)}
 .doodle-sw.pick{outline:2px solid var(--accent);outline-offset:1px}
@@ -2300,7 +2303,7 @@ function startGuessGame() {
   if (gameState.type === 'guess') { toast('Tebak angka sedang jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null, quiz: null }
@@ -2463,7 +2466,7 @@ function startQuizGame() {
   if (gameState.type === 'suit' && gameState.suit) { toast('Selesaikan suit dulu.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
@@ -2493,7 +2496,7 @@ function startSuitGame() {
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
@@ -2560,7 +2563,7 @@ const ICEBREAKERS = [
   'olahraga apa yang kamu bakal tinju kalau disuruh lakukan tiap hari?',
   'kalau dapat gaji 2x bulan ini, hal pertama yang kamu beli apa?'
 ]
-const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /war /poker /siapa /help'
+const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /war /poker /bigtwo /siapa /help'
 
 function slashProcess(text, isRoom) {
   if (!text || text.charCodeAt(0) !== 47) return undefined
@@ -2589,9 +2592,9 @@ function slashProcess(text, isRoom) {
     startWarGame()
     return false
   }
-  if (cmd === '/poker') {
-    if (isRoom) return local('poker hanya untuk chat 1-on-1 — keluar dari room dulu')
-    startPokerGame()
+  if (cmd === '/poker' || cmd === '/bigtwo') {
+    if (isRoom) return local('big two hanya untuk chat 1-on-1 — keluar dari room dulu')
+    startBigTwoGame()
     return false
   }
   if (cmd === '/siapa') {
@@ -2616,7 +2619,7 @@ function startDoodleGame() {
   if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
@@ -2776,7 +2779,7 @@ function startWarGame() {
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'war', hostId: null, secret: 0, ttt: null, quiz: null, war: newWarState(true) }
@@ -3187,271 +3190,213 @@ function warDraw(W) {
   c.fillStyle = W.vg; c.fillRect(0, 0, WAR.W, WAR.H)
 }
 
-// ---------- POKER: heads-up 5-card draw (chat 1-on-1, /poker) ----------
-const PK_SUITS = ['S', 'H', 'D', 'C']
+// ---------- BIG TWO: buang kartu ala tongkrongan (chat 1-on-1, /poker /bigtwo) ----------
 const PK_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-const PK_CATS = ['KARTU TINGGI', 'SATU PASANG', 'DUA PASANG', 'TRIPLE', 'STRAIGHT', 'FLUSH', 'FULL HOUSE', 'FOUR OF A KIND', 'STRAIGHT FLUSH']
+const PK_SUITS = ['\u2660', '\u2665', '\u2666', '\u2663']
+const BT_NAMES = ['SATU KARTU', 'PASANG', 'TRIPLE', 'STRAIGHT', 'FLUSH', 'FULL HOUSE', 'EMPAT SEKAWAN', 'STRAIGHT FLUSH']
 
-function pkRed(c) { return c >= 13 && c < 39 }
+function btBtr(c) { return (c % 13 + 12) % 13 }
+function btSp(c) { return 3 - ((c / 13) | 0) }
+function btSort(cs) { return cs.slice().sort((a, b) => btBtr(a) - btBtr(b) || btSp(a) - btSp(b)) }
 
-function newPokerState(host) {
-  return { host: !!host, chips: 100, oppChips: 100, pot: 0, hand: 0, ph: 'idle',
-    my: [], opp: [], deck: [], oppN: 5, myTurn: false, betOpen: false, msg: '',
-    sel: {}, swapped: false, swB: false, checked: false, toAct: 'A',
-    oppShow: null, res: null, over: false, win: null }
-}
-
-// --- evaluasi kartu (murni, bisa dites) ---
-function pkRank(cs) {
-  const r = cs.map(c => c % 13).sort((a, b) => a - b)
-  const s = cs.map(c => (c / 13) | 0)
+function btKey(cs) {
+  const n = cs.length
+  if (n !== 1 && n !== 2 && n !== 3 && n !== 5) return null
+  if (new Set(cs).size !== n) return null
+  if (n === 1) return [0, btBtr(cs[0]), btSp(cs[0])]
+  if (n === 2) { if (btBtr(cs[0]) !== btBtr(cs[1])) return null; return [1, btBtr(cs[0]), Math.max(btSp(cs[0]), btSp(cs[1]))] }
+  if (n === 3) { const r = [btBtr(cs[0]), btBtr(cs[1]), btBtr(cs[2])]; if (r[0] !== r[1] || r[1] !== r[2]) return null; return [2, r[0]] }
   const cnt = {}
-  for (const x of r) cnt[x] = (cnt[x] || 0) + 1
-  const groups = Object.keys(cnt).map(k => [Number(k), cnt[k]]).sort((a, b) => b[1] - a[1] || b[0] - a[0])
-  const flush = s.every(x => x === s[0])
-  let st = false
-  const uniq = [...new Set(r)]
-  if (uniq.length === 5) {
-    if (uniq[4] - uniq[0] === 4) st = true
-    else if (uniq[0] === 0 && uniq[1] === 1 && uniq[2] === 2 && uniq[3] === 3 && uniq[4] === 12) st = true
+  for (const c of cs) { const k = btBtr(c); cnt[k] = (cnt[k] || 0) + 1 }
+  const keys = Object.keys(cnt).map(Number).sort((a, b) => b - a)
+  if (keys.length === 2) {
+    if (cnt[keys[0]] === 4) return [6, keys[0]]
+    if (cnt[keys[1]] === 4) return [6, keys[1]]
+    if (cnt[keys[0]] === 3) return [5, keys[0]]
+    if (cnt[keys[1]] === 3) return [5, keys[1]]
+    return null
   }
-  let cat
-  if (st && flush) cat = 8
-  else if (groups[0][1] === 4) cat = 7
-  else if (groups[0][1] === 3 && groups[1] && groups[1][1] === 2) cat = 6
-  else if (flush) cat = 5
-  else if (st) cat = 4
-  else if (groups[0][1] === 3) cat = 3
-  else if (groups[0][1] === 2 && groups[1] && groups[1][1] === 2) cat = 2
-  else if (groups[0][1] === 2) cat = 1
-  else cat = 0
-  return [cat].concat(groups.map(g => g[0]))
+  if (keys.length !== 5) return null
+  const uniq = keys.slice().sort((a, b) => a - b)
+  const flush = cs.every(c => ((c / 13) | 0) === ((cs[0] / 13) | 0))
+  const straight = uniq[4] - uniq[0] === 4 && uniq[4] < 12
+  if (straight && flush) return [7, uniq[4], btSp(cs[0])]
+  if (straight) return [3, uniq[4]]
+  if (flush) return [4, btSp(cs[0])].concat(keys)
+  return null
 }
 
-function pkCmp(a, b) {
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const x = a[i] || 0, y = b[i] || 0
-    if (x !== y) return x > y ? 1 : -1
+function btCnt(k) { return k[0] <= 2 ? k[0] + 1 : 5 }
+function btBeats(prev, cur) {
+  if (!prev) return true
+  if (btCnt(prev) !== btCnt(cur)) return false
+  if (prev[0] === cur[0]) {
+    for (let i = 1; i < Math.max(prev.length, cur.length); i++) {
+      const a = prev[i] || 0, b = cur[i] || 0
+      if (a !== b) return b > a
+    }
+    return false
   }
-  return 0
+  if (btCnt(prev) === 5) return cur[0] > prev[0]
+  return false
+}
+
+function newBtState(host) {
+  return { host: !!host, my: [], opp: [], turn: 'A', myTurn: false, oppN: 13,
+    last: null, msg: '', sel: {}, over: false, win: null, reveal: null }
 }
 
 // --- sim host (murni, bisa dites) ---
-function pkStartHand(g) {
+function btDeal(g) {
   const P = g.poker
   if (!P || !P.host) return
-  if (P.chips < 10 || P.oppChips < 10) {
-    P.over = true
-    P.win = P.chips >= 10 ? 'A' : 'B'
-    P.msg = 'GAME OVER — ' + P.win + ' menang semua chip'
-    pkSyncHost(g)
-    return
-  }
   const deck = []
   for (let i = 0; i < 52; i++) deck.push(i)
   for (let i = deck.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = deck[i]; deck[i] = deck[j]; deck[j] = t }
-  P.deck = deck
-  P.hand++
-  P.chips -= 10; P.oppChips -= 10; P.pot = 20
-  P.my = P.deck.splice(0, 5)
-  P.opp = P.deck.splice(0, 5)
-  P.ph = 'bet'; P.betOpen = false; P.sel = {}; P.swapped = false; P.swB = false; P.checked = false
-  P.toAct = P.hand % 2 ? 'A' : 'B'
-  P.oppShow = null; P.res = null; P.over = false; P.win = null
-  P.msg = 'HAND ' + P.hand + ' — ante 10 masing-masing, pot 20'
-  pkSyncHost(g)
+  P.my = btSort(deck.slice(0, 13))
+  P.opp = btSort(deck.slice(13, 26))
+  P.over = false; P.win = null; P.reveal = null; P.sel = {}; P.last = null
+  const less = (x, y) => btBtr(x) < btBtr(y) || (btBtr(x) === btBtr(y) && btSp(x) < btSp(y))
+  P.turn = less(P.my[0], P.opp[0]) ? 'A' : 'B'
+  P.msg = P.turn + ' pegang kartu terkecil — jalan duluan. Buang 1/2/3/5 kartu!'
+  btSyncHost(g)
 }
 
-function pkActHost(g, who, a) {
+function btPlayHost(g, who, cards) {
   const P = g.poker
-  if (!P || !P.host || P.ph !== 'bet' || P.toAct !== who || P.over) return false
-  if (a === 'check') {
-    if (P.betOpen) return false
-    if (P.checked) {
-      P.checked = false
-      P.ph = 'swap'
-      P.toAct = 'A'
-      P.msg = 'keduanya CHECK — tukar kartu: A dulu, lalu B'
-    } else {
-      P.checked = true
-      P.toAct = who === 'A' ? 'B' : 'A'
-      P.msg = who + ' CHECK — giliran ' + P.toAct
-    }
-  } else if (a === 'bet') {
-    if (P.betOpen || (who === 'A' ? P.chips : P.oppChips) < 10) return false
-    if (who === 'A') P.chips -= 10; else P.oppChips -= 10
-    P.pot += 10; P.betOpen = true; P.checked = false
-    P.toAct = who === 'A' ? 'B' : 'A'
-    P.msg = who + ' BET 10 — pot ' + P.pot + ', ' + P.toAct + ' harus CALL atau FOLD'
-  } else if (a === 'call') {
-    if (!P.betOpen || (who === 'A' ? P.chips : P.oppChips) < 10) return false
-    if (who === 'A') P.chips -= 10; else P.oppChips -= 10
-    P.pot += 10
-    P.betOpen = false; P.checked = false
-    P.ph = 'swap'; P.toAct = 'A'
-    P.msg = who + ' CALL 10 — pot ' + P.pot + '. Tukar kartu: A dulu'
-  } else if (a === 'fold') {
-    const other = who === 'A' ? 'B' : 'A'
-    if (other === 'A') P.chips += P.pot; else P.oppChips += P.pot
-    P.pot = 0
-    P.betOpen = false
-    P.ph = 'done'
-    P.res = { win: other, fold: true }
-    P.msg = who + ' FOLD — ' + other + ' mengambil pot'
-    P.over = P.chips < 10 || P.oppChips < 10
-    if (P.over) P.win = P.chips >= 10 ? 'A' : 'B'
-  } else return false
-  pkSyncHost(g)
-  return true
-}
-
-function pkSwapHost(g, who, idx) {
-  const P = g.poker
-  if (!P || !P.host || P.ph !== 'swap' || P.over) return false
-  if (who === 'A') {
-    if (P.swapped) return false
-    const keep = P.my.filter((c, i) => idx.indexOf(i) < 0)
-    const n = 5 - keep.length
-    P.my = keep.concat(P.deck.splice(0, n))
-    P.swapped = true
-    P.toAct = 'B'
-    P.msg = 'A tukar ' + n + ' kartu — giliran B'
-  } else {
-    if (!P.swapped || P.swB) return false
-    const keep = P.opp.filter((c, i) => idx.indexOf(i) < 0)
-    const n = 5 - keep.length
-    P.opp = keep.concat(P.deck.splice(0, n))
-    P.swB = true
-    P.msg = 'B tukar ' + n + ' kartu — SHOWDOWN'
+  if (!P || !P.host || P.over) return false
+  if (P.turn !== who) return false
+  const hand = who === 'A' ? P.my : P.opp
+  for (const c of cards) { if (hand.indexOf(c) < 0) return false }
+  const k = btKey(cards)
+  if (!k) { P.msg = who + ': kombinasi tidak valid — 1, 2, 3, atau 5 kartu yang bener'; btSyncHost(g); return false }
+  if (!btBeats(P.last ? P.last.k : null, k)) { P.msg = who + ': harus lebih tinggi dari ' + BT_NAMES[P.last.k[0]] + ' lawan'; btSyncHost(g); return false }
+  const newHand = hand.filter(c => cards.indexOf(c) < 0)
+  if (who === 'A') P.my = newHand; else P.opp = newHand
+  P.last = { c: btSort(cards), k, who }
+  P.turn = who === 'A' ? 'B' : 'A'
+  P.msg = who + ' main ' + BT_NAMES[k[0]]
+  if (newHand.length === 0) {
+    P.over = true
+    P.win = who
+    P.reveal = who === 'A' ? P.opp : P.my
+    P.msg = who + ' HABIS KARTU — MENANG! Lawan sisa ' + P.reveal.length + ' kartu'
   }
-  if (P.swapped && P.swB) pkShowdown(g)
-  else pkSyncHost(g)
+  btSyncHost(g)
   return true
 }
 
-function pkShowdown(g) {
+function btPassHost(g, who) {
   const P = g.poker
-  const ra = pkRank(P.my), rb = pkRank(P.opp)
-  const c = pkCmp(ra, rb)
-  if (c > 0) P.chips += P.pot
-  else if (c < 0) P.oppChips += P.pot
-  else { P.chips += P.pot / 2; P.oppChips += P.pot / 2 }
-  P.res = { win: c > 0 ? 'A' : c < 0 ? 'B' : 'T', ca: ra[0], cb: rb[0] }
-  P.pot = 0
-  P.ph = 'done'
-  P.oppShow = P.opp
-  P.msg = 'SHOWDOWN — A: ' + PK_CATS[ra[0]] + ' vs B: ' + PK_CATS[rb[0]] + ' — ' + (c > 0 ? 'A MENANG' : c < 0 ? 'B MENANG' : 'POT DIBAGI')
-  P.over = P.chips < 10 || P.oppChips < 10
-  if (P.over) P.win = P.chips >= 10 ? 'A' : 'B'
-  pkSyncHost(g)
+  if (!P || !P.host || P.over) return false
+  if (P.turn !== who) return false
+  P.msg = who + ' LEWAT'
+  P.turn = who === 'A' ? 'B' : 'A'
+  if (P.last && P.last.who === P.turn) { P.last = null; P.msg = who + ' LEWAT — ' + P.turn + ' bebas main apa saja' }
+  btSyncHost(g)
+  return true
 }
 
-function pkSyncHost(g) {
+function btSyncHost(g) {
   const P = g.poker
-  P.myTurn = P.toAct === 'A'
-  P.oppN = P.my.length
+  P.myTurn = P.turn === 'A'
+  P.oppN = P.opp.length
   try {
-    sendGame({ t: 'pk-you', my: P.opp, c: P.oppChips, o: P.chips, pot: P.pot,
-      ph: P.ph, act: P.toAct === 'B', bo: P.betOpen, msg: P.msg, hand: P.hand,
-      n: P.my.length, show: (!P.res || !P.res.fold) ? P.oppShow : null, res: P.res,
-      over: P.over, win: P.win })
+    sendGame({ t: 'pk-you', my: P.opp, n: P.my.length, turn: P.turn === 'B',
+      last: P.last ? { c: P.last.c, me: P.last.who === 'B', k: P.last.k } : null,
+      msg: P.msg, over: P.over, win: P.win, reveal: P.over ? P.my : null })
   } catch (e) {}
-  pkRender(g)
+  btRender(g)
 }
 
-function pkClose(send) {
+function btClose(send) {
   if (send) { try { sendGame({ t: 'pk-close' }) } catch (e) {} }
   gameState = { type: null, hostId: null, secret: 0, ttt: null }
   hideGamePanel()
 }
 
 // --- render DOM terminal ---
-function pkCardEl(g, c, i, clickable) {
-  const P = g.poker
+function btCardEl(g, c, i, selectable) {
   const d = document.createElement('div')
-  d.className = 'pk-card' + (pkRed(c) ? ' red' : '') + (P.sel[i] && clickable ? ' sel' : '')
+  const P = g.poker
+  d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (selectable && P.sel[i] ? ' sel' : '')
   d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]
-  if (clickable) {
+  if (selectable) {
     d.addEventListener('click', () => {
       const Q = g.poker
-      if (!Q || Q.ph !== 'swap' || !Q.myTurn) return
+      if (!Q || Q.over || !Q.myTurn) return
       if (Q.sel[i]) delete Q.sel[i]; else Q.sel[i] = true
-      pkRender(g)
+      btRender(g)
     })
   }
   return d
 }
 
-function pkRender(g) {
+function btRender(g) {
   const P = g.poker
   const body = gp('game-body')
   if (!P || !body) return
   body.innerHTML = ''
   const mk = (cls, txt) => { const d = document.createElement('div'); d.className = cls; if (txt != null) d.textContent = txt; return d }
-  const row = document.createElement('div'); row.className = 'pk-row'
-  const bar = document.createElement('div'); bar.className = 'pk-bar'
-  const mkBtn = (label, fn, extra) => {
-    const b = document.createElement('button')
-    b.type = 'button'; b.className = 'btn ghost sm'
-    b.textContent = label
-    if (extra) b.style.minWidth = extra
-    b.addEventListener('click', fn)
-    bar.appendChild(b)
-  }
-  body.appendChild(mk('pk-info', 'HAND ' + P.hand + ' · POT ' + P.pot + ' — chip kamu ' + P.chips + ' · lawan ' + P.oppChips + (P.over ? '  [GAME OVER]' : '')))
+  body.appendChild(mk('pk-info', 'kartu kamu ' + P.my.length + ' · lawan ' + P.oppN + (P.over ? '  [SELESAI]' : '')))
   body.appendChild(mk('pk-msg', P.msg || 'menunggu...'))
+  // kartu terakhir dimainkan
+  if (P.last) {
+    const lr = mk('pk-row')
+    lr.appendChild(mk('pk-lab', P.last.me ? 'KAMU' : 'LAWAN'))
+    for (const c of P.last.c) { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : ''); d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; lr.appendChild(d) }
+    body.appendChild(lr)
+  }
   // baris lawan
   const oRow = mk('pk-row')
   oRow.appendChild(mk('pk-lab', 'LAWAN'))
-  if (P.oppShow) for (const c of P.oppShow) { const d = document.createElement('div'); d.className = 'pk-card' + (pkRed(c) ? ' red' : ''); d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; oRow.appendChild(d) }
-  else for (let i = 0; i < P.oppN; i++) { const d = document.createElement('div'); d.className = 'pk-card pk-back'; d.textContent = '##'; oRow.appendChild(d) }
+  if (P.reveal) for (const c of P.reveal) { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : ''); d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; oRow.appendChild(d) }
+  else for (let i = 0; i < P.oppN; i++) { const d = document.createElement('div'); d.className = 'pk-card pk-back'; d.textContent = '#'; oRow.appendChild(d) }
   body.appendChild(oRow)
   // baris sendiri
   const mRow = mk('pk-row')
   mRow.appendChild(mk('pk-lab', 'KAMU'))
-  const canSwap = P.ph === 'swap' && P.myTurn && !(P.host ? P.swapped : P.ph === 'swap' && !P.myTurn)
-  for (let i = 0; i < P.my.length; i++) mRow.appendChild(pkCardEl(g, P.my[i], i, P.ph === 'swap' && P.myTurn))
+  const sorted = btSort(P.my)
+  for (let i = 0; i < sorted.length; i++) mRow.appendChild(btCardEl(g, sorted[i], P.my.indexOf(sorted[i]), P.myTurn && !P.over))
   body.appendChild(mRow)
-  body.appendChild(bar)
-  if (P.ph === 'bet' && P.myTurn) {
-    if (P.betOpen) {
-      if (P.chips >= 10) mkBtn('CALL 10', () => pkDo(g, 'call'), '72px')
-      mkBtn('FOLD', () => pkDo(g, 'fold'))
-    } else {
-      mkBtn('CHECK', () => pkDo(g, 'check'))
-      if (P.chips >= 10) mkBtn('BET 10', () => pkDo(g, 'bet'))
-      mkBtn('FOLD', () => pkDo(g, 'fold'))
-    }
-  } else if (P.ph === 'swap' && P.myTurn) {
-    const n = Object.keys(P.sel).length
-    mkBtn('TUKAR ' + n, () => pkDoSwap(g), '84px')
-    if (n > 0) mkBtn('LEWAT', () => { P.sel = {}; pkRender(g) })
-  } else if (P.ph === 'done' && !P.over) {
-    if (P.host) mkBtn('HAND BARU', () => pkStartHand(g), '96px')
-    else mkBtn('HAND BARU', () => { try { sendGame({ t: 'pk-next' }) } catch (e) {} }, '96px')
-  } else if (P.over) {
-    mkBtn('TUTUP', () => pkClose(true))
+  // tombol
+  const bar = document.createElement('div'); bar.className = 'pk-bar'
+  const mkBtn = (label, fn, extra) => {
+    const b = document.createElement('button')
+    b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = label
+    if (extra) b.style.minWidth = extra
+    b.addEventListener('click', fn)
+    bar.appendChild(b)
   }
-  mkBtn('TUTUP', () => pkClose(true))
+  if (P.myTurn && !P.over) {
+    mkBtn('MAINKAN', () => btDoPlay(g), '96px')
+    mkBtn('LEWAT', () => btDoPass(g), '72px')
+  } else if (P.over) {
+    mkBtn('MAIN LAGI', () => { if (P.host) btDeal(g); else { try { sendGame({ t: 'pk-next' }) } catch (e) {} } }, '96px')
+  }
+  mkBtn('TUTUP', () => btClose(true))
+  body.appendChild(bar)
 }
 
-function pkDo(g, a) {
+function btDoPlay(g) {
   const P = g.poker
-  if (!P) return
-  if (P.host) pkActHost(g, 'A', a)
-  else { try { sendGame({ t: 'pk-act', a }) } catch (e) {} }
-}
-
-function pkDoSwap(g) {
-  const P = g.poker
-  if (!P || P.ph !== 'swap' || !P.myTurn) return
-  const idx = Object.keys(P.sel).map(Number)
+  if (!P || P.over || !P.myTurn) return
+  const cards = Object.keys(P.sel).map(Number)
+  if (!cards.length) return
   P.sel = {}
-  if (P.host) pkSwapHost(g, 'A', idx)
-  else { try { sendGame({ t: 'pk-swap', i: idx }) } catch (e) {} }
+  if (P.host) btPlayHost(g, 'A', cards)
+  else { try { sendGame({ t: 'pk-play', c: cards }) } catch (e) {} }
 }
 
-function startPokerGame() {
+function btDoPass(g) {
+  const P = g.poker
+  if (!P || P.over || !P.myTurn) return
+  P.sel = {}
+  if (P.host) btPassHost(g, 'A')
+  else { try { sendGame({ t: 'pk-pass' }) } catch (e) {} }
+}
+
+function startBigTwoGame() {
   if (gameCtx.isRoom) return
   if (!gameReady()) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
   if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
@@ -3460,50 +3405,49 @@ function startPokerGame() {
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
-  if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
   clearQuizTimers()
-  gameState = { type: 'poker', hostId: null, secret: 0, ttt: null, quiz: null, poker: newPokerState(true) }
+  gameState = { type: 'poker', hostId: null, secret: 0, ttt: null, quiz: null, poker: newBtState(true) }
   try { sendGame({ t: 'pk-open' }) } catch (e) {}
-  showGamePanel('POKER')
-  pkStartHand(gameState)
-  roomGameLog('POKER dibuka — kamu A, lawan B. 5-card draw: ante 10, chip 100.')
+  showGamePanel('BIG TWO')
+  btDeal(gameState)
+  roomGameLog('BIG TWO dibuka — kamu A, lawan B. Buang 13 kartu duluan!')
 }
 
-// ---------- SIAPA HAYO: tebak selebritas dari clue (chat 1-on-1, /siapa) ----------
+// ---------- SIAPA HAYO: tebak selebritis dari foto + clue (chat 1-on-1, /siapa) ----------
+// foto: Wikimedia Commons (lisensi bebas) — bukan foto berhak cipta
 const SIAPA_DECK = [
-  { a: ['jokowi', 'joko widodo'], c: ['presiden RI ke-7 (2014-2024)', 'mantan wali kota Solo', 'senang blusukan, video makan gemasnya viral'] },
-  { a: ['soekarno', 'sukarno', 'bung karno'], c: ['membacakan teks proklamasi 1945', 'presiden pertama Indonesia', 'senyum gigi ompong ikonik'] },
-  { a: ['agnes mo', 'agnes monica'], c: ['penyanyi cilik jadi artis internasional', 'kolaborasi global dengan musisi luar', 'nama panggungnya dua kata, huruf kedua Mo'] },
-  { a: ['raditya dika', 'dika'], c: ['komika sekaligus penulis buku', 'buku Kambing Jantan diangkat jadi film', 'pionir YouTube komedi Indonesia'] },
-  { a: ['cristiano ronaldo', 'cr7'], c: ['pesepakbola Portugal', 'julukan CR7', 'pernah di MU, Real Madrid, Juventus'] },
-  { a: ['messi', 'lionel messi'], c: ['pesepakbola Argentina', 'mengangkat trofi Piala Dunia 2022', 'hampir seumur hidup di Barcelona'] },
-  { a: ['rihanna'], c: ['penyanyi asal Barbados', 'hits-nya antara lain Umbrella', 'punya merek kecantikan Fenty'] },
-  { a: ['taylor swift'], c: ['penyanyi-penulis lagu Amerika', 'tiap album punya era sendiri, tur Eras fenomenal', 'angka keberuntungannya 13'] },
-  { a: ['iwan fals'], c: ['penyanyi lagu kritik sosial', 'lagu legendaris Sarjana Muda', 'konser-koncernya kerap di depan gedung DPR'] },
-  { a: ['sule'], c: ['komika dari Jawa Barat', 'pernah duo komedi bareng Andre', 'host banyak acara komedi di TV'] },
-  { a: ['deddy corbuzier'], c: ['podcaster dengan jutaan penonton', 'mantan pesilat dan pesulap', 'kini menjabat menteri sosial'] },
-  { a: ['joko anwar'], c: ['sutradara dan penulis skenario', 'meremake Pengabdi Setan pada 2017', 'mengangkat horor Indonesia ke panggung dunia'] },
-  { a: ['elon musk', 'musk'], c: ['bos Tesla dan SpaceX', 'membeli lalu merename Twitter jadi X', 'mengincar koloni manusia di Mars'] },
-  { a: ['arnold schwarzenegger', 'schwarzenegger', 'arnold'], c: ['aktor Terminator', 'mantan gubernur California', 'mantan juara binaraga'] },
-  { a: ['bruce lee'], c: ['seniman bela diri legendaris', 'pencipta aliran Jeet Kune Do', 'bintang film Enter the Dragon'] },
-  { a: ['nike ardilla'], c: ['bintang rock Indonesia era 90-an', 'lagunya Sandiwara Cinta', 'wafat muda karena kecelakaan'] },
-  { a: ['raisa'], c: ['penyanyi yang hits dengan Serba Salah', 'jadi juri ajang pencarian bakat', 'menikah dengan musisi Anindyo Baski'] },
-  { a: ['najwa shihab'], c: ['jurnalis dan presenter', 'pembawa talkshow Mata Najwa', 'putri politisi Alwi Shihab'] },
-  { a: ['michael jordan'], c: ['legenda basket NBA', '6 gelar bersama Chicago Bulls, nomor 23', 'memiliki merek sepatu legendaris'] },
-  { a: ['albert einstein', 'einstein'], c: ['ilmuwan pencetus teori relativitas', 'rumusnya E = mc kuadrat', 'rambut putih kusut ikonik'] },
-  { a: ['adele'], c: ['penyanyi hits Hello', 'judul-judul albumnya angka usia', 'suara dalam yang penuh emosi'] },
-  { a: ['justin bieber'], c: ['penyanyi pop asal Kanada', 'fenomena video YouTube saat remaja', 'lagu muda-mudanya Baby'] },
-  { a: ['indro', 'indro warkop'], c: ['komedian legendaris Indonesia', 'anggota grup Warkop', 'trio legendaris Dono, Kasino, dan dia'] },
-  { a: ['elvis presley', 'elvis'], c: ['raja rock and roll', 'kediamannya Graceland jadi tempat ziarah penggemar', 'hits-nya Hound Dog dan Jailhouse Rock'] }
+  { a: ['jokowi', 'joko widodo'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Joko_Widodo_2019_official_portrait.jpg/330px-Joko_Widodo_2019_official_portrait.jpg', c: ['presiden RI ke-7 (2014-2024)', 'mantan wali kota Solo', 'senang blusukan, video makan gemasnya viral'] },
+  { a: ['soekarno', 'sukarno', 'bung karno'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Presiden_Sukarno.jpg/330px-Presiden_Sukarno.jpg', c: ['membacakan teks proklamasi 1945', 'presiden pertama Indonesia', 'senyum gigi ompong ikonik'] },
+  { a: ['agnes mo', 'agnes monica'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Agnez_Mo_2019_by_Glenn_Francis.jpg/330px-Agnez_Mo_2019_by_Glenn_Francis.jpg', c: ['penyanyi cilik jadi artis internasional', 'kolaborasi global dengan musisi luar', 'nama panggungnya dua kata, kata kedua Mo'] },
+  { a: ['raditya dika', 'dika'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Raditya_Dika_on_Interview_GoGirl_TV.jpg/330px-Raditya_Dika_on_Interview_GoGirl_TV.jpg', c: ['komika sekaligus penulis buku', 'buku Kambing Jantan diangkat jadi film', 'pionir YouTube komedi Indonesia'] },
+  { a: ['cristiano ronaldo', 'cr7'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg/330px-Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg', c: ['pesepakbola Portugal', 'julukan CR7', 'pernah di MU, Real Madrid, Juventus'] },
+  { a: ['messi', 'lionel messi'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg/330px-Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg', c: ['pesepakbola Argentina', 'mengangkat trofi Piala Dunia 2022', 'hampir seumur hidup di Barcelona'] },
+  { a: ['rihanna'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Rihanna_Fenty_2018.png/330px-Rihanna_Fenty_2018.png', c: ['penyanyi asal Barbados', 'hits-nya antara lain Umbrella', 'punya merek kecantikan Fenty'] },
+  { a: ['taylor swift'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Taylor_Swift_at_the_2023_MTV_Video_Music_Awards_%283%29.png/330px-Taylor_Swift_at_the_2023_MTV_Video_Music_Awards_%283%29.png', c: ['penyanyi-penulis lagu Amerika', 'tiap album punya era sendiri, tur Eras fenomenal', 'angka keberuntungannya 13'] },
+  { a: ['iwan fals'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Iwan_Fals%2C_2015_%28cropped%29.jpg/330px-Iwan_Fals%2C_2015_%28cropped%29.jpg', c: ['penyanyi lagu kritik sosial', 'lagu legendaris Sarjana Muda', 'konser-konsernya kerap di depan gedung DPR'] },
+  { a: ['sule'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Sule_Sutisna%2C_Ini_Talk_Show%2C_07.21.jpg/330px-Sule_Sutisna%2C_Ini_Talk_Show%2C_07.21.jpg', c: ['komika dari Jawa Barat', 'pernah duo komedi bareng Andre', 'host banyak acara komedi di TV'] },
+  { a: ['deddy corbuzier'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Deddy_Corbuzier%2C_Netmediatama%2C_03.38.jpg/330px-Deddy_Corbuzier%2C_Netmediatama%2C_03.38.jpg', c: ['podcaster dengan jutaan penonton', 'mantan pesilat dan pesulap', 'kini menjabat menteri sosial'] },
+  { a: ['joko anwar'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Joko_Anwar_Best_Director_Festival_Film_Indonesia_2015.jpg/330px-Joko_Anwar_Best_Director_Festival_Film_Indonesia_2015.jpg', c: ['sutradara dan penulis skenario', 'meremake Pengabdi Setan pada 2017', 'mengangkat horor Indonesia ke panggung dunia'] },
+  { a: ['elon musk', 'musk'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Elon_Musk_-_54820081119_%283x4_cropped%2C_Rule_of_thirds%29.jpg/330px-Elon_Musk_-_54820081119_%283x4_cropped%2C_Rule_of_thirds%29.jpg', c: ['bos Tesla dan SpaceX', 'membeli lalu merename Twitter jadi X', 'mengincar koloni manusia di Mars'] },
+  { a: ['arnold schwarzenegger', 'schwarzenegger', 'arnold'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Arnold_Schwarzenegger_-_Austrian_World_Summit_2026_BHO-2906.jpg/330px-Arnold_Schwarzenegger_-_Austrian_World_Summit_2026_BHO-2906.jpg', c: ['aktor Terminator', 'mantan gubernur California', 'mantan juara binaraga'] },
+  { a: ['bruce lee'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Bruce_Lee_as_Chen_Zhen_%284x5_cropped%29.jpg/330px-Bruce_Lee_as_Chen_Zhen_%284x5_cropped%29.jpg', c: ['seniman bela diri legendaris', 'pencipta aliran Jeet Kune Do', 'bintang film Enter the Dragon'] },
+  { a: ['rhoma irama', 'rhoma'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Rhoma_Irama-cropped.jpg/330px-Rhoma_Irama-cropped.jpg', c: ['raja dangdut', 'grup Soneta, lagu Begadang', 'selalu tampil necis dengan gitar'] },
+  { a: ['raisa'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Raisa_%28cropped%29.png/330px-Raisa_%28cropped%29.png', c: ['penyanyi yang hits dengan Serba Salah', 'jadi juri ajang pencarian bakat', 'menikah dengan musisi Anindyo Baski'] },
+  { a: ['najwa shihab'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Najwa_Shihab_2022_%28cropped%29.jpg/330px-Najwa_Shihab_2022_%28cropped%29.jpg', c: ['jurnalis dan presenter', 'pembawa talkshow Mata Najwa', 'putri politisi Alwi Shihab'] },
+  { a: ['michael jordan'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Michael_jordan_admad_rashad_%2851276390562%29_%28cropped%29.jpg/330px-Michael_jordan_admad_rashad_%2851276390562%29_%28cropped%29.jpg', c: ['legenda basket NBA', '6 gelar bersama Chicago Bulls, nomor 23', 'memiliki merek sepatu legendaris'] },
+  { a: ['albert einstein', 'einstein'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Albert_Einstein_Head_cleaned.jpg/330px-Albert_Einstein_Head_cleaned.jpg', c: ['ilmuwan pencetus teori relativitas', 'rumusnya E = mc kuadrat', 'rambut putih kusut ikonik'] },
+  { a: ['adele'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Adele_2016.jpg/330px-Adele_2016.jpg', c: ['penyanyi hits Hello', 'judul-judul albumnya angka usia', 'suara dalam yang penuh emosi'] },
+  { a: ['billie eilish', 'billie'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/BillieEilishO2140725-39_-_54665577407_%28cropped%29.jpg/330px-BillieEilishO2140725-39_-_54665577407_%28cropped%29.jpg', c: ['penyanyi pop muda AS', 'album When We All Fall Asleep, Where Do We Go?', 'hits-nya Bad Guy'] },
+  { a: ['indro', 'indro warkop'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Indro_Warkop.jpg/330px-Indro_Warkop.jpg', c: ['komedian legendaris Indonesia', 'anggota grup Warkop', 'trio legendaris Dono, Kasino, dan dia'] },
+  { a: ['elvis presley', 'elvis'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Elvis_Presley_promoting_Jailhouse_Rock.jpg/330px-Elvis_Presley_promoting_Jailhouse_Rock.jpg', c: ['raja rock and roll', 'kediamannya Graceland jadi tempat ziarah penggemar', 'hits-nya Hound Dog dan Jailhouse Rock'] }
 ]
 
 function shNorm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, '') }
 
 function newSiapaState(host) {
   return { host: !!host, deck: [], round: 0, total: 5, q: null, clue: 0,
-    pts: 0, oppPts: 0, cl: [], msg: '', timer: null, over: false, win: null }
+    pts: 0, oppPts: 0, cl: [], msg: '', img: null, timer: null, over: false, win: null }
 }
 
 function shClearTimer(S) { if (S && S.timer) { clearTimeout(S.timer); S.timer = null } }
@@ -3534,7 +3478,8 @@ function shNextRound(g) {
   S.q = S.deck[S.round - 1]
   S.clue = 1
   S.cl = [S.q.c[0]]
-  S.msg = 'RONDE ' + S.round + '/' + S.total + ' — clue #1 muncul, tiap 12 detik clue baru'
+  S.img = S.q.i
+  S.msg = 'RONDE ' + S.round + '/' + S.total + ' — siapa orang di foto? clue nongol tiap 12 detik'
   shSyncHost(g)
   shTimer(g)
 }
@@ -3586,7 +3531,7 @@ function shCheck(g, who, text) {
 
 function shSyncHost(g) {
   const S = g.siapa
-  try { sendGame({ t: 'sh-state', r: S.round, tot: S.total, cl: S.cl, pa: S.pts, pb: S.oppPts, msg: S.msg, over: S.over, win: S.win }) } catch (e) {}
+  try { sendGame({ t: 'sh-state', r: S.round, tot: S.total, cl: S.cl, img: S.img, pa: S.pts, pb: S.oppPts, msg: S.msg, over: S.over, win: S.win }) } catch (e) {}
   shRender(g)
 }
 
@@ -3608,6 +3553,15 @@ function shRender(g) {
   const bar = document.createElement('div'); bar.className = 'pk-bar'
   body.appendChild(mk('pk-info', 'RONDE ' + Math.min(S.round, S.total) + '/' + S.total + ' — poin kamu ' + S.pts + ' · lawan ' + S.oppPts))
   body.appendChild(mk('pk-msg', S.msg || 'menunggu...'))
+  if (S.img) {
+    const im = document.createElement('img')
+    im.className = 'sh-img'
+    im.src = S.img
+    im.alt = 'foto selebritis'
+    im.addEventListener('error', () => { im.style.display = 'none' })
+    body.appendChild(im)
+    body.appendChild(mk('sh-credit', 'foto: Wikimedia Commons (lisensi bebas)'))
+  }
   const box = mk('pk-clues')
   for (let i = 0; i < S.cl.length; i++) box.appendChild(mk('pk-clue', '#' + (i + 1) + '  ' + S.cl[i]))
   body.appendChild(box)
@@ -3616,9 +3570,7 @@ function shRender(g) {
     const inp = document.createElement('input')
     inp.type = 'text'; inp.className = 'sh-inp'; inp.placeholder = 'ketik nama — tekan enter'
     inp.maxLength = 40
-    inp.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return
-      e.preventDefault()
+    const submit = () => {
       const v = inp.value.trim()
       if (!v) return
       inp.value = ''
@@ -3626,18 +3578,11 @@ function shRender(g) {
       if (!T) return
       if (T.host) shCheck(g, 'A', v)
       else { try { sendGame({ t: 'sh-guess', g: v }) } catch (err) {} }
-    })
+    }
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit() } })
     const b = document.createElement('button')
     b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = 'TEBAK'
-    b.addEventListener('click', () => {
-      const v = inp.value.trim()
-      if (!v) return
-      inp.value = ''
-      const T = g.siapa
-      if (!T) return
-      if (T.host) shCheck(g, 'A', v)
-      else { try { sendGame({ t: 'sh-guess', g: v }) } catch (err) {} }
-    })
+    b.addEventListener('click', submit)
     wrap.appendChild(inp); wrap.appendChild(b)
     body.appendChild(wrap)
   }
@@ -3657,15 +3602,13 @@ function startSiapaGame() {
   if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
-  if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
-  if (gameState.type === 'poker' && gameState.poker) { toast('Poker masih jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'siapa', hostId: null, secret: 0, ttt: null, quiz: null, siapa: newSiapaState(true) }
   try { sendGame({ t: 'sh-open' }) } catch (e) {}
   showGamePanel('SIAPA HAYO')
   shStart(gameState)
-  roomGameLog('SIAPA HAYO dibuka — kamu A. Tebak dari clue, makin cepat makin besar poin!')
+  roomGameLog('SIAPA HAYO dibuka — tebak orang di foto, makin cepat makin besar poin!')
 }
 
 function renderSuit() {
@@ -4972,39 +4915,37 @@ function onRoomGame(data, peerId) {
     if (g.type === 'war' && g.war) return
     if (g.type === 'siapa' && g.siapa) return
     clearQuizTimers()
-    gameState = { type: 'poker', hostId: null, secret: 0, ttt: null, quiz: null, poker: newPokerState(false) }
-    showGamePanel('POKER')
-    pkRender(gameState)
-    roomGameLog(pidTag(peerId) + ' mengajak main POKER — kamu B, lawan A.')
+    gameState = { type: 'poker', hostId: null, secret: 0, ttt: null, quiz: null, poker: newBtState(false) }
+    showGamePanel('BIG TWO')
+    btRender(gameState)
+    roomGameLog(pidTag(peerId) + ' mengajak main BIG TWO — kamu B, lawan A.')
   } else if (data.t === 'pk-you') {
     const P = g.poker
     if (g.type !== 'poker' || !P || P.host) return
     if (Array.isArray(data.my)) P.my = data.my
-    P.chips = data.c; P.oppChips = data.o; P.pot = data.pot
-    P.ph = data.ph; P.myTurn = !!data.act; P.betOpen = !!data.bo
+    P.oppN = data.n || 13
+    P.myTurn = !!data.turn
+    P.last = data.last || null
     P.msg = data.msg || ''
-    P.oppN = data.n || 5
-    P.oppShow = data.show || null
-    P.res = data.res || null
     P.over = !!data.over
     P.win = data.win || null
-    P.hand = data.hand || P.hand
-    if (data.ph !== 'swap') P.sel = {}
-    pkRender(g)
-  } else if (data.t === 'pk-act') {
+    P.reveal = data.reveal || null
+    P.sel = {}
+    btRender(g)
+  } else if (data.t === 'pk-play') {
     if (g.type !== 'poker' || !g.poker || !g.poker.host) return
-    pkActHost(g, 'B', data.a)
-  } else if (data.t === 'pk-swap') {
+    btPlayHost(g, 'B', Array.isArray(data.c) ? data.c.map(Number) : [])
+  } else if (data.t === 'pk-pass') {
     if (g.type !== 'poker' || !g.poker || !g.poker.host) return
-    pkSwapHost(g, 'B', Array.isArray(data.i) ? data.i.map(Number) : [])
+    btPassHost(g, 'B')
   } else if (data.t === 'pk-next') {
     if (g.type !== 'poker' || !g.poker || !g.poker.host) return
-    if (g.poker.ph === 'done' && !g.poker.over) pkStartHand(g)
+    if (g.poker.over) btDeal(g)
   } else if (data.t === 'pk-close') {
     if (g.type !== 'poker' || !g.poker) return
     gameState = { type: null, hostId: null, secret: 0, ttt: null }
     hideGamePanel()
-    sysMsg('lawan menutup POKER')
+    sysMsg('lawan menutup BIG TWO')
   } else if (data.t === 'sh-open') {
     if (gameCtx.isRoom) return
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
@@ -5024,6 +4965,7 @@ function onRoomGame(data, peerId) {
     if (g.type !== 'siapa' || !S || S.host) return
     S.round = data.r || 0; S.total = data.tot || 5
     S.cl = Array.isArray(data.cl) ? data.cl : S.cl
+    S.img = data.img || null
     S.oppPts = data.pa || 0; S.pts = data.pb || 0
     S.msg = data.msg || ''
     S.over = !!data.over
@@ -5508,7 +5450,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v58' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v59' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
