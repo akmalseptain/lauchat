@@ -53,6 +53,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -235,32 +236,50 @@ kbd{
 .war-cv{width:100%;aspect-ratio:16/9;background:#000;touch-action:manipulation;border:1px solid var(--border);display:block;image-rendering:pixelated}
 .pk-info{font-family:'VT323',monospace;font-size:17px;color:#a1a1aa;margin:6px 0}
 .pk-msg{font-family:'VT323',monospace;font-size:17px;color:#fde047;min-height:22px;margin:2px 0 8px}
-.pk-row{margin:8px 0}
-.pk-lab{font-family:'VT323',monospace;font-size:15px;color:#71717a;display:inline-block;margin-right:8px}
-.pk-card{display:inline-block;min-width:38px;padding:5px 5px;margin:0 3px;border:1px solid #52525b;background:#18181b;font-family:'VT323',monospace;font-size:18px;color:#fafafa;text-align:center;vertical-align:middle}
-.pk-card.red{color:#f87171}
-.pk-card.sel{border-color:#16a34a;background:#052e16;color:#4ade80}
-.pk-card.pk-back{background:#27272a;color:#52525b}
+.pk-row{display:flex;align-items:center;justify-content:center;margin:4px 0;flex-wrap:wrap}
+.pk-lab{font-family:'VT323',monospace;font-size:15px;color:#71717a;margin-right:8px;flex:0 0 auto}
+.pk-card{position:relative;flex:0 0 auto;width:46px;height:64px;margin:0 2px;border-radius:6px;background:linear-gradient(160deg,#fafafa,#e4e4e7);border:1px solid #a1a1aa;color:#18181b;font-family:'VT323',monospace;box-shadow:0 2px 5px rgba(0,0,0,.45)}
+.pk-card.red{color:#dc2626}
+.pk-card .pk-r{position:absolute;top:3px;left:5px;font-size:15px;line-height:15px;white-space:nowrap}
+.pk-card .pk-s{position:absolute;bottom:4px;right:6px;font-size:24px;line-height:24px}
+.pk-card.pk-back{background:#18181b;background-image:repeating-linear-gradient(45deg,#27272a 0 4px,#18181b 4px 8px);border-color:#3f3f46}
+.pk-card.can{cursor:pointer;transition:transform .14s,box-shadow .14s}
+.pk-card.can:hover{transform:translateY(-8px);z-index:3}
+.pk-card.sel{transform:translateY(-14px);box-shadow:0 0 0 2px #16a34a,0 8px 18px rgba(0,0,0,.5);z-index:2}
+.pk-hand{overflow-x:auto;overflow-y:hidden;justify-content:flex-start;flex-wrap:nowrap;padding:12px 4px 6px;scrollbar-width:none}
+.pk-hand::-webkit-scrollbar{display:none}
+.pk-hand .pk-card{margin-left:-16px}
+.pk-hand .pk-card:first-child{margin-left:0}
+.pk-opps .pk-card{width:38px;height:53px}
+.pk-opps .pk-card.pk-back{margin-left:-24px}
+.pk-opps .pk-card.pk-back:first-child{margin-left:0}
+.pk-table{display:flex;align-items:center;justify-content:center;min-height:86px;margin:6px 0}
+.pk-table .pk-card{width:52px;height:72px}
+.pk-table .pk-card .pk-s{font-size:28px;line-height:28px}
+.pk-table.pk-empty{color:#52525b;font-family:'VT323',monospace;font-size:16px}
+.pk-cname{margin-left:10px;font-family:'VT323',monospace;font-size:18px;color:#eab308;border:1px solid #eab308;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.pk-turn{display:inline-block;padding:2px 16px;border-radius:999px;font-family:'VT323',monospace;font-size:17px}
+.pk-turn.go{color:#16a34a;border:1px solid #16a34a;animation:pk-glow 1.3s infinite}
+.pk-turn.wait{color:#a1a1aa;border:1px solid #52525b}
 .pk-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .pk-clues{margin:8px 0}
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
 .pk-hint{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center;margin:2px 0}
 #game-body{position:relative}
-.pk-card.can{cursor:pointer;transition:transform .12s}
-.pk-card.can:hover{transform:translateY(-6px)}
-.pk-deal{animation:pk-deal .4s ease-out backwards}
-.pk-play{animation:pk-play .38s ease-out backwards}
+.pk-deal{animation:pk-deal .4s cubic-bezier(.2,1.4,.4,1) backwards}
+.pk-play{animation:pk-play .42s cubic-bezier(.2,1.6,.4,1) backwards}
 .pk-rev{animation:pk-rev .45s ease-out backwards}
 .pk-anim-shake{animation:pk-shake .35s}
-.pk-part{position:absolute;width:6px;height:6px;background:var(--pc);pointer-events:none;animation:pk-part .9s ease-out forwards;z-index:4}
-.pk-flash{position:absolute;left:0;right:0;top:38%;text-align:center;font-family:'VT323',monospace;font-size:30px;color:#fafafa;text-shadow:2px 2px 0 #000,0 0 14px #000;pointer-events:none;animation:pk-fl 1.2s forwards;z-index:5}
-@keyframes pk-deal{from{transform:translateY(26px) rotate(4deg);opacity:0}to{transform:none;opacity:1}}
-@keyframes pk-play{from{transform:translateY(46px) scale(1.18);opacity:.2}to{transform:none;opacity:1}}
+.pk-part{position:absolute;width:6px;height:6px;border-radius:2px;background:var(--pc);pointer-events:none;animation:pk-part .9s ease-out forwards;z-index:4}
+.pk-flash{position:absolute;left:0;right:0;top:38%;text-align:center;font-family:'VT323',monospace;font-size:32px;color:#fafafa;text-shadow:2px 2px 0 #000,0 0 14px #000;pointer-events:none;animation:pk-fl 1.2s forwards;z-index:5}
+@keyframes pk-deal{from{transform:translateY(-80px) scale(.55) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes pk-play{from{transform:translateY(52px) scale(1.25);opacity:.2}to{transform:none;opacity:1}}
 @keyframes pk-rev{from{transform:rotateY(90deg)}to{transform:none}}
 @keyframes pk-shake{0%,100%{transform:none}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
 @keyframes pk-fl{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.15);opacity:1}70%{opacity:1}100%{transform:scale(1.3);opacity:0}}
-@keyframes pk-part{from{transform:translate(0,0);opacity:1}to{transform:translate(var(--px),var(--py));opacity:0}}
+@keyframes pk-part{from{transform:translate(0,0) rotate(0);opacity:1}to{transform:translate(var(--px),var(--py)) rotate(240deg);opacity:0}}
+@keyframes pk-glow{0%,100%{box-shadow:0 0 0 rgba(22,163,74,0)}50%{box-shadow:0 0 12px rgba(22,163,74,.7)}}
 .sh-img{display:block;margin:8px auto;max-width:170px;max-height:190px;border:1px solid #52525b}
 .sh-credit{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center}
 .doodle-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
@@ -3342,11 +3361,19 @@ function btClose(send) {
 }
 
 // --- render DOM terminal ---
-function btCardEl(g, c, i, selectable) {
+function btCardFace(c, extra) {
   const d = document.createElement('div')
+  d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (extra || '')
+  const r = document.createElement('div')
+  r.className = 'pk-r'; r.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]
+  const s = document.createElement('div')
+  s.className = 'pk-s'; s.textContent = PK_SUITS[(c / 13) | 0]
+  d.appendChild(r); d.appendChild(s)
+  return d
+}
+function btCardEl(g, c, i, selectable) {
   const P = g.poker
-  d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (selectable ? ' can' : '') + (selectable && P.sel[i] ? ' sel' : '')
-  d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]
+  const d = btCardFace(c, (selectable ? ' can' : '') + (selectable && P.sel[i] ? ' sel' : ''))
   if (selectable) {
     d.addEventListener('click', () => {
       const Q = g.poker
@@ -3359,6 +3386,7 @@ function btCardEl(g, c, i, selectable) {
 }
 
 function btFlash(body, txt) {
+  try { body.querySelectorAll('.pk-flash').forEach(el => el.remove()) } catch (e) {}
   const d = document.createElement('div')
   d.className = 'pk-flash'; d.textContent = txt
   body.appendChild(d)
@@ -3399,34 +3427,42 @@ function btRender(g) {
     } catch (e) {}
   }
   const mk = (cls, txt) => { const d = document.createElement('div'); d.className = cls; if (txt != null) d.textContent = txt; return d }
-  body.appendChild(mk('pk-info', 'kartu kamu ' + P.my.length + ' · lawan ' + P.oppN + (P.over ? '  [SELESAI]' : '')))
-  body.appendChild(mk('pk-hint', '5 kartu: dua pasang < straight < flush < full house < empat sekawanan < straight flush (royal flush tertinggi)'))
-  body.appendChild(mk('pk-msg', P.msg || 'menunggu...'))
-  // kartu terakhir dimainkan
+  // zona lawan (punggung kartu overlap)
+  const oRow = mk('pk-row pk-opps')
+  oRow.appendChild(mk('pk-lab', 'LAWAN · ' + (P.reveal ? P.reveal.length : P.oppN) + ' kartu'))
+  if (P.reveal) P.reveal.forEach((c, i) => { const d = btCardFace(c, newWin ? ' pk-rev' : ''); if (newWin) d.style.animationDelay = (i * 60) + 'ms'; oRow.appendChild(d) })
+  else for (let i = 0; i < P.oppN; i++) { const d = document.createElement('div'); d.className = 'pk-card pk-back'; oRow.appendChild(d) }
+  body.appendChild(oRow)
+  // meja: kombinasi terakhir
   if (P.last) {
-    const lr = mk('pk-row')
-    lr.appendChild(mk('pk-lab', P.last.me ? 'KAMU' : 'LAWAN'))
-    P.last.c.forEach((c, i) => { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (newPlay ? ' pk-play' : ''); if (newPlay) d.style.animationDelay = (i * 70) + 'ms'; d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; lr.appendChild(d) })
-    body.appendChild(lr)
-    if (newPlay) {
-      const big = P.last.k && (P.last.k[0] >= 5 || P.last.k[0] === 7)
-      if (big) { btFlash(body, btName(P.last.k)); btParts(body, 26); shake() }
-    }
+    const tbl = mk('pk-table')
+    P.last.c.forEach((c, i) => { const d = btCardFace(c, newPlay ? ' pk-play' : ''); if (newPlay) d.style.animationDelay = (i * 70) + 'ms'; tbl.appendChild(d) })
+    if (P.last.k) tbl.appendChild(mk('pk-cname', btName(P.last.k)))
+    body.appendChild(tbl)
+  } else {
+    body.appendChild(mk('pk-table pk-empty', P.over ? '' : 'meja kosong — bebas main apa saja'))
+  }
+  if (newPlay && !newWin) {
+    const big = P.last.k && (P.last.k[0] >= 5 || P.last.k[0] === 7)
+    if (big) { btFlash(body, btName(P.last.k)); btParts(body, 26); shake() }
   }
   if (newPass) { btFlash(body, 'LEWAT'); shake() }
   if (newWin) {
     btFlash(body, (P.win === (P.host ? 'A' : 'B')) ? 'KAMU MENANG!' : 'LAWAN MENANG!')
     btParts(body, 40); shake()
   }
-  // baris lawan
-  const oRow = mk('pk-row')
-  oRow.appendChild(mk('pk-lab', 'LAWAN'))
-  if (P.reveal) P.reveal.forEach((c, i) => { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (newWin ? ' pk-rev' : ''); if (newWin) d.style.animationDelay = (i * 60) + 'ms'; d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; oRow.appendChild(d) })
-  else for (let i = 0; i < P.oppN; i++) { const d = document.createElement('div'); d.className = 'pk-card pk-back'; d.textContent = '#'; oRow.appendChild(d) }
-  body.appendChild(oRow)
-  // baris sendiri
-  const mRow = mk('pk-row')
-  mRow.appendChild(mk('pk-lab', 'KAMU'))
+  // status
+  const turnRow = mk('pk-row')
+  let turnTxt, turnCls
+  if (P.over) { turnTxt = (P.win === (P.host ? 'A' : 'B')) ? 'KAMU MENANG' : 'LAWAN MENANG'; turnCls = 'pk-turn ' + (P.win === (P.host ? 'A' : 'B') ? 'go' : 'wait') }
+  else { turnTxt = P.myTurn ? 'GILIRANMU' : 'menunggu lawan...'; turnCls = P.myTurn ? 'pk-turn go' : 'pk-turn wait' }
+  turnRow.appendChild(mk(turnCls, turnTxt))
+  body.appendChild(turnRow)
+  body.appendChild(mk('pk-msg', P.msg || ''))
+  body.appendChild(mk('pk-info', 'kartu kamu ' + P.my.length + ' · lawan ' + (P.reveal ? P.reveal.length : P.oppN) + (P.over ? '  [SELESAI]' : '')))
+  body.appendChild(mk('pk-hint', '5 kartu: dua pasang < straight < flush < full house < empat sekawanan < straight flush (royal flush tertinggi)'))
+  // tangan sendiri (kipas overlap, bisa scroll)
+  const mRow = mk('pk-row pk-hand')
   const sorted = btSort(P.my)
   for (let i = 0; i < sorted.length; i++) {
     const el = btCardEl(g, sorted[i], P.my.indexOf(sorted[i]), P.myTurn && !P.over)
@@ -3559,7 +3595,32 @@ const SIAPA_DECK = [
   { a: ['park seo joon'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Park_Seo-joon_in_March_2026.png/330px-Park_Seo-joon_in_March_2026.png', c: ['aktor Itaewon Class', 'main di film The Marvels', 'juga Fight for My Way'] },
   { a: ['boa'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/180417_%EB%B3%B4%EC%95%84_03_%28cropped%29_02.png/330px-180417_%EB%B3%B4%EC%95%84_03_%28cropped%29_02.png', c: ['solois legendaris dari SM', 'debut di usia 13 tahun', 'dijuluki ratu K-pop'] },
   { a: ['key', 'kim kibum'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Key_in_November_2025.png/330px-Key_in_November_2025.png', c: ['anggota SHINee', 'sering jadi MC acara varietas', 'dikenal gaya fashionnya'] },
-  { a: ['taeyang', 'dong youngbae'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Taeyang_-_MADE_THE_MOVIE_Premiere_%28cropped%29.jpg/330px-Taeyang_-_MADE_THE_MOVIE_Premiere_%28cropped%29.jpg', c: ['anggota BIGBANG', 'solo hits Eyes Nose Lips', 'satu grup dengan G-Dragon'] }
+  { a: ['taeyang', 'dong youngbae'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Taeyang_-_MADE_THE_MOVIE_Premiere_%28cropped%29.jpg/330px-Taeyang_-_MADE_THE_MOVIE_Premiere_%28cropped%29.jpg', c: ['anggota BIGBANG', 'solo hits Eyes Nose Lips', 'satu grup dengan G-Dragon'] },
+  { a: ['maudy ayunda', 'maudy'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Maudy_Ayunda_at_Sundance_Film_Festival_2026-9.jpg/330px-Maudy_Ayunda_at_Sundance_Film_Festival_2026-9.jpg', c: ['penyanyi sekaligus penulis buku', 'kuliah di Stanford dan Oxford', 'juga main film Perahu Kertas'] },
+  { a: ['dian sastrowardoyo', 'dian sastro'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Dian_Sastrowardoyo_at_the_2026_Busan_International_Film_Festival_02.jpg/330px-Dian_Sastrowardoyo_at_the_2026_Busan_International_Film_Festival_02.jpg', c: ['aktris Ada Apa dengan Cinta', 'bintang film Arisan!', 'aktris legendaris sejak awal 2000-an'] },
+  { a: ['nicholas saputra', 'nicholas'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Nicholas_Saputra%2C_Sorgemagz.com_-_1_Pertanyaan%2C_1_Orang%2C_Nicholas_Saputra.jpg/330px-Nicholas_Saputra%2C_Sorgemagz.com_-_1_Pertanyaan%2C_1_Orang%2C_Nicholas_Saputra.jpg', c: ['aktor Rangga di Ada Apa dengan Cinta', 'main film Gie', 'kini juga bikin film dokumenter'] },
+  { a: ['tulus'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Tulus_Performs_at_Jakarta_International_Jazz_Java_Festival_2020_%28cropped%29.jpg/330px-Tulus_Performs_at_Jakarta_International_Jazz_Java_Festival_2020_%28cropped%29.jpg', c: ['penyanyi bersuara bariton', 'hits Monokrom', 'sering bawa pulang penghargaan AMI'] },
+  { a: ['iko uwais'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Iko_Uwais_2016.jpg/330px-Iko_Uwais_2016.jpg', c: ['bintang film The Raid', 'koreografer silat film Hollywood', 'aktor laga yang go international'] },
+  { a: ['joe taslim'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Joe_Taslim_at_the_2025_Toronto_International_Film_Festival.jpg/330px-Joe_Taslim_at_the_2025_Toronto_International_Film_Festival.jpg', c: ['aktor The Raid', 'main film Fast and Furious', 'mantan atlet judo'] },
+  { a: ['sherina'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Sherina_Munaf_%282023%29.png/330px-Sherina_Munaf_%282023%29.png', c: ['penyanyi cilik legendaris', 'bintang Petualangan Sherina', 'kini tetap berkarya di musik'] },
+  { a: ['krisdayanti', 'kd'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Krisdayanti_DPR.jpg/330px-Krisdayanti_DPR.jpg', c: ['diva Indonesia', 'hits Menghitung Hari', 'pernah jadi anggota DPR'] },
+  { a: ['glenn fredly', 'glenn'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Glenn_Fredly.jpg/330px-Glenn_Fredly.jpg', c: ['penyanyi R&B Indonesia', 'hits Januari', 'karyanya abadi sampai sekarang'] },
+  { a: ['pevita pearce', 'pevita'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Pevita_Pearce_February_2018.jpg/330px-Pevita_Pearce_February_2018.jpg', c: ['aktris Tenggelamnya Kapal van der Wijck', 'main film Habibie dan Ainun', 'aktris kelahiran Jakarta'] },
+  { a: ['fedi nuril'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Fedi_Nuril_%282017%29.png/330px-Fedi_Nuril_%282017%29.png', c: ['aktor film Habibie dan Ainun', 'juga musisi gitar', 'awal kariernya sebagai model'] },
+  { a: ['tom hanks'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/TomHanksPrincEdw031223_%2811_of_41%29_%28cropped%29.jpg/330px-TomHanksPrincEdw031223_%2811_of_41%29_%28cropped%29.jpg', c: ['aktor Forrest Gump', 'main film Cast Away', 'menang Oscar dua kali berturut-turut'] },
+  { a: ['leonardo dicaprio', 'dicaprio'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/LeoPTABFI191125-28_%28cropped%29.jpg/330px-LeoPTABFI191125-28_%28cropped%29.jpg', c: ['aktor Titanic', 'menang Oscar lewat The Revenant', 'juga aktivis lingkungan'] },
+  { a: ['keanu reeves', 'keanu'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Keanu_Reeves_at_TIFF_2025_02_%28Cropped%29.jpg/330px-Keanu_Reeves_at_TIFF_2025_02_%28Cropped%29.jpg', c: ['aktor The Matrix', 'main John Wick', 'terkenal santun dan dermawan'] },
+  { a: ['dwayne johnson', 'the rock'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Dwayne_Johnson-1764_%284x5_cropped_with_moderate_headroom%29.jpg/330px-Dwayne_Johnson-1764_%284x5_cropped_with_moderate_headroom%29.jpg', c: ['pegulat legendaris WWE', 'bintang film Jumanji', 'julukannya nama batu'] },
+  { a: ['ryan gosling'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/GoslingBFI081223_%2822_of_30%29_%2853388157347%29_%28cropped%29.jpg/330px-GoslingBFI081223_%2822_of_30%29_%2853388157347%29_%28cropped%29.jpg', c: ['aktor La La Land', 'main Ken di film Barbie', 'juga punya band musik'] },
+  { a: ['chris evans'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Chris_Evans_at_the_2025_Toronto_International_Film_Festival_%28cropped%29.jpg/330px-Chris_Evans_at_the_2025_Toronto_International_Film_Festival_%28cropped%29.jpg', c: ['Captain America di Marvel', 'main Knives Out', 'awalnya main Human Torch'] },
+  { a: ['robert downey jr', 'rdj'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/RobertDowneyJr-byPhilipRomano7_%28cropped%29.jpg/330px-RobertDowneyJr-byPhilipRomano7_%28cropped%29.jpg', c: ['Iron Man di Marvel', 'juga Sherlock Holmes di film', 'karier bangkit dari masa sulit'] },
+  { a: ['johnny depp'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Johnny_Depp_2020.jpg/330px-Johnny_Depp_2020.jpg', c: ['Kapten Jack Sparrow', 'sering main film Tim Burton', 'juga main seri Fantastic Beasts'] },
+  { a: ['brad pitt'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Brad_Pitt-69858.jpg/330px-Brad_Pitt-69858.jpg', c: ['aktor Fight Club', 'menang Oscar lewat Once Upon a Time in Hollywood', 'juga produser film'] },
+  { a: ['tom cruise'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Tom_Cruise_at_53rd_Saturn_Awards_2026-01.jpg/330px-Tom_Cruise_at_53rd_Saturn_Awards_2026-01.jpg', c: ['aktor Mission Impossible', 'juga pilot di Top Gun', 'sering melakukan aksinya sendiri'] },
+  { a: ['will smith'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/TechCrunch_Disrupt_San_Francisco_2019_-_Day_1_%2848834070763%29_%28cropped%29.jpg/330px-TechCrunch_Disrupt_San_Francisco_2019_-_Day_1_%2848834070763%29_%28cropped%29.jpg', c: ['aktor Men in Black', 'menang Oscar lewat King Richard', 'kejadian tamparnya viral'] },
+  { a: ['hugh jackman'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Hugh_Jackman_by_Gage_Skidmore_3.jpg/330px-Hugh_Jackman_by_Gage_Skidmore_3.jpg', c: ['Wolverine di X-Men', 'main The Greatest Showman', 'aktor asal Australia'] },
+  { a: ['charlize theron'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/CharlizeTheron-byPhilipRomano2.jpg/330px-CharlizeTheron-byPhilipRomano2.jpg', c: ['aktris film Monster', 'menang Oscar dari peran itu', 'main Mad Max Fury Road'] },
+  { a: ['natalie portman'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/NataliePortman.jpg/330px-NataliePortman.jpg', c: ['aktris Black Swan', 'menang Oscar film itu', 'alumnus Harvard'] }
 ]
 
 function shNorm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, '') }
@@ -5570,7 +5631,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v61' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v62' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
