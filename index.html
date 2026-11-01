@@ -315,6 +315,8 @@ kbd{
 #music-now{font-family:var(--pix);font-size:17px;color:var(--fg);text-align:center;margin-top:10px;min-height:0}
 #music-now .mn-a{color:var(--muted);font-size:15px}
 #music-audio{width:100%;margin-top:8px;display:block}
+#music-yt{margin-top:8px}
+#music-yt iframe{width:100%;aspect-ratio:16/9;height:auto;display:block;border:0;border-radius:var(--r)}
 #music-list{margin-top:8px}
 .music-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);margin-top:6px;cursor:pointer;font-family:var(--pix);font-size:16px}
 .music-item:hover{border-color:var(--accent)}
@@ -743,6 +745,7 @@ footer b{color:var(--fg);font-weight:600}
     <div id="music-cta" class="hidden"><button id="btn-music-join" class="btn primary sm" type="button">klik untuk ikut dengar</button></div>
     <div id="music-now"></div>
     <audio id="music-audio" controls preload="none"></audio>
+    <div id="music-yt" class="hidden"></div>
     <div id="music-lyr" class="hidden"></div>
     <div id="music-row">
       <input id="music-url" placeholder="Cari lagu atau artis…" autocomplete="off" spellcheck="false" aria-label="Cari lagu">
@@ -4601,13 +4604,59 @@ function onWatchMsg(data, pid) {
 
 // ---------- musik bareng (room privat, lagu pilihan via Audius — open source, tanpa API key) ----------
 const AUDIUS = 'https://api.audius.co'
-const musicState = { aud: null, id: null, track: null, dj: null, queue: [], hb: null, joined: false, lastSync: null, lyr: { lines: [], els: [], plain: '', msg: '', cur: -1, tk: 0 } }
+const PIPED_HOSTS = ['https://api.piped.private.coffee', 'https://pipedapi.ducks.party', 'https://api.piped.projectsegfau.lt', 'https://pipedapi.adminforge.de']
+const musicState = { aud: null, id: null, track: null, kind: null, dj: null, queue: [], hb: null, joined: false, lastSync: null, ytp: null, ytr: null, lti: null, lyr: { lines: [], els: [], plain: '', msg: '', cur: -1, tk: 0 } }
 
 function musicSend(obj) {
   try { if (roomState.musicAct) roomState.musicAct.send(obj) } catch (e) {}
 }
 
 const musicDur = (sec) => { const m = Math.floor((sec || 0) / 60), r = Math.round((sec || 0) % 60); return m + ':' + (r < 10 ? '0' : '') + r }
+
+function musicPos() {
+  const M = musicState
+  try {
+    if (M.kind === 'yt') return (M.ytp && M.ytp.getCurrentTime) ? (M.ytp.getCurrentTime() || 0) : 0
+    return ($('music-audio').currentTime || 0)
+  } catch (e) { return 0 }
+}
+function musicPlaying() {
+  const M = musicState
+  try {
+    if (M.kind === 'yt') return !!(M.ytp && M.ytp.getPlayerState && M.ytp.getPlayerState() === 1)
+    return !$('music-audio').paused
+  } catch (e) { return false }
+}
+function musicSeek(pos) {
+  const M = musicState
+  try {
+    if (M.kind === 'yt') { if (M.ytp && M.ytp.seekTo) M.ytp.seekTo(pos || 0, true) }
+    else { $('music-audio').currentTime = pos || 0 }
+  } catch (e) {}
+}
+function musicCtl(play) {
+  const M = musicState
+  try {
+    if (M.kind === 'yt') { if (!M.ytp) return; if (play) M.ytp.playVideo(); else M.ytp.pauseVideo() }
+    else { const a = $('music-audio'); if (play) a.play().catch(() => {}); else a.pause() }
+  } catch (e) {}
+}
+function musicCtlStop() {
+  const M = musicState
+  try { if (M.kind === 'yt' && M.ytp && M.ytp.stopVideo) M.ytp.stopVideo() } catch (e) {}
+  try { const a = $('music-audio'); a.pause(); a.removeAttribute('src') } catch (e) {}
+}
+function musicIdleUI() {
+  try { $('music-yt').classList.add('hidden'); $('music-audio').classList.remove('hidden') } catch (e) {}
+}
+function musicTickStart() { musicTickStop(); musicState.lti = setInterval(musicLyrTick, 500) }
+function musicTickStop() { if (musicState.lti) { clearInterval(musicState.lti); musicState.lti = null } }
+function musicCleanTitle(s) {
+  return String(s || '').replace(/\s*[(\[][^)\]]*(official|video|lyric|audio|visualizer|remaster|4k|hd|mv)[^)\]]*[)\]]/gi, '').replace(/\s{2,}/g, ' ').trim()
+}
+function musicCleanArtist(s) {
+  return String(s || '').replace(/\s*-\s*topic$/i, '').replace(/\s*vevo$/i, '').replace(/\s*-\s*music$/i, '').trim()
+}
 
 function musicRenderDj() {
   try {
@@ -4675,7 +4724,7 @@ function musicRenderList(items, searching) {
     const tt = document.createElement('span')
     tt.textContent = tr.title
     const a = document.createElement('small')
-    a.textContent = ' — ' + tr.artist + ' · ' + musicDur(tr.dur)
+    a.textContent = ' — ' + tr.artist + ' · ' + musicDur(tr.dur) + (tr.kind === 'yt' ? ' · YT' : ' · Audius')
     t.appendChild(tt); t.appendChild(a)
     row.appendChild(t)
     const q = document.createElement('button')
@@ -4690,51 +4739,144 @@ function musicRenderList(items, searching) {
   }
 }
 
-async function musicSearch(kind, q) {
-  if (!roomState.room) { toast('Masuk room dulu.', true); return }
-  musicRenderList(null, true)
-  let url
-  if (kind === 'trending') url = AUDIUS + '/v1/tracks/trending?app_name=lauchat'
-  else {
-    if (!q || !q.trim()) { toast('Tulis dulu judul/artisnya.', true); return }
-    url = AUDIUS + '/v1/tracks/search?query=' + encodeURIComponent(q.trim()) + '&app_name=lauchat'
-  }
+async function musicSearchAudius(kind, q) {
+  const url = kind === 'trending'
+    ? AUDIUS + '/v1/tracks/trending?app_name=lauchat'
+    : AUDIUS + '/v1/tracks/search?query=' + encodeURIComponent((q || '').trim()) + '&app_name=lauchat'
   try {
     const r = await fetch(url)
     if (!r.ok) throw 0
     const d = await r.json()
-    const items = (Array.isArray(d.data) ? d.data : []).filter(t => t && t.id && t.is_streamable !== false).slice(0, 20).map(t => ({
-      id: String(t.id || ''), title: String(t.title || 'tanpa judul'), artist: String((t.user && t.user.name) || '?'), dur: Number(t.duration) || 0
+    return (Array.isArray(d.data) ? d.data : []).filter(t => t && t.id && t.is_streamable !== false).slice(0, kind === 'trending' ? 20 : 10).map(t => ({
+      id: String(t.id || ''), title: String(t.title || 'tanpa judul'), artist: String((t.user && t.user.name) || '?'), dur: Number(t.duration) || 0, kind: 'aud'
     }))
-    musicRenderList(items, false)
-    if (!items.length) return
-  } catch (e) {
-    musicRenderList(null, false)
-    toast('Pencarian gagal — coba lagi.', true)
+  } catch (e) { return [] }
+}
+
+async function musicSearchYt(q) {
+  const term = encodeURIComponent(q.trim())
+  for (const base of PIPED_HOSTS) {
+    try {
+      const r = await fetch(base + '/search?q=' + term + '&filter=music_songs')
+      if (!r.ok) continue
+      const d = await r.json()
+      const arr = (Array.isArray(d.items) ? d.items : []).filter(v => v && v.url && Number(v.duration) > 0 && !v.isShort)
+      if (!arr.length) continue
+      const items = []
+      for (const v of arr.slice(0, 15)) {
+        const m = String(v.url).match(/[?&]v=([\w-]{6,})/)
+        if (!m) continue
+        items.push({ id: m[1], title: String(v.title || 'tanpa judul'), artist: String(v.uploaderName || '?'), dur: Number(v.duration) || 0, kind: 'yt' })
+      }
+      if (items.length) return items
+    } catch (e) {}
   }
+  return []
+}
+
+async function musicSearch(kind, q) {
+  if (!roomState.room) { toast('Masuk room dulu.', true); return }
+  musicRenderList(null, true)
+  if (kind === 'trending') {
+    const items = await musicSearchAudius('trending')
+    musicRenderList(items.length ? items : null, false)
+    return
+  }
+  if (!q || !q.trim()) { toast('Tulis dulu judul/artisnya.', true); return }
+  const res = await Promise.all([musicSearchYt(q), musicSearchAudius('q', q)])
+  const items = res[0].concat(res[1])
+  musicRenderList(items.length ? items : null, false)
 }
 
 function musicLoad(track, pos, playing) {
   const M = musicState
-  const aud = $('music-audio')
   M.track = track
   M.id = track.id
+  M.kind = track.kind || 'aud'
   M.joined = true
   M.lastSync = null
   musicRenderNow()
   musicLyrFetch(track)
+  musicTickStart()
   if (M.dj === selfId) musicHbStart()
+  if (M.kind === 'yt') musicLoadYT(track, pos, playing)
+  else musicLoadAud(track, pos, playing)
+}
+
+function musicLoadAud(track, pos, playing) {
+  const aud = $('music-audio')
+  aud.classList.remove('hidden')
+  $('music-yt').classList.add('hidden')
   aud.src = AUDIUS + '/v1/tracks/' + encodeURIComponent(track.id) + '/stream?app_name=lauchat'
   const onMeta = () => { aud.removeEventListener('loadedmetadata', onMeta); try { aud.currentTime = pos || 0 } catch (e) {} }
   aud.addEventListener('loadedmetadata', onMeta)
   if (playing !== false) { aud.play().catch(() => {}) }
 }
 
+function musicYtReady() {
+  const M = musicState
+  if (M.ytp) return Promise.resolve()
+  if (!M.ytr) {
+    M.ytr = new Promise(res => {
+      let done = false
+      const fin = () => { if (!done) { done = true; res() } }
+      setTimeout(fin, 6000)
+      loadYTApi().then(() => {
+        try {
+          M.ytp = new YT.Player('music-yt-slot', {
+            playerVars: { playsinline: 1, rel: 0 },
+            events: {
+              onReady: fin,
+              onStateChange: (e) => musicYtState(e.data),
+              onError: () => toast('Lagu YouTube itu tidak bisa diputar (mungkin dibatasi pemiliknya).', true)
+            }
+          })
+        } catch (e) { fin() }
+      }).catch(fin)
+    })
+  }
+  return M.ytr
+}
+
+function musicLoadYT(track, pos, playing) {
+  const M = musicState
+  try { const a = $('music-audio'); a.pause(); a.removeAttribute('src'); a.classList.add('hidden') } catch (e) {}
+  const box = $('music-yt')
+  box.classList.remove('hidden')
+  if (!box.children.length) { const holder = document.createElement('div'); holder.id = 'music-yt-slot'; box.appendChild(holder) }
+  musicYtReady().then(() => {
+    if (M.id !== track.id || M.kind !== 'yt') return
+    const p = M.ytp
+    if (!p || !p.loadVideoById) { toast('Player YouTube gagal dimuat — coba lagi.', true); return }
+    p.loadVideoById({ videoId: track.id, startSeconds: Math.floor(pos || 0) })
+    if (playing === false) { try { setTimeout(() => { try { p.pauseVideo() } catch (e) {} }, 400) } catch (e) {} }
+  })
+}
+
+function musicYtState(st) {
+  const M = musicState
+  if (M.kind !== 'yt') return
+  if (st === 0) { if (M.dj === selfId) musicNextFromQueue(); return }
+  if (M.dj !== selfId) return
+  if (st === 1) musicSend({ t: 'm-play', pos: musicPos() })
+  else if (st === 2) musicSend({ t: 'm-pause', pos: musicPos() })
+}
+
+function musicYtDestroy() {
+  const M = musicState
+  if (M.ytp) { try { M.ytp.destroy() } catch (e) {} M.ytp = null }
+  M.ytr = null
+  try { $('music-yt').innerHTML = '' } catch (e) {}
+}
+
 function musicStop(send) {
   const M = musicState
   musicHbStop()
-  try { const aud = $('music-audio'); aud.pause(); aud.removeAttribute('src') } catch (e) {}
-  M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; M.lastSync = null
+  musicTickStop()
+  musicCtlStop()
+  musicYtDestroy()
+  M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; M.lastSync = null; M.kind = null
+  musicIdleUI()
   musicLyrReset()
   if (send) { musicSend({t: 'm-close'}); roomSys('musik dihentikan') }
   musicRenderDj(); musicRenderQueue(); musicRenderNow()
@@ -4752,8 +4894,10 @@ function musicNextFromQueue() {
   } else {
     musicSend({t: 'm-end'})
     musicHbStop()
-    try { const aud = $('music-audio'); aud.pause(); aud.removeAttribute('src') } catch (e) {}
-    M.id = null; M.track = null; M.joined = false
+    musicTickStop()
+    musicCtlStop()
+    M.id = null; M.track = null; M.joined = false; M.kind = null
+    musicIdleUI()
     musicLyrReset()
     musicRenderNow()
     roomSys('antrean habis — musik selesai')
@@ -4788,6 +4932,7 @@ function musicApply(msg, pid) {
     M.dj = msg.by || pid || null
     M.track = msg.track
     M.id = msg.track.id
+    M.kind = msg.track.kind || 'aud'
     M.queue = []
     M.joined = false
     M.lastSync = null
@@ -4799,31 +4944,31 @@ function musicApply(msg, pid) {
   } else if (msg.t === 'm-play' || msg.t === 'm-pause') {
     if (msg.by && M.dj && msg.by !== M.dj) return
     if (!M.joined || !M.id) return
-    try { aud.currentTime = msg.pos || 0 } catch (e) {}
-    if (msg.t === 'm-play') aud.play().catch(() => {})
-    else aud.pause()
+    musicSeek(msg.pos || 0)
+    if (msg.t === 'm-play') musicCtl(true)
+    else musicCtl(false)
   } else if (msg.t === 'm-state') {
     if (msg.dj) M.dj = msg.dj
     M.lastSync = {pos: msg.pos || 0, playing: msg.playing !== false}
     if (!M.joined || msg.id !== M.id) return
-    let drift = Math.abs((aud.currentTime || 0) - (msg.pos || 0))
-    if (drift > 3) { try { aud.currentTime = msg.pos || 0; if (msg.playing) aud.play().catch(() => {}) } catch (e) {} }
+    let drift = Math.abs(musicPos() - (msg.pos || 0))
+    if (drift > 3) { musicSeek(msg.pos || 0); if (msg.playing) musicCtl(true) }
   } else if (msg.t === 'm-queue') {
     M.queue = (Array.isArray(msg.q) ? msg.q : []).filter(x => x && typeof x.id === 'string' && typeof x.title === 'string' && typeof x.artist === 'string').slice(0, 20)
     musicRenderQueue()
   } else if (msg.t === 'm-end') {
-    if (M.joined || M.id) { try { aud.pause(); aud.removeAttribute('src') } catch (e) {}; M.id = null; M.track = null; M.joined = false; musicHbStop(); musicLyrReset(); musicRenderNow(); roomSys('antrean habis — musik selesai') }
+    if (M.joined || M.id) { musicHbStop(); musicTickStop(); musicCtlStop(); M.id = null; M.track = null; M.joined = false; M.kind = null; musicIdleUI(); musicLyrReset(); musicRenderNow(); roomSys('antrean habis — musik selesai') }
   } else if (msg.t === 'm-close') {
-    if (M.joined || M.id) { try { aud.pause(); aud.removeAttribute('src') } catch (e) {}; M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; musicHbStop(); musicLyrReset(); musicRenderNow(); roomSys(pidTag(pid) + ' menghentikan musik') }
+    if (M.joined || M.id) { musicHbStop(); musicTickStop(); musicCtlStop(); M.id = null; M.track = null; M.dj = null; M.queue = []; M.joined = false; M.kind = null; musicIdleUI(); musicLyrReset(); musicRenderNow(); roomSys(pidTag(pid) + ' menghentikan musik') }
   }
 }
 
 function musicHbStart() {
   musicHbStop()
   musicState.hb = setInterval(() => {
-    const M = musicState, aud = $('music-audio')
+    const M = musicState
     if (M.dj !== selfId || !M.id) return
-    musicSend({t: 'm-state', id: M.id, pos: aud.currentTime || 0, playing: !aud.paused, dj: selfId})
+    musicSend({t: 'm-state', id: M.id, pos: musicPos(), playing: musicPlaying(), dj: selfId})
   }, 5000)
 }
 function musicHbStop() { clearInterval(musicState.hb); musicState.hb = null }
@@ -4876,9 +5021,10 @@ async function musicLyrFetch(track) {
   L.msg = 'mencari lirik…'
   musicLyrRenderAll()
   const qs = (o) => Object.keys(o).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(o[k])).join('&')
+  const tt = musicCleanTitle(track.title), ar = musicCleanArtist(track.artist)
   const tries = [
-    { artist_name: track.artist || '', track_name: track.title || '', duration: track.dur || 0 },
-    { track_name: track.title || '', duration: track.dur || 0 }
+    { artist_name: ar, track_name: tt, duration: track.dur || 0 },
+    { track_name: tt, duration: track.dur || 0 }
   ]
   for (const p of tries) {
     try {
@@ -4899,8 +5045,7 @@ async function musicLyrFetch(track) {
 function musicLyrTick() {
   const L = musicState.lyr
   if (!L.lines.length) return
-  const aud = musicState.aud || $('music-audio')
-  const t = aud.currentTime || 0
+  const t = musicPos()
   let i = -1
   for (let k = 0; k < L.lines.length; k++) { if (L.lines[k].t <= t) i = k; else break }
   if (i === L.cur) return
@@ -6644,7 +6789,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v70' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v71' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
