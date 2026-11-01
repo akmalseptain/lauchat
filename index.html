@@ -52,6 +52,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -245,6 +246,21 @@ kbd{
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
 .pk-hint{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center;margin:2px 0}
+#game-body{position:relative}
+.pk-card.can{cursor:pointer;transition:transform .12s}
+.pk-card.can:hover{transform:translateY(-6px)}
+.pk-deal{animation:pk-deal .4s ease-out backwards}
+.pk-play{animation:pk-play .38s ease-out backwards}
+.pk-rev{animation:pk-rev .45s ease-out backwards}
+.pk-anim-shake{animation:pk-shake .35s}
+.pk-part{position:absolute;width:6px;height:6px;background:var(--pc);pointer-events:none;animation:pk-part .9s ease-out forwards;z-index:4}
+.pk-flash{position:absolute;left:0;right:0;top:38%;text-align:center;font-family:'VT323',monospace;font-size:30px;color:#fafafa;text-shadow:2px 2px 0 #000,0 0 14px #000;pointer-events:none;animation:pk-fl 1.2s forwards;z-index:5}
+@keyframes pk-deal{from{transform:translateY(26px) rotate(4deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes pk-play{from{transform:translateY(46px) scale(1.18);opacity:.2}to{transform:none;opacity:1}}
+@keyframes pk-rev{from{transform:rotateY(90deg)}to{transform:none}}
+@keyframes pk-shake{0%,100%{transform:none}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@keyframes pk-fl{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.15);opacity:1}70%{opacity:1}100%{transform:scale(1.3);opacity:0}}
+@keyframes pk-part{from{transform:translate(0,0);opacity:1}to{transform:translate(var(--px),var(--py));opacity:0}}
 .sh-img{display:block;margin:8px auto;max-width:170px;max-height:190px;border:1px solid #52525b}
 .sh-credit{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center}
 .doodle-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
@@ -3252,7 +3268,7 @@ function btBeats(prev, cur) {
 
 function newBtState(host) {
   return { host: !!host, my: [], opp: [], turn: 'A', myTurn: false, oppN: 13,
-    last: null, msg: '', sel: {}, over: false, win: null, reveal: null }
+    last: null, msg: '', sel: {}, over: false, win: null, reveal: null, deal: 0, fx: null }
 }
 
 // --- sim host (murni, bisa dites) ---
@@ -3265,6 +3281,7 @@ function btDeal(g) {
   P.my = btSort(deck.slice(0, 13))
   P.opp = btSort(deck.slice(13, 26))
   P.over = false; P.win = null; P.reveal = null; P.sel = {}; P.last = null
+  P.deal = (P.deal || 0) + 1
   const less = (x, y) => btBtr(x) < btBtr(y) || (btBtr(x) === btBtr(y) && btSp(x) < btSp(y))
   P.turn = less(P.my[0], P.opp[0]) ? 'A' : 'B'
   P.msg = P.turn + ' pegang kartu terkecil — jalan duluan. Buang 1/2/3/5 kartu!'
@@ -3313,7 +3330,7 @@ function btSyncHost(g) {
   try {
     sendGame({ t: 'pk-you', my: P.opp, n: P.my.length, turn: P.turn === 'B',
       last: P.last ? { c: P.last.c, me: P.last.who === 'B', k: P.last.k } : null,
-      msg: P.msg, over: P.over, win: P.win, reveal: P.over ? P.my : null })
+      msg: P.msg, over: P.over, win: P.win, reveal: P.over ? P.my : null, d: P.deal })
   } catch (e) {}
   btRender(g)
 }
@@ -3328,7 +3345,7 @@ function btClose(send) {
 function btCardEl(g, c, i, selectable) {
   const d = document.createElement('div')
   const P = g.poker
-  d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (selectable && P.sel[i] ? ' sel' : '')
+  d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (selectable ? ' can' : '') + (selectable && P.sel[i] ? ' sel' : '')
   d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]
   if (selectable) {
     d.addEventListener('click', () => {
@@ -3341,11 +3358,46 @@ function btCardEl(g, c, i, selectable) {
   return d
 }
 
+function btFlash(body, txt) {
+  const d = document.createElement('div')
+  d.className = 'pk-flash'; d.textContent = txt
+  body.appendChild(d)
+  setTimeout(() => { try { d.remove() } catch (e) {} }, 1300)
+}
+function btParts(body, n) {
+  const cols = ['#16a34a', '#dc2626', '#eab308', '#fafafa']
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div')
+    d.className = 'pk-part'
+    d.style.left = (40 + Math.random() * 260) + 'px'
+    d.style.top = (60 + Math.random() * 80) + 'px'
+    try {
+      d.style.setProperty('--px', (Math.random() * 160 - 80) + 'px')
+      d.style.setProperty('--py', (-60 - Math.random() * 120) + 'px')
+      d.style.setProperty('--pc', cols[(Math.random() * cols.length) | 0])
+    } catch (e) {}
+    body.appendChild(d)
+    setTimeout(() => { try { d.remove() } catch (e) {} }, 1000)
+  }
+}
 function btRender(g) {
   const P = g.poker
   const body = gp('game-body')
   if (!P || !body) return
+  P.fx = P.fx || { d: -1, l: '', w: false }
+  const lastKey = P.last ? P.last.who + ':' + P.last.c.join(',') : ''
+  const newDeal = P.fx.d !== P.deal
+  const newPlay = !!lastKey && P.fx.l !== lastKey
+  const newPass = !newDeal && !lastKey && !!P.fx.l && !P.over
+  const newWin = !P.fx.w && P.over
+  P.fx.d = P.deal; P.fx.l = lastKey; P.fx.w = P.over
   body.innerHTML = ''
+  const shake = () => {
+    try {
+      body.classList.add('pk-anim-shake')
+      setTimeout(() => { try { body.classList.remove('pk-anim-shake') } catch (e) {} }, 420)
+    } catch (e) {}
+  }
   const mk = (cls, txt) => { const d = document.createElement('div'); d.className = cls; if (txt != null) d.textContent = txt; return d }
   body.appendChild(mk('pk-info', 'kartu kamu ' + P.my.length + ' · lawan ' + P.oppN + (P.over ? '  [SELESAI]' : '')))
   body.appendChild(mk('pk-hint', '5 kartu: dua pasang < straight < flush < full house < empat sekawanan < straight flush (royal flush tertinggi)'))
@@ -3354,20 +3406,33 @@ function btRender(g) {
   if (P.last) {
     const lr = mk('pk-row')
     lr.appendChild(mk('pk-lab', P.last.me ? 'KAMU' : 'LAWAN'))
-    for (const c of P.last.c) { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : ''); d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; lr.appendChild(d) }
+    P.last.c.forEach((c, i) => { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (newPlay ? ' pk-play' : ''); if (newPlay) d.style.animationDelay = (i * 70) + 'ms'; d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; lr.appendChild(d) })
     body.appendChild(lr)
+    if (newPlay) {
+      const big = P.last.k && (P.last.k[0] >= 5 || P.last.k[0] === 7)
+      if (big) { btFlash(body, btName(P.last.k)); btParts(body, 26); shake() }
+    }
+  }
+  if (newPass) { btFlash(body, 'LEWAT'); shake() }
+  if (newWin) {
+    btFlash(body, (P.win === (P.host ? 'A' : 'B')) ? 'KAMU MENANG!' : 'LAWAN MENANG!')
+    btParts(body, 40); shake()
   }
   // baris lawan
   const oRow = mk('pk-row')
   oRow.appendChild(mk('pk-lab', 'LAWAN'))
-  if (P.reveal) for (const c of P.reveal) { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : ''); d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; oRow.appendChild(d) }
+  if (P.reveal) P.reveal.forEach((c, i) => { const d = document.createElement('div'); d.className = 'pk-card' + (c >= 13 && c < 39 ? ' red' : '') + (newWin ? ' pk-rev' : ''); if (newWin) d.style.animationDelay = (i * 60) + 'ms'; d.textContent = PK_RANKS[c % 13] + PK_SUITS[(c / 13) | 0]; oRow.appendChild(d) })
   else for (let i = 0; i < P.oppN; i++) { const d = document.createElement('div'); d.className = 'pk-card pk-back'; d.textContent = '#'; oRow.appendChild(d) }
   body.appendChild(oRow)
   // baris sendiri
   const mRow = mk('pk-row')
   mRow.appendChild(mk('pk-lab', 'KAMU'))
   const sorted = btSort(P.my)
-  for (let i = 0; i < sorted.length; i++) mRow.appendChild(btCardEl(g, sorted[i], P.my.indexOf(sorted[i]), P.myTurn && !P.over))
+  for (let i = 0; i < sorted.length; i++) {
+    const el = btCardEl(g, sorted[i], P.my.indexOf(sorted[i]), P.myTurn && !P.over)
+    if (newDeal) { el.classList.add('pk-deal'); el.style.animationDelay = (i * 45) + 'ms' }
+    mRow.appendChild(el)
+  }
   body.appendChild(mRow)
   // tombol
   const bar = document.createElement('div'); bar.className = 'pk-bar'
@@ -3462,13 +3527,45 @@ const SIAPA_DECK = [
   { a: ['emma stone'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emma_Stone_at_the_2025_Venice_Film_Festival-6313_%28cropped%29.jpg/330px-Emma_Stone_at_the_2025_Venice_Film_Festival-6313_%28cropped%29.jpg', c: ['bintang film La La Land', 'menang Oscar lewat Poor Things', 'juga main di Easy A dan Spider-Man'] },
   { a: ['gal gadot'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Gal_Gadot_by_Gage_Skidmore_3.jpg/330px-Gal_Gadot_by_Gage_Skidmore_3.jpg', c: ['memerankan Wonder Woman', 'mantan Miss Israel', 'pernah wajib militer di Israel'] },
   { a: ['emma watson'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Emma_Watson_2013.jpg/330px-Emma_Watson_2013.jpg', c: ['memerankan Hermione Granger', 'juga Belle di Beauty and the Beast', 'lulusan universitas Brown'] },
-  { a: ['jennifer lawrence', 'jlaw'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Jennifer_Lawrence%2C_Cannes_Film_Festival_2025.jpg/330px-Jennifer_Lawrence%2C_Cannes_Film_Festival_2025.jpg', c: ['Katniss Everdeen di The Hunger Games', 'menang Oscar lewat Silver Linings Playbook', 'juga main Mystique di X-Men'] }
+  { a: ['jennifer lawrence', 'jlaw'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Jennifer_Lawrence%2C_Cannes_Film_Festival_2025.jpg/330px-Jennifer_Lawrence%2C_Cannes_Film_Festival_2025.jpg', c: ['Katniss Everdeen di The Hunger Games', 'menang Oscar lewat Silver Linings Playbook', 'juga main Mystique di X-Men'] },
+  { a: ['lisa', 'lalisa'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/20240314_Lisa_Manoban_07.jpg/330px-20240314_Lisa_Manoban_07.jpg', c: ['rapper BLACKPINK asal Thailand', 'solo hits LALISA dan MONEY', 'juri acara bakat di Asia'] },
+  { a: ['nayeon'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Nayeon_251120_1.jpg/330px-Nayeon_251120_1.jpg', c: ['anggota TWICE', 'anggota tertua di grupnya', 'solo lagu berjudul POP!'] },
+  { a: ['tzuyu'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Twice_in_Seattle_2026_-_TWICE._Tzuyu_%2855045325500%29_%28cropped%29.jpg/330px-Twice_in_Seattle_2026_-_TWICE._Tzuyu_%2855045325500%29_%28cropped%29.jpg', c: ['anggota TWICE dari Taiwan', 'posisi visual di grupnya', 'solo lagu Run'] },
+  { a: ['sana'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Sana_Minatozaki_in_April_2026.png/330px-Sana_Minatozaki_in_April_2026.png', c: ['anggota TWICE asal Jepang', 'shy shy shy di lagu Cheer Up jadi viral', 'terkenal dengan aegyo-nya'] },
+  { a: ['irene'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/1/250320_%EB%A0%88%EB%93%9C%EB%B2%A8%EB%B2%B3_Irene_UGG_Photo_Call.jpg/330px-250320_%EB%A0%88%EB%93%9C%EB%B2%A8%EB%B2%B3_Irene_UGG_Photo_Call.jpg', c: ['leader Red Velvet', 'grupnya hits Red Flavor', 'juga aktris film Double Patty'] },
+  { a: ['seulgi', 'kang seulgi'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Kang_Seulgi_LONGCHAMP_2024.jpg/330px-Kang_Seulgi_LONGCHAMP_2024.jpg', c: ['anggota Red Velvet', 'grupnya hits Psycho dan Bad Boy', 'jadi juri acara dance di TV'] },
+  { a: ['joy', 'park sooyoung'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/JOY_Park_Sooyoung.jpg/330px-JOY_Park_Sooyoung.jpg', c: ['anggota Red Velvet', 'juga aktris drama Korea', 'nama panggungnya satu kata bahasa Inggris'] },
+  { a: ['yeri', 'kim yerim'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/240511_Red_Velvet_Yeri.jpg/330px-240511_Red_Velvet_Yeri.jpg', c: ['maknae Red Velvet', 'gabung setelah grupnya debut', 'juga pernah jadi MC acara musik'] },
+  { a: ['winter', 'kim minjeong'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Winter_at_Incheon_Airport_on_July_10%2C_2026.png/330px-Winter_at_Incheon_Airport_on_July_10%2C_2026.png', c: ['anggota aespa', 'grupnya hits Supernova', 'nama panggungnya musim dingin'] },
+  { a: ['taeyeon', 'kim taeyeon'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/250307_Taeyeon_%40_-The_Tense-_in_Seoul_Day_1_%2854371295597%29_%28cropped%29.jpg/330px-250307_Taeyeon_%40_-The_Tense-_in_Seoul_Day_1_%2854371295597%29_%28cropped%29.jpg', c: ['leader Girls Generation', 'solo hits I dan Four Seasons', 'juri banyak acara pencarian bakat'] },
+  { a: ['son ye jin'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Son_Ye-jin_in_May_2026.png/330px-Son_Ye-jin_in_May_2026.png', c: ['aktris drama Crash Landing on You', 'main film klasik The Classic', 'menikah dengan sesama aktor drama tersebut'] },
+  { a: ['jun ji hyun', 'gianna jun'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Jun_Ji-hyun_in_April_2026.png/330px-Jun_Ji-hyun_in_April_2026.png', c: ['bintang film My Sassy Girl', 'drama legendaris My Love from the Star', 'ratu iklan di Korea'] },
+  { a: ['kim tae hee'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Kim_Tae-hee_Photoshoot_BTS_2023_-_2.png/330px-Kim_Tae-hee_Photoshoot_BTS_2023_-_2.png', c: ['aktris drama Love Story in Harvard', 'alumnus universitas tertua Korea', 'istri penyanyi Rain'] },
+  { a: ['lee young ae'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Lee_Young-ae_in_December_2025.png/330px-Lee_Young-ae_in_December_2025.png', c: ['bintang drama Dae Jang Geum', 'main film Sympathy for Lady Vengeance', 'aktris legendaris drama sejarah'] },
+  { a: ['han so hee'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Han_So-Hee_at_the_2025_Toronto_International_Film_Festival_%28cropped%29.jpg/330px-Han_So-Hee_at_the_2025_Toronto_International_Film_Festival_%28cropped%29.jpg', c: ['aktris drama My Name', 'naik daun lewat The World of the Married', 'juga main Nevertheless'] },
+  { a: ['gong yoo'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Gong_Yoo_in_2021_-_3.png/330px-Gong_Yoo_in_2021_-_3.png', c: ['aktor drama Goblin', 'main film Train to Busan', 'dijuluki pangeran drama Korea'] },
+  { a: ['hyun bin'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Hyun_Bin_at_the_2024_Toronto_International_Film_Festival_2_%28cropped%29.jpg/330px-Hyun_Bin_at_the_2024_Toronto_International_Film_Festival_2_%28cropped%29.jpg', c: ['aktor drama Crash Landing on You', 'main drama Secret Garden', 'menikah dengan Son Ye-jin'] },
+  { a: ['v', 'kim taehyung', 'taehyung'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/BTS%27s_V_20251004_04.jpg/330px-BTS%27s_V_20251004_04.jpg', c: ['anggota BTS', 'nama asli Kim Tae-hyung', 'solo lagu FRI(END)S'] },
+  { a: ['jungkook', 'jeon jungkook'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Jung_Kook_of_BTS%2C_February_12%2C_2026_%281%29.png/330px-Jung_Kook_of_BTS%2C_February_12%2C_2026_%281%29.png', c: ['maknae BTS', 'solo hits Seven', 'dijuluki golden maknae'] },
+  { a: ['jimin', 'park jimin'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Jimin_on_the_way_to_SBS_Radio%2C_31_March_2023_%282%29.jpg/330px-Jimin_on_the_way_to_SBS_Radio%2C_31_March_2023_%282%29.jpg', c: ['anggota BTS', 'solo album FACE', 'dulu belajar modern dance'] },
+  { a: ['rm', 'kim namjoon', 'namjoon'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/RM_at_W_Korea_Love_Your_W%2C_November_2023.jpg/330px-RM_at_W_Korea_Love_Your_W%2C_November_2023.jpg', c: ['leader BTS', 'nama asli Kim Nam-joon', 'mahir bahasa Inggris'] },
+  { a: ['jin', 'kim seokjin'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/BTS_Jin_at_Maison_Fred%2C_13_March_2025_04.png/330px-BTS_Jin_at_Maison_Fred%2C_13_March_2025_04.png', c: ['anggota tertua BTS', 'solo lagu The Astronaut', 'dijuluki Mr Worldwide Handsome'] },
+  { a: ['suga', 'min yoongi', 'agust d'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Suga_for_Valentino_and_Marie_Claire_Korea_06.jpg/330px-Suga_for_Valentino_and_Marie_Claire_Korea_06.jpg', c: ['anggota BTS', 'alias solo Agust D', 'memproduksi lagu untuk banyak artis'] },
+  { a: ['jhope', 'j-hope', 'jung hoseok'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/J-Hope_at_W_Korea_Breast_Cancer_Campaign%2C_15_October_2025.png/330px-J-Hope_at_W_Korea_Breast_Cancer_Campaign%2C_15_October_2025.png', c: ['anggota BTS', 'solo album Jack in the Box', 'ketua tim dance sebelum debutnya'] },
+  { a: ['lee min ho'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Lee_Min-ho_in_June_2026.png/330px-Lee_Min-ho_in_June_2026.png', c: ['aktor Boys Over Flowers', 'juga main The Heirs', 'bintang drama romantis terkenal di Asia'] },
+  { a: ['gdragon', 'g-dragon', 'kwon jiyong'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/G-Dragon_in_October_2025.jpg/330px-G-Dragon_in_October_2025.jpg', c: ['leader BIGBANG', 'nama asli Kwon Ji-yong', 'raja fashion K-pop'] },
+  { a: ['song joong ki'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Song_Joong-ki_at_Style_Icon_Asia_2016.jpg/330px-Song_Joong-ki_at_Style_Icon_Asia_2016.jpg', c: ['aktor Descendants of the Sun', 'juga main Vincenzo', 'mantan suami Song Hye-kyo'] },
+  { a: ['kim soo hyun'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Kim_Soo-hyun_in_August_2024_-_2.png/330px-Kim_Soo-hyun_in_August_2024_-_2.png', c: ['aktor My Love from the Star', 'juga Queen of Tears', 'meraih banyak trofi penghargaan akting'] },
+  { a: ['park seo joon'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Park_Seo-joon_in_March_2026.png/330px-Park_Seo-joon_in_March_2026.png', c: ['aktor Itaewon Class', 'main di film The Marvels', 'juga Fight for My Way'] },
+  { a: ['boa'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/180417_%EB%B3%B4%EC%95%84_03_%28cropped%29_02.png/330px-180417_%EB%B3%B4%EC%95%84_03_%28cropped%29_02.png', c: ['solois legendaris dari SM', 'debut di usia 13 tahun', 'dijuluki ratu K-pop'] },
+  { a: ['key', 'kim kibum'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Key_in_November_2025.png/330px-Key_in_November_2025.png', c: ['anggota SHINee', 'sering jadi MC acara varietas', 'dikenal gaya fashionnya'] },
+  { a: ['taeyang', 'dong youngbae'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Taeyang_-_MADE_THE_MOVIE_Premiere_%28cropped%29.jpg/330px-Taeyang_-_MADE_THE_MOVIE_Premiere_%28cropped%29.jpg', c: ['anggota BIGBANG', 'solo hits Eyes Nose Lips', 'satu grup dengan G-Dragon'] }
 ]
 
 function shNorm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, '') }
 
 function newSiapaState(host) {
-  return { host: !!host, deck: [], round: 0, total: 5, q: null, clue: 0,
+  return { host: !!host, deck: [], round: 0, total: 15, q: null, clue: 0,
     pts: 0, oppPts: 0, cl: [], msg: '', img: null, timer: null, over: false, win: null }
 }
 
@@ -3480,7 +3577,7 @@ function shStart(g) {
   if (!S || !S.host) return
   const pool = SIAPA_DECK.slice()
   for (let i = pool.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = pool[i]; pool[i] = pool[j]; pool[j] = t }
-  S.deck = pool.slice(0, 5)
+  S.deck = pool.slice(0, S.total)
   S.round = 0; S.pts = 0; S.oppPts = 0; S.over = false; S.win = null
   shNextRound(g)
 }
@@ -4952,6 +5049,7 @@ function onRoomGame(data, peerId) {
     P.over = !!data.over
     P.win = data.win || null
     P.reveal = data.reveal || null
+    P.deal = data.d || 0
     P.sel = {}
     btRender(g)
   } else if (data.t === 'pk-play') {
@@ -4985,7 +5083,7 @@ function onRoomGame(data, peerId) {
   } else if (data.t === 'sh-state') {
     const S = g.siapa
     if (g.type !== 'siapa' || !S || S.host) return
-    S.round = data.r || 0; S.total = data.tot || 5
+    S.round = data.r || 0; S.total = data.tot || 15
     S.cl = Array.isArray(data.cl) ? data.cl : S.cl
     S.img = data.img || null
     S.oppPts = data.pa || 0; S.pts = data.pb || 0
@@ -5472,7 +5570,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v60' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v61' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
