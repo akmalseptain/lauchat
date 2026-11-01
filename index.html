@@ -278,6 +278,11 @@ kbd{
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
 .pk-hint{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center;margin:2px 0}
+.tod-prompt{font-family:'VT323',monospace;font-size:20px;line-height:1.35;color:var(--fg);text-align:center;margin:12px 0;min-height:28px}
+.tod-tag{font-family:'VT323',monospace;font-size:16px;color:#fde047;text-align:center;margin:2px 0}
+.tod-last{font-family:'VT323',monospace;font-size:15px;color:var(--muted);text-align:center;margin:4px 0}
+.tod-turn{font-family:'VT323',monospace;font-size:17px;color:var(--accent);text-align:center;margin:6px 0;animation:tod-pulse 1.4s infinite}
+@keyframes tod-pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .bt-cv{display:block;width:100%;max-width:480px;margin:0 auto;background:#0f291c;border:1px solid #3f3f46;border-radius:10px;touch-action:manipulation}
 #game-body{position:relative}
 .pk-deal{animation:pk-deal .4s cubic-bezier(.2,1.4,.4,1) backwards}
@@ -476,6 +481,28 @@ footer b{color:var(--fg);font-weight:600}
       <select id="lang-native" aria-label="Bahasa yang kamu fasih"></select>
       <select id="lang-learn" aria-label="Bahasa yang sedang dipelajari"></select>
     </div>
+    <div class="prefs">
+      <select id="want-country" aria-label="Cari lawan dari negara">
+        <option value="">Cari: negara mana saja</option>
+        <option value="ID">Cari: Indonesia</option>
+        <option value="MY">Cari: Malaysia</option>
+        <option value="SG">Cari: Singapura</option>
+        <option value="TH">Cari: Thailand</option>
+        <option value="VN">Cari: Vietnam</option>
+        <option value="PH">Cari: Filipina</option>
+        <option value="JP">Cari: Jepang</option>
+        <option value="KR">Cari: Korea</option>
+        <option value="IN">Cari: India</option>
+        <option value="US">Cari: Amerika</option>
+        <option value="GB">Cari: Inggris</option>
+        <option value="DE">Cari: Jerman</option>
+        <option value="FR">Cari: Prancis</option>
+        <option value="NL">Cari: Belanda</option>
+        <option value="SA">Cari: Arab Saudi</option>
+        <option value="AE">Cari: UEA</option>
+        <option value="AU">Cari: Australia</option>
+      </select>
+    </div>
     <div class="prefs two-col">
       <label class="ai-row"><input type="checkbox" id="ai-skip"> Deteksi AI lawan</label>
       <label class="ai-row"><input type="checkbox" id="snd-toggle" checked> Bunyi saat ketemu</label>
@@ -624,6 +651,9 @@ footer b{color:var(--fg);font-weight:600}
     </button>
     <button id="btn-quiz-chat" class="btn ghost" type="button" title="Main kuis bareng lawan">
       <span>Kuis</span>
+    </button>
+    <button id="btn-tod-chat" class="btn ghost" type="button" title="Truth or dare bareng lawan">
+      <span>ToD</span>
     </button>
     <button id="btn-suit-chat" class="btn ghost" type="button" title="Suit batu-gunting-kertas bareng lawan">
       <span>Suit</span>
@@ -1292,7 +1322,9 @@ function requestMyLoc() {
     async p => {
       myLoc = {lat: round2(p.coords.latitude), lon: round2(p.coords.longitude)}
       const geo = await reverseGeocode(myLoc)
+      myGeo = geo
       const name = geo ? geo.name : null
+      if (typeof broadcastPresence === 'function') broadcastPresence()
       toast('Lokasi siap: ' + (name || myLoc.lat + ', ' + myLoc.lon) + ' · ±1 km')
       if (state.mode === 'chatting' && state.locAct && state.partnerId) {
         try { state.locAct.send(myLoc, {target: state.partnerId}) } catch (e) {}
@@ -1413,7 +1445,7 @@ for (const [code, label] of LANGS) {
   $('lang-learn').add(new Option('Belajar: ' + label, code))
 }
 for (const [id, key] of [
-  ['my-gender', 'lauchat-gender'], ['want-gender', 'lauchat-want'],
+  ['my-gender', 'lauchat-gender'], ['want-gender', 'lauchat-want'], ['want-country', 'lauchat-wantcc'],
   ['lang-native', 'lauchat-lang-n'], ['lang-learn', 'lauchat-lang-l'],
 ]) {
   let v = ''
@@ -1426,6 +1458,19 @@ for (const [id, key] of [
 }
 const myGender = () => $('my-gender').value
 const myWant = () => $('want-gender').value
+let myGeo = null
+const myWantCC = () => $('want-country').value
+const myCC = () => (myGeo && myGeo.cc) || ''
+// filter negara dua arah: saya nyaring lawan, lawan nyaring saya (kayak genderOk)
+function ccOk(cc, wc) {
+  const want = myWantCC(), mine = myCC()
+  if (want && cc !== want) return false
+  if (wc && mine !== wc) return false
+  return true
+}
+$('want-country').addEventListener('change', () => {
+  if ($('want-country').value && !myLoc && !locDenied) { requestMyLoc(); toast('Filter negara aktif — izinkan lokasi biar lawan bisa nyaring kamu balik.') }
+})
 const myNativeLang = () => $('lang-native').value
 const myLearnLang = () => $('lang-learn').value
 const aiSkipEl = $('ai-skip')
@@ -1668,6 +1713,7 @@ function curPresence() {
   return {
     s: state.mode, v: state.wantVideo, n: myNick(), t: myTags(),
     g: myGender(), w: myWant(), ln: myNativeLang(), ll: myLearnLang(),
+    cc: myCC(), wc: myWantCC(),
   }
 }
 function broadcastPresence() { if (presence) presence.send(curPresence()) }
@@ -1748,6 +1794,7 @@ function maybeInitiate(peerId) {
   if (!(selfId > peerId)) return
   const ps = lobbyPeers.get(peerId)
   if (!genderOk(ps?.g, ps?.w)) return
+  if (!ccOk(ps?.cc, ps?.wc)) return
   initiate(peerId)
 }
 
@@ -1755,7 +1802,7 @@ function initiate(peerId) {
   const nonce = Math.random().toString(36).slice(2, 10)
   const timer = setTimeout(() => pending.delete(peerId), 6000)
   pending.set(peerId, {nonce, timer})
-  mreq.send({t: nonce, n: myNick(), v: state.wantVideo, g: myGender(), w: myWant()}, {target: peerId})
+  mreq.send({t: nonce, n: myNick(), v: state.wantVideo, g: myGender(), w: myWant(), cc: myCC(), wc: myWantCC()}, {target: peerId})
 }
 
 function clearPending(peerId) {
@@ -1769,6 +1816,7 @@ function clearAllPending() {
 function onMatchReq(data, peerId) {
   if (blacklist.has(peerId) || blocked.has(peerId)) { mbusy.send({}, {target: peerId}); return }
   if (!genderOk(data.g, data.w)) { mbusy.send({}, {target: peerId}); return }
+  if (!ccOk(data.cc, data.wc)) { mbusy.send({}, {target: peerId}); return }
   if (state.mode === 'looking' && !state.incomingLock) {
     // terima: kunci, buat kode ruang, balas accept lalu masuk ruang privat
     state.incomingLock = true
@@ -2355,6 +2403,7 @@ function startGuessGame() {
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'guess', hostId: selfId, secret: 1 + Math.floor(Math.random() * 100), ttt: null, quiz: null }
   sendGame({t: 'g-start'})
@@ -2518,6 +2567,7 @@ function startQuizGame() {
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'quiz', hostId: selfId, secret: 0, ttt: null, quiz: newQuizState() }
   try { sendGame({t: 'q-open'}) } catch (e) {}
@@ -2548,6 +2598,7 @@ function startSuitGame() {
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
   try { sendGame({t: 's-open'}) } catch (e) {}
@@ -2585,6 +2636,202 @@ function suitMaybeResolve() {
   }, 2200)
 }
 
+// ---------- truth or dare: giliran jujur atau tantangan (chat 1-on-1) ----------
+const TOD_TRUTHS = [
+  'apa kebohongan terakhir yang kamu sembunyikan dari orang terdekatmu?',
+  'pernah suka sama temen sendiri? cerita singkat, jangan diplomasi.',
+  'hal apa yang paling gampang bikin kamu cemburu?',
+  'chat terakhir yang kamu kirim ke siapa dan isinya apa?',
+  'ketakutan paling memalukan yang kamu punya?',
+  'pernah ngambek diam-diam tanpa ngasih tahu kenapa? karena apa?',
+  'lagu apa yang diam-diam kamu suka tapi gak mau ngaku di depan umum?',
+  'hal paling cringe yang pernah kamu lakukan di depan banyak orang?',
+  'siapa orang yang paling sering kamu stalk di medsos?',
+  'kebiasaan buruk apa yang sampai sekarang belum bisa kamu hentikan?',
+  'kalau diary kamu dibaca sekarang, bagian mana yang paling bahaya?',
+  'pernah nolak ajakan cuma karena males terus nyesel gak lama kemudian?',
+  'kira-kira mantan kamu kalau ngomongin kamu bakal bilang apa?',
+  'apa yang paling sering bikin kamu overthinking jam 2 pagi?',
+  'pernah pura-pura gak lihat orang di tempat umum? kenapa?',
+  'komplimen paling jujur yang pernah kamu terima dari siapa?',
+  'rekor terlama kamu gak bales chat itu berapa hari, sama siapa?',
+  'hal yang paling kamu-banget tapi gak mau diketahui orang?',
+  'pernah marah ke orang yang salah padahal tahu-tahu? cerita satu kalimat.',
+  'keputusan apa yang dulu kamu bilang "nggak akan pernah" tapi sekarang jadi rutin?',
+  'apa yang paling kamu takutkan soal masa depan?',
+  'kualitas dirimu apa yang biasanya kamu jual pas kenalan baru?',
+  'kalau dengerin rekaman suaramu sendari, perasaanmu apa?',
+  'apa kebohongan putih yang paling sering kamu pakai?',
+]
+const TOD_DARES = [
+  'kirim satu baris pujian untuk lawanmu, jangan generik.',
+  'nyanyikan potongan lagu apa pun 10 detik, kunci gak penting.',
+  'tunjukkan satu benda terdekat yang paling berantakan di kamarmu.',
+  'gaya imut 5 detik di depan kamera, jangan protes.',
+  'ceritakan rencana besokmu pakai nada pembawa acara berita TV.',
+  'puji dirimu sendiri 3 kali tanpa senyum, tahan muka datar.',
+  'sebutkan satu rahasia kecil yang belum pernah kamu ceritakan ke siapa pun.',
+  'ajak lawanmu karaoke duet lagu apa pun sekarang juga, pilih lagunya.',
+  'buat pantun jelek tentang lawanmu. WAJIB jelek.',
+  'deskripsikan lawanmu dalam 3 kata, jujur tapi jangan kejam.',
+  'lakukan pose superhero 5 detik lengkap dengan nama pose-nya.',
+  'kamu jadi penyiar radio 10 detik, sapa pendengar dan bacakan cuacamu.',
+  'sebut 3 makanan yang bakal kamu selamatkan kalau kulkas mati seminggu.',
+  'ngomong pakai logat daerahmu 15 detik, keluar dari zona nyaman.',
+  'tunjukkan tarian paling absurd yang kamu bisa selama 5 detik.',
+  'kirim pesan ke lawanmu pakai bahasa formal kaku banget seperti surat dinas.',
+  'buat nama band fiktif kalian berdua plus judul lagu hitsnya.',
+  'sebut alfabet dari Z ke A secepat mungkin tanpa ketinggalan.',
+  'tahan ketawa 20 detik sementara lawanmu bebas bikin kamu ngakak.',
+  'buat jingle iklan 10 detik untuk barang terdekat darimu.',
+  'jadi komentator olahraga atas aktivitas lawanmu 10 detik, penuh semangat.',
+  'deskripsikan isi foto terakhir di galerimu, se-detail mungkin (tanpa kirim fotonya).',
+  'sebut 5 hal yang kamu suka tentang hidupmu, cepat tanpa mikir panjang.',
+  'keluarkan suara hewan paling jelek yang kamu bisa, komit.',
+]
+
+function todShuffle(a) {
+  const x = a.slice()
+  for (let i = x.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = x[i]; x[i] = x[j]; x[j] = t }
+  return x
+}
+function newTodState(host) {
+  return { host: !!host, cur: 'A', mode: null, prompt: null, last: null, ti: 0, di: 0,
+    truth: todShuffle(TOD_TRUTHS), dare: todShuffle(TOD_DARES) }
+}
+const todMyTurn = (S) => S.cur === (S.host ? 'A' : 'B')
+
+function startTodGame() {
+  if (gameCtx.isRoom) return
+  if (!gameReady()) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
+  if (gameState.type === 'quiz' && gameState.quiz && !gameState.quiz.done) { toast('Kuis masih berjalan.', true, 2500); return }
+  if (gameState.type === 'guess') { toast('Selesaikan tebak angka dulu.', true, 2500); return }
+  if (gameState.type === 'ttt' && gameState.ttt && gameState.ttt.players.length && !gameState.ttt.over) { toast('Selesaikan tic-tac-toe dulu.', true, 2500); return }
+  if (gameState.type === 'suit' && gameState.suit) { toast('Suit masih jalan.', true, 2500); return }
+  if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
+  if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
+  if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
+  if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
+  clearQuizTimers()
+  gameState = { type: 'tod', hostId: null, secret: 0, ttt: null, quiz: null, tod: newTodState(true) }
+  const S = gameState.tod
+  try { sendGame({ t: 'td-open', truth: S.truth, dare: S.dare }) } catch (e) {}
+  showGamePanel('TRUTH OR DARE')
+  renderTod()
+  roomGameLog('truth or dare dibuka — kamu A, giliran pertama. pilih TRUTH atau DARE!')
+}
+
+function todHostPick(who, mode) {
+  const S = gameState.tod
+  if (!S || !S.host || gameState.type !== 'tod') return
+  if (S.mode || S.cur !== who) return
+  if (mode !== 'truth' && mode !== 'dare') return
+  if (mode === 'truth') { S.prompt = S.truth[S.ti % S.truth.length]; S.ti++ }
+  else { S.prompt = S.dare[S.di % S.dare.length]; S.di++ }
+  S.mode = mode
+  todSync()
+  renderTod()
+}
+
+function todPick(mode) {
+  const S = gameState.tod
+  if (!S || gameState.type !== 'tod' || !todMyTurn(S) || S.mode) return
+  if (S.host) todHostPick('A', mode)
+  else { try { sendGame({ t: 'td-pick', mode }) } catch (e) {} }
+  renderTod()
+}
+
+function todHostDone(who) {
+  const S = gameState.tod
+  if (!S || !S.host || gameState.type !== 'tod' || !S.mode || S.cur !== who) return
+  S.last = { who: S.cur, mode: S.mode, prompt: S.prompt }
+  S.mode = null; S.prompt = null
+  S.cur = who === 'A' ? 'B' : 'A'
+  todSync()
+  renderTod()
+}
+
+function todDone() {
+  const S = gameState.tod
+  if (!S || gameState.type !== 'tod' || !todMyTurn(S) || !S.mode) return
+  if (S.host) todHostDone('A')
+  else { try { sendGame({ t: 'td-done' }) } catch (e) {} }
+  renderTod()
+}
+
+function todSync() {
+  const S = gameState.tod
+  if (!S || !S.host) return
+  try { sendGame({ t: 'td-state', cur: S.cur, mode: S.mode, prompt: S.prompt, last: S.last }) } catch (e) {}
+}
+
+function todClose(send) {
+  if (send) { try { sendGame({ t: 'td-close' }) } catch (e) {} }
+  gameState = { type: null, hostId: null, secret: 0, ttt: null }
+  hideGamePanel()
+}
+
+function renderTod() {
+  const g = gameState, body = gp('game-body')
+  body.innerHTML = ''
+  if (g.type !== 'tod' || !g.tod) return
+  const S = g.tod
+  const mine = todMyTurn(S)
+  const turn = document.createElement('p')
+  turn.className = mine ? 'tod-turn' : 'st'
+  turn.textContent = mine ? 'GILIRANMU' : (S.mode ? 'lawan sedang menjawab…' : 'menunggu lawan memilih…')
+  body.appendChild(turn)
+  if (S.mode) {
+    const tag = document.createElement('p')
+    tag.className = 'tod-tag'
+    tag.textContent = (mine ? 'KAMU ' : 'LAWAN ') + (S.mode === 'truth' ? 'TRUTH' : 'DARE')
+    body.appendChild(tag)
+    const pr = document.createElement('p')
+    pr.className = 'tod-prompt'
+    pr.textContent = S.prompt || ''
+    body.appendChild(pr)
+  } else if (mine) {
+    const pr = document.createElement('p')
+    pr.className = 'tod-prompt'
+    pr.textContent = 'pilih jujur atau tantangan'
+    body.appendChild(pr)
+  }
+  if (S.last) {
+    const last = document.createElement('p')
+    last.className = 'tod-last'
+    last.textContent = 'sebelumnya: ' + (S.last.who === (S.host ? 'A' : 'B') ? 'kamu' : 'lawan') + ' ' + (S.last.mode === 'truth' ? 'TRUTH' : 'DARE') + ' — ' + S.last.prompt
+    body.appendChild(last)
+  }
+  const bar = document.createElement('div')
+  bar.className = 'quiz-opts'
+  if (mine && !S.mode) {
+    for (const [m, label] of [['truth', 'TRUTH'], ['dare', 'DARE']]) {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.innerHTML = '<b>' + label + '</b>'
+      b.addEventListener('click', () => todPick(m))
+      bar.appendChild(b)
+    }
+  } else if (mine && S.mode) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.innerHTML = '<b>SELESAI — giliran lawan</b>'
+    b.addEventListener('click', () => todDone())
+    bar.appendChild(b)
+  }
+  body.appendChild(bar)
+  if (bar.children.length) {
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'btn ghost sm'
+    close.textContent = 'TUTUP'
+    close.addEventListener('click', () => todClose(true))
+    body.appendChild(close)
+  }
+}
+
 // ---------- slash command terminal + kartu icebreaker ----------
 const EIGHT_BALL = ['YA', 'TIDAK', 'MUNGKIN', 'JANGAN BERHARAP', 'PASTI BANGET', 'NANYA LAGI NANTI', 'KAYAKNYA IYA', 'JANGAN DULU', 'TANDA-TANDANYA YA', 'GAK USAH DIPIKIRIN']
 const ICEBREAKERS = [
@@ -2613,7 +2860,7 @@ const ICEBREAKERS = [
   'olahraga apa yang kamu bakal tinju kalau disuruh lakukan tiap hari?',
   'kalau dapat gaji 2x bulan ini, hal pertama yang kamu beli apa?'
 ]
-const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /war /poker /bigtwo /siapa /help'
+const SLASH_HELP = 'perintah: /flip /roll /roll d20 /8ball <tanya> /me <aksi> /ice /war /poker /bigtwo /siapa /tod /help'
 
 function slashProcess(text, isRoom) {
   if (!text || text.charCodeAt(0) !== 47) return undefined
@@ -2640,6 +2887,11 @@ function slashProcess(text, isRoom) {
   if (cmd === '/war') {
     if (isRoom) return local('war hanya untuk chat 1-on-1 — keluar dari room dulu')
     startWarGame()
+    return false
+  }
+  if (cmd === '/tod') {
+    if (isRoom) return local('truth or dare hanya untuk chat 1-on-1 — keluar dari room dulu')
+    startTodGame()
     return false
   }
   if (cmd === '/poker' || cmd === '/bigtwo') {
@@ -2671,6 +2923,7 @@ function startDoodleGame() {
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
   try { sendGame({ t: 'd-open' }) } catch (e) {}
@@ -2832,6 +3085,7 @@ function startWarGame() {
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   if (gameState.type === 'poker' && gameState.poker) { toast('Big two masih jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'war', hostId: null, secret: 0, ttt: null, quiz: null, war: newWarState(true) }
   try { sendGame({ t: 'ms-open' }) } catch (e) {}
@@ -3831,6 +4085,7 @@ function startBigTwoGame() {
   if (gameState.type === 'doodle' && gameState.doodle) { toast('Doodle masih jalan.', true, 2500); return }
   if (gameState.type === 'war' && gameState.war) { toast('War sedang jalan.', true, 2500); return }
   if (gameState.type === 'siapa' && gameState.siapa) { toast('Siapa hayo sedang jalan.', true, 2500); return }
+  if (gameState.type === 'tod' && gameState.tod) { toast('Truth or dare masih jalan.', true, 2500); return }
   clearQuizTimers()
   gameState = { type: 'poker', hostId: null, secret: 0, ttt: null, quiz: null, poker: newBtState(true) }
   try { sendGame({ t: 'pk-open' }) } catch (e) {}
@@ -5301,7 +5556,9 @@ function onRoomGame(data, peerId) {
     if (g.type === 'suit' && g.suit) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
     gameState = { type: 'guess', hostId: peerId, secret: 0, ttt: null }
     showGamePanel('TEBAK ANGKA')
     renderGuessBody()
@@ -5333,7 +5590,9 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
     gameState = { type: 'ttt', hostId: null, secret: 0, ttt: { players: [], board: Array(9).fill(''), turn: 'X', over: false } }
     showGamePanel('TIC-TAC-TOE')
     renderTtt()
@@ -5360,7 +5619,9 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
     clearQuizTimers()
     gameState = { type: 'suit', hostId: null, secret: 0, ttt: null, quiz: null, suit: newSuitState() }
     showGamePanel('SUIT')
@@ -5381,7 +5642,9 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
     clearQuizTimers()
     gameState = { type: 'doodle', hostId: null, secret: 0, ttt: null, quiz: null, doodle: newDoodleState() }
     showGamePanel('DOODLE DUEL')
@@ -5399,6 +5662,47 @@ function onRoomGame(data, peerId) {
     if (g.type !== 'doodle' || !g.doodle) return
     doodleClose(false)
     sysMsg('lawan menutup doodle')
+  } else if (data.t === 'td-open') {
+    if (gameCtx.isRoom) return
+    if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
+    if (g.type === 'guess') return
+    if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
+    if (g.type === 'suit' && g.suit) return
+    if (g.type === 'doodle' && g.doodle) return
+    if (g.type === 'war' && g.war) return
+    if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
+    clearQuizTimers()
+    const clean = (arr) => (Array.isArray(arr) ? arr.filter(x => typeof x === 'string') : null)
+    const T = clean(data.truth) || null, D = clean(data.dare) || null
+    if (!T || !D || !T.length || !D.length) return
+    gameState = { type: 'tod', hostId: null, secret: 0, ttt: null, quiz: null, tod: newTodState(false) }
+    gameState.tod.truth = T
+    gameState.tod.dare = D
+    showGamePanel('TRUTH OR DARE')
+    renderTod()
+    roomGameLog(pidTag(peerId) + ' mengajak main TRUTH OR DARE — kamu B, lawan mulai duluan!')
+  } else if (data.t === 'td-pick') {
+    const S = g.tod
+    if (g.type !== 'tod' || !S || !S.host) return
+    if (data.mode !== 'truth' && data.mode !== 'dare') return
+    todHostPick('B', data.mode)
+  } else if (data.t === 'td-done') {
+    const S = g.tod
+    if (g.type !== 'tod' || !S || !S.host) return
+    todHostDone('B')
+  } else if (data.t === 'td-state') {
+    const S = g.tod
+    if (g.type !== 'tod' || !S || S.host) return
+    if (data.cur === 'A' || data.cur === 'B') S.cur = data.cur
+    S.mode = data.mode === 'truth' || data.mode === 'dare' ? data.mode : null
+    S.prompt = typeof data.prompt === 'string' ? data.prompt : null
+    S.last = data.last && typeof data.last === 'object' ? data.last : null
+    renderTod()
+  } else if (data.t === 'td-close') {
+    if (g.type !== 'tod' || !g.tod) return
+    todClose(false)
+    sysMsg('lawan menutup truth or dare')
   } else if (data.t === 'pk-open') {
     if (gameCtx.isRoom) return
     if (g.type === 'quiz' && g.quiz && !g.quiz.done) return
@@ -5407,6 +5711,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'siapa' && g.siapa) return
     clearQuizTimers()
     gameState = { type: 'poker', hostId: null, secret: 0, ttt: null, quiz: null, poker: newBtState(false) }
@@ -5449,6 +5754,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'poker' && g.poker) return
     clearQuizTimers()
     gameState = { type: 'siapa', hostId: null, secret: 0, ttt: null, quiz: null, siapa: newSiapaState(false) }
@@ -5484,6 +5790,7 @@ function onRoomGame(data, peerId) {
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) { try { sendGame({ t: 'ms-close' }) } catch (e) {} }
     if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
     clearQuizTimers()
     gameState = { type: 'war', hostId: null, secret: 0, ttt: null, quiz: null, war: newWarState(false) }
     warShow()
@@ -5555,7 +5862,9 @@ function onRoomGame(data, peerId) {
     if (g.type === 'ttt' && g.ttt && g.ttt.players.length && !g.ttt.over) return
     if (g.type === 'doodle' && g.doodle) return
     if (g.type === 'war' && g.war) return
+    if (g.type === 'tod' && g.tod) return
     if (g.type === 'poker' || g.type === 'siapa') return
+    if (g.type === 'tod' && g.tod) return
     clearQuizTimers()
     gameState = { type: 'quiz', hostId: peerId, secret: 0, ttt: null, quiz: newQuizState() }
     showGamePanel('KUIS 1001')
@@ -5635,6 +5944,7 @@ $('btn-screen').addEventListener('click', togglePairScreen)
 $('btn-room-screen').addEventListener('click', toggleRoomScreen)
 $('btn-quiz-chat').addEventListener('click', () => startQuizGame())
 $('btn-suit-chat').addEventListener('click', () => startSuitGame())
+$('btn-tod-chat').addEventListener('click', () => startTodGame())
 $('btn-doodle-chat').addEventListener('click', () => startDoodleGame())
 $('btn-icebreaker-chat').addEventListener('click', () => {
   if (state.mode !== 'chatting' || !state.chatMsg) { toast('Hubungkan dulu dengan lawan.', true, 2500); return }
@@ -5642,7 +5952,7 @@ $('btn-icebreaker-chat').addEventListener('click', () => {
   try { state.chatMsg.send({t, ts: Date.now()}, {target: state.partnerId}) } catch (e) {}
   addMsg('me', t, Date.now())
 })
-$('game-close-chat').addEventListener('click', () => { if (gameState.type === 'doodle' && gameState.doodle) doodleClose(true); if (gameState.type === 'war' && gameState.war) warClose(true); if (gameState.type === 'poker' && gameState.poker) pkClose(true); if (gameState.type === 'siapa' && gameState.siapa) shClose(true) })
+$('game-close-chat').addEventListener('click', () => { if (gameState.type === 'doodle' && gameState.doodle) doodleClose(true); if (gameState.type === 'war' && gameState.war) warClose(true); if (gameState.type === 'poker' && gameState.poker) pkClose(true); if (gameState.type === 'siapa' && gameState.siapa) shClose(true); if (gameState.type === 'tod' && gameState.tod) todClose(true) })
 $('btn-watch').addEventListener('click', () => { openWatchPanel(false); try { $('watch-url').focus() } catch (e) {} })
 $('btn-watch-play').addEventListener('click', () => watchNewLocal($('watch-url').value))
 $('btn-watch-close').addEventListener('click', () => watchClose(true))
@@ -5945,7 +6255,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v66' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v67' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
