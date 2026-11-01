@@ -51,6 +51,7 @@
 
 
 
+
 <!doctype html>
 <html lang="id">
 <head>
@@ -243,6 +244,7 @@ kbd{
 .pk-clues{margin:8px 0}
 .pk-clue{font-family:'VT323',monospace;font-size:18px;color:#fafafa;padding:2px 0}
 .sh-inp{flex:1;min-width:120px;background:#18181b;border:1px solid #52525b;color:#fafafa;font-family:'VT323',monospace;font-size:17px;padding:6px 8px;outline:none}
+.pk-hint{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center;margin:2px 0}
 .sh-img{display:block;margin:8px auto;max-width:170px;max-height:190px;border:1px solid #52525b}
 .sh-credit{font-family:'VT323',monospace;font-size:12px;color:#52525b;text-align:center}
 .doodle-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
@@ -3193,7 +3195,8 @@ function warDraw(W) {
 // ---------- BIG TWO: buang kartu ala tongkrongan (chat 1-on-1, /poker /bigtwo) ----------
 const PK_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 const PK_SUITS = ['\u2660', '\u2665', '\u2666', '\u2663']
-const BT_NAMES = ['SATU KARTU', 'PASANG', 'TRIPLE', 'STRAIGHT', 'FLUSH', 'FULL HOUSE', 'EMPAT SEKAWAN', 'STRAIGHT FLUSH']
+const BT_NAMES = ['SATU KARTU', 'PASANG', 'TRIPLE', 'STRAIGHT', 'FLUSH', 'FULL HOUSE', 'EMPAT SEKAWAN', 'STRAIGHT FLUSH', 'DUA PASANG']
+function btName(k) { return k && k[0] === 7 && k[1] === 11 ? 'ROYAL FLUSH' : BT_NAMES[k[0]] }
 
 function btBtr(c) { return (c % 13 + 12) % 13 }
 function btSp(c) { return 3 - ((c / 13) | 0) }
@@ -3214,6 +3217,12 @@ function btKey(cs) {
     if (cnt[keys[1]] === 4) return [6, keys[1]]
     if (cnt[keys[0]] === 3) return [5, keys[0]]
     if (cnt[keys[1]] === 3) return [5, keys[1]]
+    return null
+  }
+  if (keys.length === 3) {
+    const pr = keys.filter(k => cnt[k] === 2)
+    const kk = keys.filter(k => cnt[k] === 1)
+    if (pr.length === 2 && kk.length === 1) return [8, pr[0], pr[1], kk[0]]
     return null
   }
   if (keys.length !== 5) return null
@@ -3237,7 +3246,7 @@ function btBeats(prev, cur) {
     }
     return false
   }
-  if (btCnt(prev) === 5) return cur[0] > prev[0]
+  if (btCnt(prev) === 5) { const o = (c) => c === 8 ? -1 : c; return o(cur[0]) > o(prev[0]) }
   return false
 }
 
@@ -3270,12 +3279,12 @@ function btPlayHost(g, who, cards) {
   for (const c of cards) { if (hand.indexOf(c) < 0) return false }
   const k = btKey(cards)
   if (!k) { P.msg = who + ': kombinasi tidak valid — 1, 2, 3, atau 5 kartu yang bener'; btSyncHost(g); return false }
-  if (!btBeats(P.last ? P.last.k : null, k)) { P.msg = who + ': harus lebih tinggi dari ' + BT_NAMES[P.last.k[0]] + ' lawan'; btSyncHost(g); return false }
+  if (!btBeats(P.last ? P.last.k : null, k)) { P.msg = who + ': harus lebih tinggi dari ' + btName(P.last.k) + ' lawan'; btSyncHost(g); return false }
   const newHand = hand.filter(c => cards.indexOf(c) < 0)
   if (who === 'A') P.my = newHand; else P.opp = newHand
   P.last = { c: btSort(cards), k, who }
   P.turn = who === 'A' ? 'B' : 'A'
-  P.msg = who + ' main ' + BT_NAMES[k[0]]
+  P.msg = who + ' main ' + btName(k)
   if (newHand.length === 0) {
     P.over = true
     P.win = who
@@ -3339,6 +3348,7 @@ function btRender(g) {
   body.innerHTML = ''
   const mk = (cls, txt) => { const d = document.createElement('div'); d.className = cls; if (txt != null) d.textContent = txt; return d }
   body.appendChild(mk('pk-info', 'kartu kamu ' + P.my.length + ' · lawan ' + P.oppN + (P.over ? '  [SELESAI]' : '')))
+  body.appendChild(mk('pk-hint', '5 kartu: dua pasang < straight < flush < full house < empat sekawanan < straight flush (royal flush tertinggi)'))
   body.appendChild(mk('pk-msg', P.msg || 'menunggu...'))
   // kartu terakhir dimainkan
   if (P.last) {
@@ -3440,7 +3450,19 @@ const SIAPA_DECK = [
   { a: ['adele'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Adele_2016.jpg/330px-Adele_2016.jpg', c: ['penyanyi hits Hello', 'judul-judul albumnya angka usia', 'suara dalam yang penuh emosi'] },
   { a: ['billie eilish', 'billie'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/BillieEilishO2140725-39_-_54665577407_%28cropped%29.jpg/330px-BillieEilishO2140725-39_-_54665577407_%28cropped%29.jpg', c: ['penyanyi pop muda AS', 'album When We All Fall Asleep, Where Do We Go?', 'hits-nya Bad Guy'] },
   { a: ['indro', 'indro warkop'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Indro_Warkop.jpg/330px-Indro_Warkop.jpg', c: ['komedian legendaris Indonesia', 'anggota grup Warkop', 'trio legendaris Dono, Kasino, dan dia'] },
-  { a: ['elvis presley', 'elvis'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Elvis_Presley_promoting_Jailhouse_Rock.jpg/330px-Elvis_Presley_promoting_Jailhouse_Rock.jpg', c: ['raja rock and roll', 'kediamannya Graceland jadi tempat ziarah penggemar', 'hits-nya Hound Dog dan Jailhouse Rock'] }
+  { a: ['elvis presley', 'elvis'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Elvis_Presley_promoting_Jailhouse_Rock.jpg/330px-Elvis_Presley_promoting_Jailhouse_Rock.jpg', c: ['raja rock and roll', 'kediamannya Graceland jadi tempat ziarah penggemar', 'hits-nya Hound Dog dan Jailhouse Rock'] },
+  { a: ['song hye kyo'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Song_Hye_Kyo_2025_%EC%86%A1%ED%98%9C%EA%B5%90_04.jpg/330px-Song_Hye_Kyo_2025_%EC%86%A1%ED%98%9C%EA%B5%90_04.jpg', c: ['aktris drama Korea Winter Sonata', 'bintang Descendants of the Sun', 'salah satu ratu drama Korea'] },
+  { a: ['suzy', 'bae suzy'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Suzy_at_the_Longines_2026_new_product_presentation%2C_25_March_2026_04.png/330px-Suzy_at_the_Longines_2026_new_product_presentation%2C_25_March_2026_04.png', c: ['mantan anggota grup miss A', 'aktris film Architecture 101', 'dijuluki first love-nya bangsa Korea'] },
+  { a: ['jennie', 'jennie kim'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/20260526_Jennie_Kim_04.jpg/330px-20260526_Jennie_Kim_04.jpg', c: ['anggota BLACKPINK', 'lahir di Korea, besar di Selandia Baru', 'solo hits-nya berjudul Solo'] },
+  { a: ['jisoo', 'kim jisoo'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Jisoo_at_Boyfriend_on_Demand_press_conference_on_26022026_%2812%29.png/330px-Jisoo_at_Boyfriend_on_Demand_press_conference_on_26022026_%2812%29.png', c: ['anggota BLACKPINK', 'aktris drama Snowdrop', 'album solonya berjudul ME'] },
+  { a: ['scarlett johansson', 'scarlett'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Scarlett_Johansson-8588.jpg/330px-Scarlett_Johansson-8588.jpg', c: ['Black Widow di film Marvel', 'pernah jadi suara AI di film Her', 'aktris Hollywood berbayaran tertinggi di masanya'] },
+  { a: ['margot robbie', 'margot'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Margot_Robbie_Wuthering_Heights_premiere_%28cropped%29.jpg/330px-Margot_Robbie_Wuthering_Heights_premiere_%28cropped%29.jpg', c: ['memerankan Barbie di film 2023', 'juga Harley Quinn di film DC', 'aktris nominasi Oscar asal Australia'] },
+  { a: ['zendaya'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Zendaya-byPhilipRomano.jpg/330px-Zendaya-byPhilipRomano.jpg', c: ['pemeran Rue di seri Euphoria', 'main MJ di film Spider-Man', 'dua kali menang Emmy dari satu drama'] },
+  { a: ['anne hathaway', 'anne'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/AnneHathaway-byPhilipRomano-Crop.jpg/330px-AnneHathaway-byPhilipRomano-Crop.jpg', c: ['putri di The Princess Diaries', 'Catwoman di The Dark Knight Rises', 'menang Oscar lewat Les Miserables'] },
+  { a: ['emma stone'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emma_Stone_at_the_2025_Venice_Film_Festival-6313_%28cropped%29.jpg/330px-Emma_Stone_at_the_2025_Venice_Film_Festival-6313_%28cropped%29.jpg', c: ['bintang film La La Land', 'menang Oscar lewat Poor Things', 'juga main di Easy A dan Spider-Man'] },
+  { a: ['gal gadot'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Gal_Gadot_by_Gage_Skidmore_3.jpg/330px-Gal_Gadot_by_Gage_Skidmore_3.jpg', c: ['memerankan Wonder Woman', 'mantan Miss Israel', 'pernah wajib militer di Israel'] },
+  { a: ['emma watson'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Emma_Watson_2013.jpg/330px-Emma_Watson_2013.jpg', c: ['memerankan Hermione Granger', 'juga Belle di Beauty and the Beast', 'lulusan universitas Brown'] },
+  { a: ['jennifer lawrence', 'jlaw'], i: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Jennifer_Lawrence%2C_Cannes_Film_Festival_2025.jpg/330px-Jennifer_Lawrence%2C_Cannes_Film_Festival_2025.jpg', c: ['Katniss Everdeen di The Hunger Games', 'menang Oscar lewat Silver Linings Playbook', 'juga main Mystique di X-Men'] }
 ]
 
 function shNorm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, '') }
@@ -5450,7 +5472,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v59' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v60' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
