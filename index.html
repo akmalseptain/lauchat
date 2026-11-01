@@ -310,6 +310,17 @@ kbd{
 #watch-player iframe{width:100%;height:100%;display:block;border:0}
 #watch-row{display:flex;gap:8px;margin-top:8px}
 #watch-row input{flex:1;min-width:0}
+#music-panel{margin:0 0 12px}
+#music-cta{margin-top:8px}
+#music-player{aspect-ratio:16/9;width:100%;margin-top:8px;background:#000}
+#music-player iframe{width:100%;height:100%;display:block;border:0}
+#music-row{display:flex;gap:8px;margin-top:8px}
+#music-row input{flex:1;min-width:0}
+#music-queue{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.music-q{display:flex;align-items:center;gap:8px;font-family:var(--pix);font-size:15px;color:var(--muted)}
+.music-q b{font-weight:400;color:var(--fg)}
+.music-q button{margin-left:auto}
+#music-dj{font-family:var(--pix);font-size:15px;color:var(--muted);margin-top:6px}
 #voice-panel{margin:0 0 12px}
 #voice-list .vd{flex:1;color:var(--muted);font-size:14px;font-family:var(--pix);text-align:right}
 #voice-list{max-height:38vh;overflow-y:auto;scrollbar-width:thin}
@@ -701,6 +712,7 @@ footer b{color:var(--fg);font-weight:600}
     <button id="btn-game-guess" class="btn ghost sm" type="button">Tebak Angka</button>
     <button id="btn-game-ttt" class="btn ghost sm" type="button">Tic-tac-toe</button>
     <button id="btn-game-quiz" class="btn ghost sm" type="button">Kuis 1001</button>
+    <button id="btn-room-music" class="btn ghost sm" type="button">Musik</button>
   </div>
   <div id="game-panel" class="hidden">
     <div class="game-head">
@@ -709,6 +721,21 @@ footer b{color:var(--fg);font-weight:600}
     </div>
     <div id="game-body"></div>
     <div id="game-log"></div>
+  </div>
+  <div id="music-panel" class="hidden">
+    <div class="game-head">
+      <span class="st">MUSIK BARENG</span>
+      <button id="btn-music-close" class="tr-btn" type="button">tutup</button>
+    </div>
+    <div id="music-cta" class="hidden"><button id="btn-music-join" class="btn primary sm" type="button">klik untuk ikut dengar</button></div>
+    <div id="music-player"></div>
+    <div id="music-row">
+      <input id="music-url" placeholder="Tempel link YouTube lagunya" autocomplete="off" spellcheck="false" aria-label="Link lagu YouTube">
+      <button id="btn-music-add" class="btn ghost sm" type="button">Putar</button>
+      <button id="btn-music-qadd" class="btn ghost sm" type="button">Antri</button>
+    </div>
+    <div id="music-queue"></div>
+    <div id="music-dj"></div>
   </div>
   <div id="room-messages"></div>
   <form id="room-form">
@@ -2220,6 +2247,7 @@ function joinPrivateRoom(rawCode) {
   roomState.meta = room.makeAction('meta')
   roomState.gameAct = room.makeAction('game')
   roomState.imgAct = room.makeAction('img')
+  roomState.musicAct = room.makeAction('music')
 
   roomState.chat.onMessage = (data, {peerId}) => {
     if (data?.t) addRoomMsg('them', pidTag(peerId), String(data.t).slice(0, MAX_MSG_LEN))
@@ -2259,9 +2287,11 @@ function joinPrivateRoom(rawCode) {
     roomVideoRemove(pid)
     roomSys(nm + ' keluar.')
     onRoomGamePeerLeave(pid)
+    if (musicState.dj === pid) { musicState.dj = null; musicRenderDj() }
     updateRoomMembers()
   }
   roomState.gameAct.onMessage = (data, {peerId}) => onRoomGame(data || {}, peerId)
+  roomState.musicAct.onMessage = (data, {peerId}) => onMusicMsg(data || {}, peerId)
 
   showView('room')
   $('room-label').textContent = 'ROOM ' + code
@@ -2369,9 +2399,10 @@ function leaveRoom(showHome) {
   clearQuizTimers()
   gameState = { type: null, hostId: null, secret: 0, ttt: null, quiz: null }
   if (roomState.room) { try { roomState.room.leave() } catch (e) {} }
+  musicStop(false)
   if (roomState.screenStream) { roomState.screenStream.getTracks().forEach(t => t.stop()); roomState.screenStream = null }
   roomState.screen = false
-  roomState.room = null; roomState.chat = null; roomState.meta = null; roomState.gameAct = null; roomState.imgAct = null
+  roomState.room = null; roomState.chat = null; roomState.meta = null; roomState.gameAct = null; roomState.imgAct = null; roomState.musicAct = null
   roomState.code = ''
   roomState.peers = new Map()
   ;[...roomState.videos.keys()].forEach(roomVideoRemove)
@@ -4552,6 +4583,196 @@ function onWatchMsg(data, pid) {
 }
 
 
+// ---------- musik bareng (room privat, sinkron YouTube) ----------
+const musicState = { yt: null, vid: null, dj: null, playing: false, queue: [], hb: null, joined: false, applying: 0 }
+
+function musicSend(obj) {
+  try { if (roomState.musicAct) roomState.musicAct.send(obj) } catch (e) {}
+}
+
+function musicRenderDj() {
+  try {
+    const el = $('music-dj')
+    if (!el) return
+    el.textContent = musicState.dj
+      ? (musicState.dj === selfId ? 'kamu yang pegang kendali lagu' : 'kendali lagu: ' + pidTag(musicState.dj))
+      : ''
+  } catch (e) {}
+}
+
+function musicRenderQueue() {
+  try {
+    const el = $('music-queue')
+    el.innerHTML = ''
+    if (!musicState.queue.length) return
+    const head = document.createElement('div')
+    head.className = 'music-q'
+    head.innerHTML = '<b>antrean ' + musicState.queue.length + '</b>'
+    el.appendChild(head)
+    musicState.queue.forEach((vid, i) => {
+      const row = document.createElement('div')
+      row.className = 'music-q'
+      const b = document.createElement('b')
+      b.textContent = (i + 1) + '. youtu.be/' + vid
+      row.appendChild(b)
+      if (musicState.dj === selfId) {
+        const del = document.createElement('button')
+        del.type = 'button'
+        del.className = 'btn ghost sm'
+        del.textContent = 'hapus'
+        del.addEventListener('click', () => {
+          musicState.queue.splice(i, 1)
+          musicSend({t: 'm-queue', q: musicState.queue})
+          musicRenderQueue()
+        })
+        row.appendChild(del)
+      }
+      el.appendChild(row)
+    })
+  } catch (e) {}
+}
+
+function musicLoad(vid, pos, playing) {
+  const M = musicState
+  loadYTApi().then(() => {
+    musicDestroyPlayer()
+    M.vid = vid
+    M.joined = true
+    M.playing = playing !== false
+    $('music-player').innerHTML = ''
+    const holder = document.createElement('div')
+    holder.id = 'yt-holder-music'
+    $('music-player').appendChild(holder)
+    M.yt = new YT.Player('yt-holder-music', {
+      videoId: vid,
+      playerVars: {autoplay: 1, playsinline: 1, rel: 0, start: Math.floor(pos || 0)},
+      events: {
+        onReady: e => {
+          if (playing === false) { e.target.pauseVideo(); M.playing = false }
+          if (musicState.dj === selfId) musicHbStart()
+        },
+        onStateChange: e => {
+          if (M.applying > Date.now()) return
+          if (M.dj !== selfId) return
+          if (e.data === 1) musicSend({t: 'm-play', pos: e.target.getCurrentTime()})
+          else if (e.data === 2) musicSend({t: 'm-pause', pos: e.target.getCurrentTime()})
+          else if (e.data === 0) musicNextFromQueue()
+        },
+        onError: () => { if (M.dj === selfId) { roomSys('lagu tidak bisa diputar — dilewati'); musicNextFromQueue() } else toast('Lagu tidak bisa diputar (dibatasi pemiliknya).', true) }
+      }
+    })
+  }).catch(() => toast('Tidak bisa memuat player YouTube.', true))
+}
+
+function musicDestroyPlayer() {
+  const M = musicState
+  musicHbStop()
+  if (M.yt) { try { M.yt.destroy() } catch (e) {} M.yt = null }
+  try { $('music-player').innerHTML = '' } catch (e) {}
+  M.vid = null
+  M.joined = false
+  M.applying = 0
+}
+
+function musicStop(send) {
+  musicDestroyPlayer()
+  musicState.dj = null
+  musicState.queue = []
+  try { $('music-panel').classList.add('hidden') } catch (e) {}
+  if (send) { musicSend({t: 'm-close'}); roomSys('musik dihentikan') }
+  musicRenderDj(); musicRenderQueue()
+}
+
+function musicNextFromQueue() {
+  const M = musicState
+  if (M.dj !== selfId) return
+  const next = M.queue.shift()
+  if (next) {
+    musicSend({t: 'm-new', v: next, pos: 0, by: selfId})
+    musicSend({t: 'm-queue', q: M.queue})
+    musicLoad(next, 0, true)
+    roomSys('lagu berikutnya diputar')
+  } else {
+    musicSend({t: 'm-end'})
+    musicDestroyPlayer()
+    roomSys('antrean habis — musik selesai')
+  }
+  musicRenderQueue()
+}
+
+function musicAdd(url, toQueue) {
+  const vid = ytId(url)
+  if (!vid) { toast('Link YouTube tidak dikenali.', true); return }
+  const M = musicState
+  if (toQueue || (M.vid && M.dj)) {
+    M.queue.push(vid)
+    musicSend({t: 'm-queue', q: M.queue})
+    musicRenderQueue()
+    roomSys('lagu masuk antrean')
+    return
+  }
+  M.dj = selfId
+  M.queue = []
+  musicSend({t: 'm-new', v: vid, pos: 0, by: selfId})
+  musicSend({t: 'm-queue', q: M.queue})
+  musicLoad(vid, 0, true)
+  musicRenderDj(); musicRenderQueue()
+  roomSys('musik diputar — semua member bisa ikut dengar')
+}
+
+function musicApply(msg, pid) {
+  const M = musicState
+  if (msg.t === 'm-new') {
+    M.dj = msg.by || pid || null
+    M.queue = []
+    try { $('music-panel').classList.remove('hidden') } catch (e) {}
+    try { $('music-cta').classList.remove('hidden') } catch (e) {}
+    try { $('btn-music-join').textContent = M.vid ? 'ganti lagu — klik untuk ikut' : 'klik untuk ikut dengar' } catch (e) {}
+    M.vid = msg.v
+    musicRenderDj()
+  } else if (msg.t === 'm-play' || msg.t === 'm-pause') {
+    if (msg.by && M.dj && msg.by !== M.dj) return
+    if (!M.yt || !M.vid) return
+    M.applying = Date.now() + 900
+    try { M.yt.seekTo(msg.pos || 0, true); if (msg.t === 'm-play') M.yt.playVideo(); else M.yt.pauseVideo() } catch (e) {}
+    M.playing = msg.t === 'm-play'
+  } else if (msg.t === 'm-state') {
+    if (msg.dj && M.dj && msg.dj !== M.dj) return
+    if (M.dj) M.dj = msg.dj
+    if (msg.v !== M.vid) { M.vid = msg.v; return }
+    if (!M.yt) return
+    let drift = 99
+    try { drift = Math.abs(M.yt.getCurrentTime() - (msg.pos || 0)) } catch (e) {}
+    if (drift > 3) { M.applying = Date.now() + 900; try { M.yt.seekTo(msg.pos, true); if (msg.playing) M.yt.playVideo() } catch (e) {} }
+  } else if (msg.t === 'm-queue') {
+    M.queue = Array.isArray(msg.q) ? msg.q.filter(x => typeof x === 'string').slice(0, 20) : []
+    musicRenderQueue()
+  } else if (msg.t === 'm-end') {
+    if (M.yt) { musicDestroyPlayer(); roomSys('antrean habis — musik selesai') }
+  } else if (msg.t === 'm-close') {
+    if (M.yt || M.vid) { musicDestroyPlayer(); roomSys(pidTag(pid) + ' menghentikan musik') }
+  }
+}
+
+function musicHbStart() {
+  musicHbStop()
+  musicState.hb = setInterval(() => {
+    const M = musicState
+    if (M.dj !== selfId || !M.yt || !M.vid) return
+    let pos = 0, st = -1
+    try { pos = M.yt.getCurrentTime() || 0; st = M.yt.getPlayerState() } catch (e) { return }
+    musicSend({t: 'm-state', v: M.vid, pos, playing: st === 1, dj: selfId})
+  }, 5000)
+}
+function musicHbStop() { clearInterval(musicState.hb); musicState.hb = null }
+
+function onMusicMsg(data, pid) {
+  if (!data || !roomState.room) return
+  musicApply(data, pid)
+  if (data.t === 'm-new') roomSys(pidTag(data.by || pid) + ' memutar lagu — buka panel Musik untuk ikut dengar')
+}
+
+
 // ---------- ejak suara (voice changer persona) ----------
 const PITCH_WORKLET_SRC = `class PitchShiftProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() { return [{ name: 'st', defaultValue: 0, minValue: -12, maxValue: 12 }] }
@@ -5956,6 +6177,22 @@ $('game-close-chat').addEventListener('click', () => { if (gameState.type === 'd
 $('btn-watch').addEventListener('click', () => { openWatchPanel(false); try { $('watch-url').focus() } catch (e) {} })
 $('btn-watch-play').addEventListener('click', () => watchNewLocal($('watch-url').value))
 $('btn-watch-close').addEventListener('click', () => watchClose(true))
+$('btn-room-music').addEventListener('click', () => {
+  $('music-panel').classList.toggle('hidden')
+  const cta = $('music-cta')
+  if (!cta.classList.contains('hidden') && musicState.vid) $('btn-music-join').textContent = musicState.joined ? 'lagu berjalan' : 'klik untuk ikut dengar'
+})
+$('btn-music-close').addEventListener('click', () => { $('music-panel').classList.add('hidden') })
+$('btn-music-add').addEventListener('click', () => { musicAdd($('music-url').value, false); $('music-url').value = '' })
+$('btn-music-qadd').addEventListener('click', () => { musicAdd($('music-url').value, true); $('music-url').value = '' })
+$('btn-music-join').addEventListener('click', () => {
+  if (!musicState.vid) return
+  $('music-cta').classList.add('hidden')
+  let pos = 0, playing = true
+  if (musicState.yt) { try { pos = musicState.yt.getCurrentTime() || 0; playing = musicState.yt.getPlayerState() === 1 } catch (e) {} }
+  musicLoad(musicState.vid, pos, playing)
+})
+$('music-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); musicAdd($('music-url').value, false); $('music-url').value = '' } })
 $('btn-watch-join').addEventListener('click', () => {
   const s = watchState
   if (!s.vid) return
@@ -6255,7 +6492,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v67' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v68' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
