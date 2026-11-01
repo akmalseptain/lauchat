@@ -1735,7 +1735,13 @@ function netTune(room) {
 }
 
 // -- indikator koneksi (v74): ping RTT asli via getStats + status ICE, bar sinyal ala terminal --
-const netInfo = { timer: null, scopes: new Set(), last: { pair: '', room: '' } }
+const netInfo = { timer: null, scopes: new Set(), last: { pair: '', room: '' }, hooked: new WeakSet(), soon: null }
+
+// refresh instan saat status sambungan berubah — tanpa nunggu tick berikutnya
+function netPingSoon() {
+  clearTimeout(netInfo.soon)
+  netInfo.soon = setTimeout(netPoll, 150)
+}
 
 function netLevel(ms) {
   if (ms == null || ms < 0 || ms > 10000) return -1
@@ -1800,6 +1806,12 @@ async function netPoll() {
     const res = await Promise.allSettled(pids.map(function (pid) {
       const pc = peers[pid]
       if (!pc || !pc.getStats) return Promise.resolve(null)
+      try {
+        if (!netInfo.hooked.has(pc)) {
+          netInfo.hooked.add(pc)
+          pc.onconnectionstatechange = netPingSoon
+        }
+      } catch (e) {}
       return pc.getStats().then(function (rep) {
         return { rtt: netPickPair(rep), cs: pc.connectionState || pc.iceConnectionState }
       }).catch(function () { return null })
@@ -1819,8 +1831,9 @@ function netScope(scope, on) {
     const el = $(id)
     if (el) { el.innerHTML = ''; el.style.display = 'none' }
   }
-  if (netInfo.scopes.size && !netInfo.timer) { netInfo.timer = setInterval(netPoll, 4000); netPoll() }
+  if (netInfo.scopes.size && !netInfo.timer) { netInfo.timer = setInterval(netPoll, 1000); netPoll() }
   if (!netInfo.scopes.size && netInfo.timer) { clearInterval(netInfo.timer); netInfo.timer = null }
+  if (!netInfo.scopes.size) { clearTimeout(netInfo.soon); netInfo.soon = null }
 }
 
 function attachRemoteStream(stream) {
@@ -6887,7 +6900,7 @@ updateDeviceButtons()
 })()
 
 // ---------- service worker: halaman selalu versi terbaru, tanpa cache basi ----------
-const APP_BUILD = 'v74' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
+const APP_BUILD = 'v75' // ditambah tiap rilis — terlihat di footer buat cek versi dari screenshot
 try { $('app-build').textContent = APP_BUILD } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {})
